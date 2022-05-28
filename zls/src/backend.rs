@@ -9,7 +9,7 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use zc::inputs::Inputs;
+use zc::lex::Lexer;
 use zc::source::{Source, SourceId};
 
 use crate::db::{Change, Database};
@@ -77,9 +77,9 @@ impl Backend {
 
     async fn analyze(&self, id: SourceId) {
         let snapshot = self.database.get_snapshot();
-        let wc = snapshot.count_words(id);
+        let tokens = snapshot.lex(id);
         self.client
-            .log_message(MessageType::INFO, format!("wc: {wc}"))
+            .log_message(MessageType::INFO, format!("# tokens: {}", tokens.len()))
             .await;
     }
 }
@@ -142,6 +142,7 @@ impl LanguageServer for Backend {
         self.document_map.insert(id, rope);
 
         self.on_change(id, Some(&params.text_document.text));
+        self.analyze(id).await;
     }
 
     async fn did_delete_files(&self, params: DeleteFilesParams) {
@@ -175,6 +176,8 @@ impl LanguageServer for Backend {
         } else {
             self.on_change(id, None);
         }
+
+        self.analyze(id).await;
     }
 
     async fn did_rename_files(&self, params: RenameFilesParams) {

@@ -1,11 +1,11 @@
 use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 
-use super::{lex, Token};
+use super::{lex_src, Token};
 use crate::source::SourceId;
 
 fn test_lexer(src: &str, expected: &[Token]) {
-    let res: Vec<_> = lex(src, SourceId::new())
+    let res: Vec<_> = lex_src(src, SourceId::new())
         .into_iter()
         .map(|(tok, _)| tok)
         .collect();
@@ -21,26 +21,27 @@ fn lex_program() {
         --- still cool yeah?
         ---
         ---åops
-        main := fun () do
-            let x := 5 + 5
+        fun main()
+            let x = 5 + 5
         end
     "##;
 
     let expected = &[
         Token::DocComment("very cool\nstill cool yeah?\n\nåops".into()),
-        Token::Name("main".into()),
-        Token::Assign,
         Token::Fun,
+        Token::Name("main".into()),
         Token::LeftParen,
         Token::RightParen,
-        Token::Do,
+        Token::Newline,
         Token::Let,
         Token::Name("x".into()),
-        Token::Assign,
+        Token::Equal,
         Token::Integer(BigUint::from_u32(5).unwrap()),
         Token::Plus,
         Token::Integer(BigUint::from_u32(5).unwrap()),
+        Token::Newline,
         Token::End,
+        Token::Newline,
     ];
 
     test_lexer(src, expected);

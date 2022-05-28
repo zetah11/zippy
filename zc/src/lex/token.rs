@@ -17,6 +17,10 @@ pub enum Token {
     #[token("continue")]
     Continue,
 
+    /// `return`
+    #[token("return")]
+    Return,
+
     /// `do`
     #[token("do")]
     Do,
@@ -65,14 +69,6 @@ pub enum Token {
     #[token("as")]
     As,
 
-    /// `hiding`
-    #[token("hiding")]
-    Hiding,
-
-    /// `import`
-    #[token("import")]
-    Import,
-
     /// `module`
     #[token("module")]
     Modulue,
@@ -81,25 +77,17 @@ pub enum Token {
     #[token("package")]
     Package,
 
-    /// `pub`
-    #[token("pub")]
-    Pub,
-
     /// `alias`
     #[token("alias")]
     Alias,
 
-    /// `class`
-    #[token("class")]
-    Class,
-
-    /// `deriving`
-    #[token("deriving")]
-    Deriving,
-
     /// `does`
     #[token("does")]
     Does,
+
+    /// `returns`
+    #[token("returns")]
+    Returns,
 
     /// `eff`
     #[token("eff")]
@@ -108,10 +96,6 @@ pub enum Token {
     /// `fun`
     #[token("fun")]
     Fun,
-
-    /// `impl`
-    #[token("impl")]
-    Impl,
 
     /// `let`
     #[token("let")]
@@ -124,10 +108,6 @@ pub enum Token {
     /// `type`
     #[token("type")]
     Type,
-
-    /// `trait`
-    #[token("trait")]
-    Trait,
 
     /// `val`
     #[token("val")]
@@ -338,10 +318,14 @@ pub enum Token {
     #[regex(r"---[^\n\r]*(\r\n|\n|\r)?", parse_doc_comment)]
     DocComment(String),
 
+    /// One or more lineshifts. May be merged with a doccomment.
+    #[regex(r"[\r\n]+")]
+    #[regex(r"--[^\n\r]*(\r\n|\n|\r)?")]
+    Newline,
+
     /// Some invalid or unexpected token.
     #[error]
-    #[regex(r"[ \t\n\r\f]+", logos::skip)]
-    #[regex(r"--[^\n\r]*(\r\n|\n|\r)?", logos::skip)]
+    #[regex(r"[ \t\f]+", logos::skip)]
     #[regex(r"-\+.*\+-", logos::skip)]
     Error,
 }

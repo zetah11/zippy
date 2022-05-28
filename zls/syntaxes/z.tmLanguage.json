@@ -80,15 +80,15 @@
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(alias|class|deriving|does|eff|fun|impl|let|set|type|trait|val|var|where)\\b"
+                    "match": "\\b(alias|does|eff|fun|let|set|type|val|var|where)\\b"
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(as|hiding|import|module|package|pub)\\b"
+                    "match": "\\b(as|module|package)\\b"
                 },
                 {
                     "name": "keyword.control",
-                    "match": "\\b(break|continue|do|end|if|else|for|in|loop|repeat|use|when|with)\\b"
+                    "match": "\\b(break|continue|do|end|if|else|for|in|loop|repeat|return|use|when|with)\\b"
                 }
             ]
         },

@@ -15,12 +15,4 @@ pub trait Inputs {
     /// Get the source metadata for the source id.
     #[salsa::input]
     fn source(&self, id: SourceId) -> Source;
-
-    /// Count the number of words for the document with the given uri.
-    fn count_words(&self, id: SourceId) -> usize;
-}
-
-fn count_words(db: &dyn Inputs, uri: SourceId) -> usize {
-    let text = db.input_file(uri);
-    text.split_ascii_whitespace().count()
 }
