@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "extensionHost",
+            "request": "launch",
+            "name": "Launch Client",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/client/out/**/*.js"
+            ],
+            "preLaunchTask": {
+                "type": "npm",
+                "script": "build"
+            },
+            "env": {
+                "SERVER_PATH": "${workspaceFolder}/../target/debug/zls"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Client + Server",
+            "configurations": [
+                "Launch Client"
+            ]
+        }
+    ]
+}

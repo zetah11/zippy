@@ -1,0 +1,17 @@
+{
+    "name": "zls-client",
+    "description": "VSCode part of a language server",
+    "license": "MIT",
+    "version": "0.1.0",
+    "engines": {
+        "vscode": "^1.66.0"
+    },
+    "dependencies": {
+        "vscode-languageclient": "8.0.0-next.12"
+    },
+    "devDependencies": {
+        "@types/node": "^17.0.18",
+        "@vscode/test-electron": "^2.1.3",
+        "@types/vscode": "~1.66.0"
+    }
+}

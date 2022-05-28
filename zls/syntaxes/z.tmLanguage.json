@@ -1,0 +1,124 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "scopeName": "source.z",
+    "patterns": [
+        {
+            "include": "#comment"
+        },
+        {
+            "include": "#keyword"
+        },
+        {
+            "include": "#operators"
+        },
+        {
+            "include": "#punctuation"
+        },
+        {
+            "include": "#literal"
+        }
+    ],
+    "repository": {
+        "comment": {
+            "patterns": [
+                {
+                    "name": "comment.block",
+                    "begin": "-\\+",
+                    "end": "\\+-"
+                },
+                {
+                    "name": "comment.block.documentation",
+                    "match": "---.*"
+                },
+                {
+                    "name": "comment.line.double-dash",
+                    "match": "--.*"
+                }
+            ]
+        },
+        "literal": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.hex",
+                    "match": "0x[0-9a-fA-F][0-9a-fA-F_]*"
+                },
+                {
+                    "name": "constant.numeric.bin",
+                    "match": "0b[01][01_]*"
+                },
+                {
+                    "name": "constant.numeric",
+                    "match": "[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+\\-]?[0-9][0-9_]*)?"
+                },
+                {
+                    "name": "string.quoted.double",
+                    "match": "\"(?:[^\"\\\\]|\\\\.)*\""
+                },
+                {
+                    "name": "string.quoted.single",
+                    "match": "'(?:[^'\\\\]|\\\\.)*'"
+                },
+                {
+                    "name": "string.regexp",
+                    "match": "\\br/(?:[^/\\\\]|\\\\.)*/"
+                },
+                {
+                    "name": "variable.other",
+                    "match": "[a-zA-Z][a-zA-Z0-9_!?]*"
+                }
+            ]
+        },
+        "keyword": {
+            "patterns": [
+                {
+                    "name": "keyword.other",
+                    "match": "\\b(and(?:\\s+then)?|or(?:\\s+else)|xor|not)\\b"
+                },
+                {
+                    "name": "keyword.other",
+                    "match": "\\b(all|any|bits|digits|mod|thru|upto)\\b"
+                },
+                {
+                    "name": "keyword.other",
+                    "match": "\\b(alias|class|deriving|does|eff|fun|impl|let|set|type|trait|val|var|where)\\b"
+                },
+                {
+                    "name": "keyword.other",
+                    "match": "\\b(as|hiding|import|module|package|pub)\\b"
+                },
+                {
+                    "name": "keyword.control",
+                    "match": "\\b(break|continue|do|end|if|else|for|in|loop|repeat|use|when|with)\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.decl",
+                    "match": ":=|::"
+                },
+                {
+                    "name": "keyword.operator",
+                    "match": "[+\\-\\*/!?@#&\\.=<>]+"
+                }
+            ]
+        },
+        "punctuation": {
+            "patterns": [
+                {
+                    "name": "punctuation.brackets.round",
+                    "match": "[()]"
+                },
+                {
+                    "name": "punctuation.brackets.square",
+                    "match": "[\\[\\]]"
+                },
+                {
+                    "name": "punctuation.brackets.curly",
+                    "match": "[{}]"
+                }
+            ]
+        }
+    }
+}

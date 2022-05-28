@@ -1,0 +1,59 @@
+{
+    "name": "zls",
+    "description": "z language server",
+    "license": "MIT",
+    "version": "0.1.0",
+    "engines": {
+        "vscode": "^1.66.0"
+    },
+    "main": "./client/out/extension.js",
+    "activationEvents": [
+        "onLanguage:z"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "z",
+                "extensions": [
+                    ".z",
+                    ".zs",
+                    ".zd"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "z",
+                "scopeName": "source.z",
+                "path": "./syntaxes/z.tmLanguage.json"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "z language server",
+            "properties": {
+                "zls.trace.server": {
+                    "type": "string",
+                    "scope": "window",
+                    "enum": [
+                        "off",
+                        "messages",
+                        "verbose"
+                    ],
+                    "enumDescriptions": [
+                        "No traces",
+                        "Errors only",
+                        "Full log"
+                    ],
+                    "default": "off",
+                    "description": "Traces the communication between VS Code and the language server"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "postinstall": "cd client && pnpm i",
+        "build": "cargo build && tsc -b"
+    }
+}

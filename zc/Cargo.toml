@@ -1,0 +1,13 @@
+[package]
+name = "zc"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bimap = "0.6"
+logos = "0.12"
+num-bigint = "0.4"
+num-traits = "0.2"
+salsa = "0.16.1"

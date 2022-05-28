@@ -1,0 +1,20 @@
+[package]
+name = "zls"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossbeam = "0.8"
+dashmap = "5.3.3"
+env_logger = "0.9.0"
+lazy_static = "1.4.0"
+log = "0.4.17"
+regex = "1.5.5"
+ropey = "1.4.1"
+salsa = "0.16.1"
+tokio = { version = "1.18.1", features = ["full"] }
+tower-lsp = "0.17"
+
+zc = { path = "../zc" }
