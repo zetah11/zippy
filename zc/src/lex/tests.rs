@@ -32,16 +32,29 @@ fn lex_program() {
         Token::Name("main".into()),
         Token::LeftParen,
         Token::RightParen,
-        Token::Newline,
         Token::Let,
         Token::Name("x".into()),
         Token::Equal,
         Token::Integer(BigUint::from_u32(5).unwrap()),
         Token::Plus,
         Token::Integer(BigUint::from_u32(5).unwrap()),
-        Token::Newline,
         Token::End,
-        Token::Newline,
+    ];
+
+    test_lexer(src, expected);
+}
+
+#[test]
+fn lex_literals() {
+    let src = r##"
+        r/.* ok\// 5 "hello!" 'hello!'
+    "##;
+
+    let expected = &[
+        Token::Regex(".* ok/".into()),
+        Token::Integer(BigUint::from_u32(5).unwrap()),
+        Token::String("hello!".into()),
+        Token::String("hello!".into()),
     ];
 
     test_lexer(src, expected);

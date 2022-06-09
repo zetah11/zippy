@@ -1,0 +1,305 @@
+use std::convert::Infallible;
+
+use lalrpop_util::ErrorRecovery;
+use num_bigint::BigUint;
+
+use crate::lex::Token;
+use super::ast::{Block, Decl, DeclNode, Expr, Op, Stmt};
+use super::span::{Spanned, Span};
+
+grammar<'a>(errors: &'a mut Vec<ErrorRecovery<usize, Token, Infallible>>);
+
+extern {
+    type Location = usize;
+    type Error = Infallible;
+
+    enum Token {
+        "and" => Token::And,
+        "do" => Token::Do,
+        "else" => Token::Else,
+        "end" => Token::End,
+        "false" => Token::False,
+        "fun" => Token::Fun,
+        "if" => Token::If,
+        "let" => Token::Let,
+        "mod" => Token::Mod,
+        "module" => Token::Module,
+        "not" => Token::Not,
+        "or" => Token::Or,
+        "return" => Token::Return,
+        "then" => Token::Then,
+        "thru" => Token::Thru,
+        "true" => Token::True,
+        "type" => Token::Type,
+        "upto" => Token::Upto,
+        "var" => Token::Var,
+        "where" => Token::Where,
+        "xor" => Token::Xor,
+
+        "."  => Token::Dot,
+        ","  => Token::Comma,
+        ";"  => Token::Semicolon,
+        ":"  => Token::Colon,
+        "?"  => Token::Question,
+        "+"  => Token::Plus,
+        "-"  => Token::Minus,
+        "*"  => Token::Star,
+        "**" => Token::DoubleStar,
+        "/"  => Token::Slash,
+        "="  => Token::Equal,
+        "/=" => Token::SlashEqual,
+        "<"  => Token::Less,
+        "<=" => Token::LessEqual,
+        ">"  => Token::Greater,
+        ">=" => Token::GreaterEqual,
+
+        "(" => Token::LeftParen,
+        ")" => Token::RightParen,
+        "[" => Token::LeftBracket,
+        "]" => Token::RightBracket,
+        "{" => Token::LeftBrace,
+        "}" => Token::RightBrace,
+
+        "regex lit"  => Token::Regex(<String>),
+        "string lit" => Token::String(<String>),
+        "int lit"    => Token::Integer(<BigUint>),
+        "dec lit"    => Token::Decimal(<String>),
+
+        "name" => Token::Name(<String>),
+        "doc"  => Token::DocComment(<String>),
+    }
+}
+
+// Utility rules ------------------------------------------------------------ //
+
+CommaSep: () = {
+    "," => (),
+};
+
+ItemSep: () = {
+    ";" => (),
+};
+
+Comma<Rule>: Vec<Rule> =
+    <mut rules: (<Rule> CommaSep)*> <last: Rule?> => {
+        rules.extend(last);
+        rules
+    };
+
+Param: (Spanned<String>, Spanned<Expr>) =
+    <name: Sp<"name">> ":" <anno: Sp<RangeExpr>> =>
+        (name, anno);
+
+Sep<Rule>: Vec<Rule> =
+    <rules: Rule*> => rules;
+
+Sp<Rule>: Spanned<Rule> =
+    <l: @L> <d: Rule> <r: @R> =>
+        (d, Span::new(l, r));
+
+Tier<Op, Next>: Expr = {
+    Next,
+    <x: Sp<Tier<Op, Next>>> <l: @L> <op: Op> <r: @R> <y: Sp<Next>> =>
+        Expr::Binary(
+            (op, Span { start: l, end: r }),
+            Box::new(x),
+            Box::new(y)
+        ),
+};
+
+// Declarations ------------------------------------------------------------- //
+
+pub DeclList = Sep<Decl>;
+
+Decl: Decl =
+    <doc: "doc"?> <node: DeclNode> =>
+        Decl { node, doc };
+
+DeclNode = {
+    ConstDecl,
+    FunDecl,
+    ModuleDecl,
+    TypeDecl,
+    <!> => {
+        errors.push(<>);
+        DeclNode::Invalid
+    }
+};
+
+ConstDecl: DeclNode =
+    "let" <name: Sp<"name">> ":" <anno: Sp<RangeExpr>> "=" <body: Sp<Expr>> =>
+        DeclNode::Constant { name, anno, body };
+
+FunDecl: DeclNode =
+    "fun" <name: Sp<"name">>
+    <l: @L> "(" <args: Comma<Param>> ")" ":" <rett: Sp<RangeExpr>> <r: @R>
+    <body: Sp<Block>> "end" =>
+        DeclNode::Function {
+            name,
+            args,
+            rett,
+            body,
+            type_span: Span { start: l, end: r },
+        };
+
+ModuleDecl: DeclNode =
+    "module" <n: Sp<"name">> <d: DeclList> "end" =>
+        DeclNode::Module(n, d);
+
+TypeDecl: DeclNode =
+    "type" <n: Sp<"name">> "=" <e: Sp<RangeExpr>> =>
+        DeclNode::Type(n, e);
+
+// Block -------------------------------------------------------------------- //
+
+Block: Block = {
+    StmtList => Block { stmts: <>, decls: vec![] },
+    <stmts: StmtList> "where" <decls: DeclList> =>
+        Block {
+            stmts,
+            decls,
+        }
+};
+
+// Statements --------------------------------------------------------------- //
+
+StmtList = Sep<Sp<Stmt>>;
+
+Stmt = {
+    BlockStmt,
+    ExprStmt,
+    IfStmt,
+    ReturnStmt,
+    <!> => {
+        errors.push(<>);
+        Stmt::Invalid
+    }
+};
+
+BlockStmt: Stmt =
+    "then" <b: Block> "end" =>
+        Stmt::Block(b);
+
+ExprStmt: Stmt =
+    "do" <e: Sp<Expr>> => Stmt::Expr(e);
+
+// if true return 5 end
+IfStmt: Stmt = {
+    "if" <c: Sp<Expr>> <t: Block> "end" =>
+        Stmt::If(c, t, None),
+
+    "if" <c: Sp<Expr>> <t: Block> "else" <e: Block> "end" =>
+        Stmt::If(c, t, Some(e)),
+};
+
+// return x
+ReturnStmt: Stmt =
+    "return" <e: Sp<Expr>> =>
+        Stmt::Return(e);
+
+// Expressions -------------------------------------------------------------- //
+
+Expr: Expr = {
+    LogExpr
+};
+
+LogExpr = Tier<LogOp, CmpExpr>;
+LogOp: Op = {
+    "and"       => Op::And,
+    "and" "do"  => Op::AndDo,
+    "or"        => Op::Or,
+    "or" "else" => Op::OrElse,
+    "xor"       => Op::Xor,
+};
+
+CmpExpr = Tier<CmpOp, RangeExpr>;
+CmpOp: Op = {
+    "="  => Op::Equal,
+    "/=" => Op::NotEqual,
+    "<"  => Op::Less,
+    "<=" => Op::LessEqual,
+    ">"  => Op::Greater,
+    ">=" => Op::GreaterEqual,
+};
+
+RangeExpr = Tier<RangeOp, AddExpr>;
+RangeOp: Op = {
+    "thru" => Op::Thru,
+    "upto" => Op::Upto,
+};
+
+AddExpr = Tier<AddOp, MulExpr>;
+AddOp: Op = {
+    "+" => Op::Add,
+    "-" => Op::Subtract,
+};
+
+MulExpr = Tier<MulOp, UniExpr>;
+MulOp: Op = {
+    "*"   => Op::Multiply,
+    "/"   => Op::Divide,
+    "mod" => Op::Mod,
+};
+
+UniExpr: Expr = {
+    ExpExpr,
+    <l: @L> "-" <r: @R> <e: Sp<UniExpr>> =>
+        Expr::Unary(
+            (Op::Negate, Span { start: l, end: r }),
+            Box::new(e)
+        ),
+    <l: @L> "not" <r: @R> <e: Sp<UniExpr>> =>
+        Expr::Unary(
+            (Op::Not, Span { start: l, end: r }),
+            Box::new(e)
+        ),
+};
+
+ExpExpr: Expr = {
+    CallExpr,
+    <x: Sp<CallExpr>> <l: @L> "**" <r: @R> <y: Sp<ExpExpr>> =>
+        Expr::Binary(
+            (Op::Exponent, Span { start: l, end: r }),
+            Box::new(x),
+            Box::new(y)
+        ),
+};
+
+CallExpr: Expr = {
+    BaseExpr,
+
+    // f(x, y)
+    <f: Sp<CallExpr>> "(" <a: Comma<Sp<Expr>>> ")" =>
+        Expr::Call(Box::new(f), a),
+
+    // x().f(y, z) = f(x(), y, z)
+    <a: Sp<CallExpr>> "." <f: Sp<BaseExpr>> => {
+        match f {
+            (Expr::Call(func, mut args), _) => {
+                args.insert(0, a);
+                Expr::Call(func, args)
+            }
+            other => Expr::Call(Box::new(other), vec![a]),
+        }
+    },
+};
+
+BaseExpr: Expr = {
+    "(" <e: Expr> ")" => e,
+
+    "true"  => Expr::Bool(true),
+    "false" => Expr::Bool(false),
+
+    <"dec lit"> => Expr::Decimal(<>),
+    <"int lit"> => Expr::Integer(<>),
+
+    <"regex lit"> => Expr::Regex(<>),
+    <"string lit"> => Expr::String(<>),
+
+    <"name"> => Expr::Name(<>),
+
+    <!> => {
+        errors.push(<>);
+        Expr::Invalid
+    }
+};

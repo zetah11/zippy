@@ -8,6 +8,7 @@
 pub mod inputs;
 pub mod lang;
 pub mod lex;
+pub mod message;
 pub mod name;
 pub mod parse;
 pub mod source;
@@ -16,10 +17,11 @@ use salsa::{Database, ParallelDatabase, Snapshot};
 
 use inputs::InputsStorage;
 use lex::LexerStorage;
+use parse::ParserStorage;
 
 /// The main database for the compiler.
 #[allow(missing_debug_implementations)]
-#[salsa::database(InputsStorage, LexerStorage)]
+#[salsa::database(InputsStorage, LexerStorage, ParserStorage)]
 #[derive(Default)]
 pub struct ZcDatabase {
     storage: salsa::Storage<Self>,

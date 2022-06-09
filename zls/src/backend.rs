@@ -9,11 +9,12 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
-use zc::lex::Lexer;
+use zc::parse::Parser;
 use zc::source::{Source, SourceId};
 
 use crate::db::{Change, Database};
 use crate::file::{uri_to_language, FilenameMap};
+use crate::message::to_diagnostic;
 
 /// The backend responds to LSP requests.
 #[derive(Debug)]
@@ -75,12 +76,18 @@ impl Backend {
         });
     }
 
-    async fn analyze(&self, id: SourceId) {
+    async fn analyze(&self, id: SourceId, uri: Url, version: Option<i32>) {
         let snapshot = self.database.get_snapshot();
-        let tokens = snapshot.lex(id);
-        self.client
-            .log_message(MessageType::INFO, format!("# tokens: {}", tokens.len()))
-            .await;
+        let errs = snapshot.parse_errs(id);
+
+        if let Some(rope) = self.document_map.get(&id) {
+            let rope = &rope;
+            let diags = errs
+                .iter()
+                .filter_map(|msg| to_diagnostic(msg, rope))
+                .collect();
+            self.client.publish_diagnostics(uri, diags, version).await;
+        };
     }
 }
 
@@ -142,7 +149,7 @@ impl LanguageServer for Backend {
         self.document_map.insert(id, rope);
 
         self.on_change(id, Some(&params.text_document.text));
-        self.analyze(id).await;
+        self.analyze(id, params.text_document.uri, None).await;
     }
 
     async fn did_delete_files(&self, params: DeleteFilesParams) {
@@ -177,7 +184,7 @@ impl LanguageServer for Backend {
             self.on_change(id, None);
         }
 
-        self.analyze(id).await;
+        self.analyze(id, params.text_document.uri, None).await;
     }
 
     async fn did_rename_files(&self, params: RenameFilesParams) {
@@ -214,7 +221,12 @@ impl LanguageServer for Backend {
         }
 
         self.on_change(id, None);
-        self.analyze(id).await;
+        self.analyze(
+            id,
+            params.text_document.uri,
+            Some(params.text_document.version),
+        )
+        .await;
     }
 }
 

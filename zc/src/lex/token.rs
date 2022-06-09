@@ -1,157 +1,56 @@
+use std::fmt;
+
 use logos::Logos;
 use num_bigint::BigUint;
 
 use super::comment::parse_doc_comment;
 use super::number::{parse_int_bin, parse_int_dec, parse_int_hex};
-use super::string::parse_string;
+use super::string::{parse_regex, parse_string};
 
 /// A token is a small, semantically meaningful chunk of characters that represents some part of
 /// the source code.
-#[derive(Logos, Debug, Eq, PartialEq)]
+#[derive(Logos, Clone, Debug, Eq, PartialEq)]
 pub enum Token {
-    /// `break`
-    #[token("break")]
-    Break,
-
-    /// `continue`
-    #[token("continue")]
-    Continue,
-
-    /// `return`
-    #[token("return")]
-    Return,
+    // Keywords
+    /// `and`
+    #[token("and")]
+    And,
 
     /// `do`
     #[token("do")]
     Do,
 
-    /// `end`
-    #[token("end")]
-    End,
-
-    /// `if`
-    #[token("if")]
-    If,
-
     /// `else`
     #[token("else")]
     Else,
 
-    /// `for`
-    #[token("for")]
-    For,
+    /// `end`
+    #[token("end")]
+    End,
 
-    /// `in`
-    #[token("in")]
-    In,
-
-    /// `loop`
-    #[token("loop")]
-    Loop,
-
-    /// `repeat`
-    #[token("repeat")]
-    Repeat,
-
-    /// `use`
-    #[token("use")]
-    Use,
-
-    /// `when`
-    #[token("when")]
-    When,
-
-    /// `with`
-    #[token("with")]
-    With,
-
-    /// `as`
-    #[token("as")]
-    As,
-
-    /// `module`
-    #[token("module")]
-    Modulue,
-
-    /// `package`
-    #[token("package")]
-    Package,
-
-    /// `alias`
-    #[token("alias")]
-    Alias,
-
-    /// `does`
-    #[token("does")]
-    Does,
-
-    /// `returns`
-    #[token("returns")]
-    Returns,
-
-    /// `eff`
-    #[token("eff")]
-    Eff,
+    /// `false`
+    #[token("false")]
+    False,
 
     /// `fun`
     #[token("fun")]
     Fun,
 
+    /// `if`
+    #[token("if")]
+    If,
+
     /// `let`
     #[token("let")]
     Let,
-
-    /// `set`
-    #[token("set")]
-    Set,
-
-    /// `type`
-    #[token("type")]
-    Type,
-
-    /// `val`
-    #[token("val")]
-    Val,
-
-    /// `var`
-    #[token("var")]
-    Var,
-
-    /// `where`
-    #[token("where")]
-    Where,
-
-    /// `all`
-    #[token("all")]
-    All,
-
-    /// `any`
-    #[token("any")]
-    Any,
-
-    /// `bits`
-    #[token("bits")]
-    Bits,
-
-    /// `digits`
-    #[token("digits")]
-    Digits,
 
     /// `mod`
     #[token("mod")]
     Mod,
 
-    /// `thru`
-    #[token("thru")]
-    Thru,
-
-    /// `upto`
-    #[token("upto")]
-    Upto,
-
-    /// `and`
-    #[token("and")]
-    And,
+    /// `module`
+    #[token("module")]
+    Module,
 
     /// `not`
     #[token("not")]
@@ -161,57 +60,63 @@ pub enum Token {
     #[token("or")]
     Or,
 
+    /// `return`
+    #[token("return")]
+    Return,
+
+    /// `thru`
+    #[token("then")]
+    Then,
+
+    /// `thru`
+    #[token("thru")]
+    Thru,
+
+    /// `true`
+    #[token("true")]
+    True,
+
+    /// `type`
+    #[token("type")]
+    Type,
+
+    /// `upto`
+    #[token("upto")]
+    Upto,
+
+    /// `var`
+    #[token("var")]
+    Var,
+
+    /// `where`
+    #[token("where")]
+    Where,
+
     /// `xor`
     #[token("xor")]
     Xor,
 
+    // Punctuation
     /// `.`
     #[token(".")]
     Dot,
-
-    /// `..`
-    #[token("..")]
-    DotDot,
 
     /// `,`
     #[token(",")]
     Comma,
 
-    /// `:`
-    #[token(":")]
-    Colon,
-
     /// `;`
     #[token(";")]
     Semicolon,
 
-    /// `|`
-    #[token("|")]
-    Pipe,
-
-    /// `&`
-    #[token("&")]
-    Ampersand,
+    // Operators
+    /// `:`
+    #[token(":")]
+    Colon,
 
     /// `?`
     #[token("?")]
     Question,
-
-    /// `???`
-    #[token("???")]
-    TripleQuestion,
-
-    /// `!`
-    #[token("!")]
-    Bang,
-
-    /// `#`
-    #[token("#")]
-    Hash,
-
-    /// `@`
-    #[token("@")]
-    At,
 
     /// `+`
     #[token("+")]
@@ -225,13 +130,13 @@ pub enum Token {
     #[token("*")]
     Star,
 
-    /// `/`
-    #[token("/")]
-    Slash,
-
     /// `**`
     #[token("**")]
     DoubleStar,
+
+    /// `/`
+    #[token("/")]
+    Slash,
 
     /// `=`
     #[token("=")]
@@ -257,14 +162,7 @@ pub enum Token {
     #[token(">=")]
     GreaterEqual,
 
-    /// Assignment `:=`
-    #[token(":=")]
-    Assign,
-
-    /// Type declaration `::`
-    #[token("::")]
-    Declare,
-
+    // Grouping
     /// `(`
     #[token("(")]
     LeftParen,
@@ -289,14 +187,15 @@ pub enum Token {
     #[token("}")]
     RightBrace,
 
+    // Literals
     /// Some regex literal like `r/.*/`
-    #[regex(r"r/([^\n\r/\\]|\\[^\n\r])/", parse_string)]
+    #[regex(r"r/([^\n\r/\\]|\\[^\n\r])*/", parse_regex)]
     Regex(String),
 
     /// Some string literal like `"abc\"ok\"!\n"` or `'hello!'`
     #[regex(r#""([^\n\r"\\]|\\[^\n\r])*""#, parse_string)]
     #[regex(r"'([^\n\r'\\]|\\[^\n\r])*'", parse_string)]
-    Text(String),
+    String(String),
 
     /// Some integer literal, like `0x123` or `0b11_011`
     #[regex(r"[0-9][0-9_]*", parse_int_dec)]
@@ -318,14 +217,72 @@ pub enum Token {
     #[regex(r"---[^\n\r]*(\r\n|\n|\r)?", parse_doc_comment)]
     DocComment(String),
 
-    /// One or more lineshifts. May be merged with a doccomment.
-    #[regex(r"[\r\n]+")]
-    #[regex(r"--[^\n\r]*(\r\n|\n|\r)?")]
-    Newline,
-
     /// Some invalid or unexpected token.
     #[error]
-    #[regex(r"[ \t\f]+", logos::skip)]
+    #[regex(r"[ \t\f\r\n]+", logos::skip)]
     #[regex(r"-\+.*\+-", logos::skip)]
+    #[regex(r"--[^\n\r]*(\r\n|\n|\r)?", logos::skip)]
     Error,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let tok = match self {
+            Token::And => "and",
+            Token::Do => "do",
+            Token::Else => "else",
+            Token::End => "end",
+            Token::False => "false",
+            Token::Fun => "fun",
+            Token::If => "if",
+            Token::Let => "let",
+            Token::Mod => "mod",
+            Token::Module => "module",
+            Token::Not => "not",
+            Token::Or => "or",
+            Token::Return => "return",
+            Token::Then => "then",
+            Token::Thru => "thru",
+            Token::True => "true",
+            Token::Type => "type",
+            Token::Upto => "upto",
+            Token::Var => "var",
+            Token::Where => "where",
+            Token::Xor => "xor",
+
+            Token::Dot => ".",
+            Token::Comma => ",",
+            Token::Semicolon => ";",
+            Token::Colon => ":",
+            Token::Question => "?",
+            Token::Plus => "+",
+            Token::Minus => "-",
+            Token::Star => "*",
+            Token::DoubleStar => "**",
+            Token::Slash => "/",
+            Token::Equal => "=",
+            Token::SlashEqual => "/=",
+            Token::Less => "<",
+            Token::LessEqual => "<=",
+            Token::Greater => ">",
+            Token::GreaterEqual => ">=",
+
+            Token::LeftParen => "(",
+            Token::RightParen => ")",
+            Token::LeftBracket => "[",
+            Token::RightBracket => "]",
+            Token::LeftBrace => "{",
+            Token::RightBrace => "}",
+
+            // TODO: output the actual lexeme?
+            Token::Regex(_) => "<regex>",
+            Token::String(_) => "<string>",
+            Token::Integer(_) => "<integer>",
+            Token::Decimal(_) => "<decimal>",
+            Token::Name(_) => "<name>",
+            Token::DocComment(_) => "<doc comment>",
+            Token::Error => "<error>",
+        };
+        write!(f, "{}", tok)
+    }
 }

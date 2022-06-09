@@ -42,19 +42,22 @@ fn lex_src(src: impl AsRef<str>, source: SourceId) -> Vec<(Token, Span)> {
         let span = source.span(span.start, span.end);
 
         match (prev, tok) {
+            (Some(tok), Token::Error) => {
+                prev = Some(tok);
+            }
+
             // Merge doccomments and newlines
-            (Some((Token::Newline, span1)), Token::Newline) => {
-                prev = Some((Token::Newline, span1.combine(&span)));
-            }
+            //(Some((Token::Newline, span1)), Token::Newline) => {
+            //    prev = Some((Token::Newline, span1.combine(&span)));
+            //}
 
-            (doc @ Some((Token::DocComment(_), _)), Token::Newline) => {
-                prev = doc;
-            }
+            //(doc @ Some((Token::DocComment(_), _)), Token::Newline) => {
+            //    prev = doc;
+            //}
 
-            (Some((Token::Newline, _)), Token::DocComment(doc)) => {
-                prev = Some((Token::DocComment(doc), span));
-            }
-
+            //(Some((Token::Newline, _)), Token::DocComment(doc)) => {
+            //    prev = Some((Token::DocComment(doc), span));
+            //}
             (Some((Token::DocComment(mut doc1), span1)), Token::DocComment(doc2)) => {
                 doc1.push('\n');
                 doc1.push_str(&doc2);

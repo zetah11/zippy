@@ -48,3 +48,34 @@ pub fn parse_string(lex: &mut Lexer<Token>) -> String {
     res.shrink_to_fit();
     res
 }
+
+/// Parse and properly escape the contents of a regex literal.
+pub fn parse_regex(lex: &mut Lexer<Token>) -> String {
+    let slice = lex.slice();
+    let slice = &slice[2..slice.len() - 1];
+
+    // Let's limit ourselves to one reallocation (in the case of escapes - otherwise, no
+    // reallocation is necessary)
+    let mut res = String::with_capacity(slice.len());
+    let mut state = State::Normal;
+
+    for c in slice.chars() {
+        match (state, c) {
+            (State::Escaped, '/') => {
+                res.push('/');
+                state = State::Normal
+            }
+            (State::Escaped, c) => {
+                res.push('\\');
+                res.push(c);
+                state = State::Normal
+            }
+
+            (State::Normal, '\\') => state = State::Escaped,
+            (State::Normal, c) => res.push(c),
+        }
+    }
+
+    res.shrink_to_fit();
+    res
+}

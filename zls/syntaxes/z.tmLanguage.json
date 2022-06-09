@@ -51,6 +51,10 @@
                     "match": "[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+\\-]?[0-9][0-9_]*)?"
                 },
                 {
+                    "name": "constant.language",
+                    "match": "\b(true|false)\b"
+                },
+                {
                     "name": "string.quoted.double",
                     "match": "\"(?:[^\"\\\\]|\\\\.)*\""
                 },
@@ -72,35 +76,27 @@
             "patterns": [
                 {
                     "name": "keyword.other",
-                    "match": "\\b(and(?:\\s+then)?|or(?:\\s+else)|xor|not)\\b"
+                    "match": "\\b(and(?:\\s+do)?|or(?:\\s+else)|xor|not)\\b"
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(all|any|bits|digits|mod|thru|upto)\\b"
+                    "match": "\\b(mod|thru|upto)\\b"
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(alias|does|eff|fun|let|set|type|val|var|where)\\b"
-                },
-                {
-                    "name": "keyword.other",
-                    "match": "\\b(as|module|package)\\b"
+                    "match": "\\b(fun|let|module|type|var)\\b"
                 },
                 {
                     "name": "keyword.control",
-                    "match": "\\b(break|continue|do|end|if|else|for|in|loop|repeat|return|use|when|with)\\b"
+                    "match": "\\b(do|else|end|if|return|then|where)\\b"
                 }
             ]
         },
         "operators": {
             "patterns": [
                 {
-                    "name": "keyword.operator.decl",
-                    "match": ":=|::"
-                },
-                {
                     "name": "keyword.operator",
-                    "match": "[+\\-\\*/!?@#&\\.=<>]+"
+                    "match": "[:;,+\\-\\*/!?@#&\\.=<>]+"
                 }
             ]
         },

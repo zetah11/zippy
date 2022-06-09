@@ -12,6 +12,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::lang::Language;
 
+/// A wrapper around types with span information.
+pub type Spanned<T> = (T, Span);
+
 /// A single source, with its identifier and the content it contains.
 #[derive(Clone, Debug)]
 pub struct Source {
