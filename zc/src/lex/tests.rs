@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 
-use super::{lex_src, Token};
+use super::{lexer_def::lex_src, Token};
 use crate::source::SourceId;
 
 fn test_lexer(src: &str, expected: &[Token]) {

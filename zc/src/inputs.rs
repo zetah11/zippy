@@ -1,18 +1,22 @@
 //! Defines a query which describes the inputs to the compiler.
 
-#![allow(missing_docs)]
+pub use inputs_def::{Inputs, InputsStorage};
 
-use std::sync::Arc;
+mod inputs_def {
+    #![allow(missing_docs)]
 
-use crate::source::{Source, SourceId};
+    use std::sync::Arc;
 
-#[salsa::query_group(InputsStorage)]
-pub trait Inputs {
-    /// Get the contents of the file with the given uri.
-    #[salsa::input]
-    fn input_file(&self, id: SourceId) -> Arc<String>;
+    use crate::source::{Source, SourceId};
 
-    /// Get the source metadata for the source id.
-    #[salsa::input]
-    fn source(&self, id: SourceId) -> Source;
+    #[salsa::query_group(InputsStorage)]
+    pub trait Inputs {
+        /// Get the contents of the file with the given uri.
+        #[salsa::input]
+        fn input_file(&self, id: SourceId) -> Arc<String>;
+
+        /// Get the source metadata for the source id.
+        #[salsa::input]
+        fn source(&self, id: SourceId) -> Source;
+    }
 }
