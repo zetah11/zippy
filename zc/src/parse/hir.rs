@@ -21,6 +21,9 @@ pub trait HirData {
     /// assosciated type in that this may contain some extra information
     /// necessary to store source locations.
     type Binding: Clone + Debug + Eq;
+
+    /// The type a scope introduced by source elements like functions or blocks.
+    type Scope: Clone + Debug + Eq;
 }
 
 /// A comment preceeding items to document them.
@@ -31,6 +34,8 @@ pub struct Doc(pub String);
 /// by namespace.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Decls<D: HirData> {
+    /// The scope of these declarations.
+    pub scope: D::Scope,
     /// Maps the defined module names with the span of those names and the
     /// declarations within.
     pub modules: HashMap<D::Name, ModuleDef<D>>,
@@ -42,9 +47,14 @@ pub struct Decls<D: HirData> {
     pub values: HashMap<D::Name, ValueDef<D>>,
 }
 
-impl<D: HirData> Default for Decls<D> {
+impl<D> Default for Decls<D>
+where
+    D: HirData,
+    <D as HirData>::Scope: Default,
+{
     fn default() -> Self {
         Self {
+            scope: Default::default(),
             modules: HashMap::default(),
             types: HashMap::default(),
             values: HashMap::default(),
@@ -97,8 +107,12 @@ pub struct Block<D: HirData> {
     /// The items declared within this block.
     pub decls: Decls<D>,
     /// The ordered series of statements of this block.
-    pub stmts: Vec<Stmt<D>>,
+    pub stmts: Stmts<D>,
 }
+
+/// A sequence of statements its assosciated scope.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Stmts<D: HirData>(pub Vec<Stmt<D>>, pub D::Scope);
 
 /// A statement is some piece of code that alters the program state in some way,
 /// whether that be by changing the control flow or altering memory.
@@ -151,8 +165,8 @@ pub struct Expr<D: HirData> {
 /// The actual expression. See [`Expr`] for more.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExprNode<D: HirData> {
-    /// A function definition.
-    Fun(Vec<D::Binding>, Block<D>),
+    /// A function definition, and the scope it introduces.
+    Fun(Vec<D::Binding>, Block<D>, D::Scope),
 
     /// A function type `fun(T, U) -> V`.
     Arrow(Vec<Expr<D>>, Box<Expr<D>>),

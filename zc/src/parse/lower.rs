@@ -9,6 +9,7 @@ pub struct ParsedData;
 impl hir::HirData for ParsedData {
     type Name = String;
     type Binding = (String, Span);
+    type Scope = ();
 }
 
 pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData> {
@@ -65,7 +66,7 @@ pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData
                 let body = lower_block(body, at);
                 let body = hir::Expr {
                     span: at.span(body_span.start, body_span.end),
-                    node: hir::ExprNode::Fun(arg_names, body),
+                    node: hir::ExprNode::Fun(arg_names, body, ()),
                 };
 
                 res.values.insert(
@@ -117,7 +118,10 @@ pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData
 fn lower_block(bl: ast::Block, at: SourceId) -> hir::Block<ParsedData> {
     hir::Block {
         decls: lower_decls(bl.decls, at),
-        stmts: bl.stmts.into_iter().map(|st| lower_stmt(st, at)).collect(),
+        stmts: hir::Stmts(
+            bl.stmts.into_iter().map(|st| lower_stmt(st, at)).collect(),
+            (),
+        ),
     }
 }
 
@@ -131,7 +135,7 @@ fn lower_stmt(st: Spanned<ast::Stmt>, at: SourceId) -> hir::Stmt<ParsedData> {
             elze: elze.map_or(
                 hir::Block {
                     decls: hir::Decls::default(),
-                    stmts: vec![],
+                    stmts: hir::Stmts(vec![], ()),
                 },
                 |elze| lower_block(elze, at),
             ),
