@@ -9,6 +9,7 @@ mod error;
 mod lower;
 mod span;
 
+pub use lower::ParsedData;
 pub use parser_def::{Parser, ParserStorage};
 
 use lalrpop_util::lalrpop_mod;

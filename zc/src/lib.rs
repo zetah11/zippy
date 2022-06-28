@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 #![warn(missing_debug_implementations)]
 
+pub mod declare;
 pub mod inputs;
 pub mod lang;
 pub mod lex;

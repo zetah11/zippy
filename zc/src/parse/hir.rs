@@ -62,6 +62,18 @@ where
     }
 }
 
+impl<D: HirData> Decls<D> {
+    /// Returns true if there are no items declared in this section.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the total number of items declared in this section.
+    pub fn len(&self) -> usize {
+        self.modules.len() + self.types.len() + self.values.len()
+    }
+}
+
 /// A module item definition, consisting of its name, the doc comment (if any),
 /// and its contained declarations.
 #[derive(Clone, Debug, Eq, PartialEq)]
