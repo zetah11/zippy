@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use super::scope::{Scope, ScopeId, Scopes};
-use super::DeclData;
-use crate::name::{ActualName, Name, NameData, NameInterner};
+use super::{DeclData, Declare};
+use crate::name::{ActualName, Name, NameData};
 use crate::parse::hir::{Block, Decls, Expr, ExprNode, Stmt, StmtNode, Stmts};
 use crate::parse::hir::{ModuleDef, TypeDef, ValueDef};
 use crate::parse::ParsedData;
@@ -10,13 +10,13 @@ use crate::source::SourceId;
 
 pub struct Declarer<'scopes, 'names> {
     scopes: &'scopes mut Scopes,
-    names: &'names dyn NameInterner,
+    names: &'names dyn Declare,
     id: usize,
 }
 
 impl<'a, 'b> Declarer<'a, 'b> {
     /// Create a new name declarer.
-    pub fn new(scopes: &'a mut Scopes, names: &'b dyn NameInterner) -> Self {
+    pub fn new(scopes: &'a mut Scopes, names: &'b dyn Declare) -> Self {
         Self {
             scopes,
             names,
@@ -146,7 +146,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
             names: vec![],
         };
 
-        let mut stmts = block
+        let stmts = block
             .stmts
             .0
             .into_iter()

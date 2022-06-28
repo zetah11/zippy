@@ -8,6 +8,8 @@
 mod decls;
 mod scope;
 
+pub use decl::{DeclStorage, Declare};
+
 use crate::name::Name;
 use crate::parse::hir::HirData;
 use crate::source::Span;
@@ -15,11 +17,62 @@ use crate::source::Span;
 use scope::ScopeId;
 
 /// The data assosciated with HIR trees after the declaration pass.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct DeclData;
 
 impl HirData for DeclData {
     type Name = String;
     type Binding = (Name, Span);
     type Scope = ScopeId;
+}
+
+mod decl {
+    use std::sync::Arc;
+
+    use super::decls::Declarer;
+    use super::scope::{Scope, Scopes};
+    use super::DeclData;
+    use crate::name::{ActualName, NameData, NameInterner};
+    use crate::parse::hir::Decls;
+    use crate::parse::ParsedData;
+    use crate::parse::Parser;
+    use crate::source::SourceId;
+
+    /// See the [module-level documentation](crate::declare) for more.
+    #[salsa::query_group(DeclStorage)]
+    pub trait Declare: Parser + NameInterner {
+        /// Declare the names in the given source.
+        fn decl(&self, id: SourceId) -> (Arc<Decls<DeclData>>, Arc<Scopes>);
+    }
+
+    fn decl(db: &dyn Declare, id: SourceId) -> (Arc<Decls<DeclData>>, Arc<Scopes>) {
+        let decls = db.parse_tree(id);
+        let (decls, scopes) = declare_decls(decls, id, db);
+        (Arc::new(decls), Arc::new(scopes))
+    }
+
+    fn declare_decls(
+        decls: Arc<Decls<ParsedData>>,
+        src: SourceId,
+        names: &dyn Declare,
+    ) -> (Decls<DeclData>, Scopes) {
+        let mut scopes = Scopes::new();
+
+        let top_id = scopes.make_id();
+        scopes.add(
+            top_id,
+            Scope {
+                parent: top_id,
+                names: vec![],
+            },
+        );
+
+        let mut declarer = Declarer::new(&mut scopes, names);
+
+        let top = NameData::Root(ActualName::File(src));
+        let top = names.intern_name(top);
+
+        let decls = declarer.declare_decls((*decls).clone(), (top_id, top));
+        (decls, scopes)
+    }
 }

@@ -46,6 +46,9 @@ pub enum ActualName {
     /// A source-visible name.
     Name(String),
 
+    /// The name of a file. Typically a root element.
+    File(SourceId),
+
     /// A generated name.
     Generated(SourceId, usize),
 }

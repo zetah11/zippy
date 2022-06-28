@@ -8,14 +8,14 @@ pub struct ScopeId(usize);
 
 /// A scope is some section of time within which items live with a common, upper
 /// bound on their lifetimes.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Scope {
     pub parent: ScopeId,
     pub names: Vec<(String, Name)>,
 }
 
 /// A list of scopes.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Scopes {
     scopes: HashMap<ScopeId, Scope>,
     current: usize,
