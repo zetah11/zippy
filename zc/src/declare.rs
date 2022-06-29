@@ -8,6 +8,9 @@
 mod decls;
 mod scope;
 
+#[cfg(test)]
+mod tests;
+
 pub use decl::{DeclStorage, Declare};
 
 use crate::name::Name;

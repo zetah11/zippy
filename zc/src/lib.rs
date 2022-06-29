@@ -16,13 +16,21 @@ pub mod source;
 
 use salsa::{Database, ParallelDatabase, Snapshot};
 
+use declare::DeclStorage;
 use inputs::InputsStorage;
 use lex::LexerStorage;
+use name::NameInternerStorage;
 use parse::ParserStorage;
 
 /// The main database for the compiler.
 #[allow(missing_debug_implementations)]
-#[salsa::database(InputsStorage, LexerStorage, ParserStorage)]
+#[salsa::database(
+    DeclStorage,
+    InputsStorage,
+    LexerStorage,
+    NameInternerStorage,
+    ParserStorage
+)]
 #[derive(Default)]
 pub struct ZcDatabase {
     storage: salsa::Storage<Self>,
