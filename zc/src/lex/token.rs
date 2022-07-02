@@ -109,6 +109,10 @@ pub enum Token {
     #[token(";")]
     Semicolon,
 
+    /// `_`
+    #[token("_")]
+    Wildcard,
+
     // Operators
     /// `:`
     #[token(":")]
@@ -253,6 +257,7 @@ impl fmt::Display for Token {
             Token::Dot => ".",
             Token::Comma => ",",
             Token::Semicolon => ";",
+            Token::Wildcard => "_",
             Token::Colon => ":",
             Token::Question => "?",
             Token::Plus => "+",

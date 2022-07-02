@@ -194,6 +194,10 @@ pub enum ExprNode<D: HirData> {
     /// The name of an item or variable.
     Name(D::Name),
 
+    /// A wildcard is a "whatever" symbol. In a type context, it signals to the
+    /// compiler that the type should be inferred.
+    Wildcard,
+
     /// Some erroneous expression.
     Invalid,
 }

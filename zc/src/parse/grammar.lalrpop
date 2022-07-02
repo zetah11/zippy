@@ -39,6 +39,7 @@ extern {
         "."  => Token::Dot,
         ","  => Token::Comma,
         ";"  => Token::Semicolon,
+        "_"  => Token::Wildcard,
         ":"  => Token::Colon,
         "?"  => Token::Question,
         "+"  => Token::Plus,
@@ -72,6 +73,9 @@ extern {
 
 // Utility rules ------------------------------------------------------------ //
 
+Anno: Spanned<Expr> =
+    ":" <anno: Sp<RangeExpr>> => anno;
+
 CommaSep: () = {
     "," => (),
 };
@@ -86,8 +90,8 @@ Comma<Rule>: Vec<Rule> =
         rules
     };
 
-Param: (Spanned<String>, Spanned<Expr>) =
-    <name: Sp<"name">> ":" <anno: Sp<RangeExpr>> =>
+Param: (Spanned<String>, Option<Spanned<Expr>>) =
+    <name: Sp<"name">> ":" <anno: Sp<RangeExpr>?> =>
         (name, anno);
 
 Sep<Rule>: Vec<Rule> =
@@ -125,13 +129,14 @@ DeclNode = {
     }
 };
 
-ConstDecl: DeclNode =
-    "let" <name: Sp<"name">> ":" <anno: Sp<RangeExpr>> "=" <body: Sp<Expr>> =>
-        DeclNode::Constant { name, anno, body };
+ConstDecl: DeclNode = {
+    "let" <name: Sp<"name">> <anno: Anno?> "=" <body: Sp<Expr>> =>
+        DeclNode::Constant { name, anno, body },
+}
 
 FunDecl: DeclNode =
     "fun" <name: Sp<"name">>
-    <l: @L> "(" <args: Comma<Param>> ")" ":" <rett: Sp<RangeExpr>> <r: @R>
+    <l: @L> "(" <args: Comma<Param>> ")" <rett: Anno?> <r: @R>
     <body: Sp<Block>> "end" =>
         DeclNode::Function {
             name,
@@ -293,6 +298,8 @@ BaseExpr: Expr = {
     <"string lit"> => Expr::String(<>),
 
     <"name"> => Expr::Name(<>),
+
+    "_" => Expr::Wildcard,
 
     <!> => {
         errors.push(<>);

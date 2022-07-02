@@ -12,13 +12,13 @@ pub struct Decl {
 pub enum DeclNode {
     Constant {
         name: Spanned<String>,
-        anno: Spanned<Expr>,
+        anno: Option<Spanned<Expr>>,
         body: Spanned<Expr>,
     },
     Function {
         name: Spanned<String>,
-        args: Vec<(Spanned<String>, Spanned<Expr>)>,
-        rett: Spanned<Expr>,
+        args: Vec<(Spanned<String>, Option<Spanned<Expr>>)>,
+        rett: Option<Spanned<Expr>>,
         body: Spanned<Block>,
         type_span: Span,
     },
@@ -57,6 +57,8 @@ pub enum Expr {
     Regex(String),
     String(String),
     Name(String),
+
+    Wildcard,
 
     Invalid,
 }

@@ -229,6 +229,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
             ExprNode::Decimal(v) => ExprNode::Decimal(v),
             ExprNode::Bool(v) => ExprNode::Bool(v),
             ExprNode::Name(v) => ExprNode::Name(v),
+            ExprNode::Wildcard => ExprNode::Wildcard,
             ExprNode::Invalid => ExprNode::Invalid,
         };
 

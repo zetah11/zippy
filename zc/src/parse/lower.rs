@@ -22,8 +22,12 @@ pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData
                 anno,
                 body,
             } => {
-                let binding = (name.clone(), at.span(span.start, span.end));
-                let anno = lower_expr(anno, at);
+                let span = at.span(span.start, span.end);
+                let binding = (name.clone(), span);
+                let anno = anno.map(|anno| lower_expr(anno, at)).unwrap_or(hir::Expr {
+                    node: hir::ExprNode::Wildcard,
+                    span,
+                });
                 let body = lower_expr(body, at);
 
                 res.values.insert(
@@ -52,14 +56,22 @@ pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for (arg, anno) in args {
-                    arg_names.push((arg.0, at.span(arg.1.start, arg.1.end)));
-                    arg_types.push(lower_expr(anno, at));
+                    let span = at.span(arg.1.start, arg.1.end);
+                    arg_names.push((arg.0, span));
+                    arg_types.push(anno.map(|anno| lower_expr(anno, at)).unwrap_or(hir::Expr {
+                        node: hir::ExprNode::Wildcard,
+                        span,
+                    }));
                 }
 
-                let rett = lower_expr(rett, at);
+                let type_span = at.span(type_span.start, type_span.end);
+                let rett = rett.map(|rett| lower_expr(rett, at)).unwrap_or(hir::Expr {
+                    node: hir::ExprNode::Wildcard,
+                    span: type_span,
+                });
 
                 let anno = hir::Expr {
-                    span: at.span(type_span.start, type_span.end),
+                    span: type_span,
                     node: hir::ExprNode::Arrow(arg_types, Box::new(rett)),
                 };
 
@@ -164,6 +176,7 @@ fn lower_expr(ex: Spanned<ast::Expr>, at: SourceId) -> hir::Expr<ParsedData> {
         ast::Expr::Regex(lit) => hir::ExprNode::Regex(lit),
         ast::Expr::String(lit) => hir::ExprNode::String(lit),
         ast::Expr::Name(name) => hir::ExprNode::Name(name),
+        ast::Expr::Wildcard => hir::ExprNode::Wildcard,
         ast::Expr::Invalid => hir::ExprNode::Invalid,
     };
 

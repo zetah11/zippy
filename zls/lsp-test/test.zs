@@ -1,4 +1,4 @@
-let main: false = class
+let main = class
   --- 'main' is the entrypoint of the program
   fun main(): Int
     return 0
