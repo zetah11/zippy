@@ -4,7 +4,7 @@ use super::scope::{Scope, ScopeId, Scopes};
 use super::{DeclData, Declare};
 use crate::name::{ActualName, Name, NameData};
 use crate::parse::hir::{Block, Decls, Expr, ExprNode, Stmt, StmtNode, Stmts};
-use crate::parse::hir::{ModuleDef, TypeDef, ValueDef};
+use crate::parse::hir::{TypeDef, ValueDef};
 use crate::parse::ParsedData;
 use crate::source::SourceId;
 
@@ -42,32 +42,10 @@ impl<'a, 'b> Declarer<'a, 'b> {
             names: Vec::with_capacity(decls.len()),
         };
 
-        let mut modules = HashMap::with_capacity(decls.modules.len());
         let mut types = HashMap::with_capacity(decls.types.len());
         let mut values = HashMap::with_capacity(decls.values.len());
 
         let scope_id = self.scopes.make_id();
-
-        // Declare modules
-        for (name, module) in decls.modules {
-            let id = NameData::Child(at.1, ActualName::Name(name));
-            let id = self.names.intern_name(id);
-            let (name, span) = module.name;
-
-            let doc = module.doc;
-
-            let body = self.declare_decls(module.body, (scope_id, id));
-
-            scope.names.push((name.clone(), id));
-            modules.insert(
-                name,
-                ModuleDef {
-                    name: (id, span),
-                    doc,
-                    body,
-                },
-            );
-        }
 
         // Declare types
         for (name, ty) in decls.types {
@@ -117,7 +95,6 @@ impl<'a, 'b> Declarer<'a, 'b> {
 
         Decls {
             scope: scope_id,
-            modules,
             types,
             values,
         }
@@ -187,6 +164,17 @@ impl<'a, 'b> Declarer<'a, 'b> {
     /// Declare the names in an expression.
     fn declare_expr(&mut self, expr: Expr<ParsedData>, at: (ScopeId, Name)) -> Expr<DeclData> {
         let node = match expr.node {
+            ExprNode::Class(decls) => {
+                let gen_name = self.gen_id();
+                let gen_name =
+                    NameData::Child(at.1, ActualName::Generated(expr.span.source, gen_name));
+                let gen_name = self.names.intern_name(gen_name);
+
+                // Declare items
+                let decls = self.declare_decls(decls, (at.0, gen_name));
+                ExprNode::Class(decls)
+            }
+
             ExprNode::Fun(params, body, ()) => {
                 let gen_name = self.gen_id();
                 let gen_name =

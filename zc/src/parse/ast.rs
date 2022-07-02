@@ -22,7 +22,6 @@ pub enum DeclNode {
         body: Spanned<Block>,
         type_span: Span,
     },
-    Module(Spanned<String>, Vec<Decl>),
     Type(Spanned<String>, Spanned<Expr>),
 
     Invalid,
@@ -46,6 +45,7 @@ pub enum Stmt {
 
 #[derive(Debug)]
 pub enum Expr {
+    Class(Vec<Decl>),
     Call(Box<Spanned<Expr>>, Vec<Spanned<Expr>>),
 
     Binary(Spanned<Op>, Box<Spanned<Expr>>, Box<Spanned<Expr>>),
@@ -66,7 +66,7 @@ pub enum Op {
     And,
     AndDo,
     Or,
-    OrElse,
+    OrDo,
     Xor,
 
     Equal,

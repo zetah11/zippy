@@ -76,15 +76,15 @@
             "patterns": [
                 {
                     "name": "keyword.other",
-                    "match": "\\b(and(?:\\s+do)?|or(?:\\s+else)|xor|not)\\b"
+                    "match": "\\b(and(?:\\s+do)?|or(?:\\s+do)|xor|not)\\b"
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(mod|thru|upto)\\b"
+                    "match": "\\b(mod|thru|upto|class)\\b"
                 },
                 {
                     "name": "keyword.other",
-                    "match": "\\b(fun|let|module|type|var)\\b"
+                    "match": "\\b(fun|let|type|var)\\b"
                 },
                 {
                     "name": "keyword.control",

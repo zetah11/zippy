@@ -15,6 +15,7 @@ extern {
 
     enum Token {
         "and" => Token::And,
+        "class" => Token::Class,
         "do" => Token::Do,
         "else" => Token::Else,
         "end" => Token::End,
@@ -23,7 +24,6 @@ extern {
         "if" => Token::If,
         "let" => Token::Let,
         "mod" => Token::Mod,
-        "module" => Token::Module,
         "not" => Token::Not,
         "or" => Token::Or,
         "return" => Token::Return,
@@ -118,7 +118,6 @@ Decl: Decl =
 DeclNode = {
     ConstDecl,
     FunDecl,
-    ModuleDecl,
     TypeDecl,
     <!> => {
         errors.push(<>);
@@ -141,10 +140,6 @@ FunDecl: DeclNode =
             body,
             type_span: Span { start: l, end: r },
         };
-
-ModuleDecl: DeclNode =
-    "module" <n: Sp<"name">> <d: DeclList> "end" =>
-        DeclNode::Module(n, d);
 
 TypeDecl: DeclNode =
     "type" <n: Sp<"name">> "=" <e: Sp<RangeExpr>> =>
@@ -205,11 +200,11 @@ Expr: Expr = {
 
 LogExpr = Tier<LogOp, CmpExpr>;
 LogOp: Op = {
-    "and"       => Op::And,
-    "and" "do"  => Op::AndDo,
-    "or"        => Op::Or,
-    "or" "else" => Op::OrElse,
-    "xor"       => Op::Xor,
+    "and"      => Op::And,
+    "and" "do" => Op::AndDo,
+    "or"       => Op::Or,
+    "or" "do"  => Op::OrDo,
+    "xor"      => Op::Xor,
 };
 
 CmpExpr = Tier<CmpOp, RangeExpr>;
@@ -286,6 +281,7 @@ CallExpr: Expr = {
 
 BaseExpr: Expr = {
     "(" <e: Expr> ")" => e,
+    "class" <d: DeclList> "end" => Expr::Class(d),
 
     "true"  => Expr::Bool(true),
     "false" => Expr::Bool(false),

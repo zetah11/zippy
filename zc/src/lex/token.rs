@@ -16,6 +16,10 @@ pub enum Token {
     #[token("and")]
     And,
 
+    /// `class`
+    #[token("class")]
+    Class,
+
     /// `do`
     #[token("do")]
     Do,
@@ -47,10 +51,6 @@ pub enum Token {
     /// `mod`
     #[token("mod")]
     Mod,
-
-    /// `module`
-    #[token("module")]
-    Module,
 
     /// `not`
     #[token("not")]
@@ -229,6 +229,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let tok = match self {
             Token::And => "and",
+            Token::Class => "class",
             Token::Do => "do",
             Token::Else => "else",
             Token::End => "end",
@@ -237,7 +238,6 @@ impl fmt::Display for Token {
             Token::If => "if",
             Token::Let => "let",
             Token::Mod => "mod",
-            Token::Module => "module",
             Token::Not => "not",
             Token::Or => "or",
             Token::Return => "return",

@@ -1,5 +1,5 @@
 use super::ast;
-use super::hir::{self, ModuleDef, TypeDef, ValueDef};
+use super::hir::{self, TypeDef, ValueDef};
 use super::span::Spanned;
 use crate::source::{SourceId, Span};
 
@@ -80,20 +80,6 @@ pub fn lower_decls(decls: Vec<ast::Decl>, at: SourceId) -> hir::Decls<ParsedData
                 );
             }
 
-            ast::DeclNode::Module((name, span), decls) => {
-                let binding = (name.clone(), at.span(span.start, span.end));
-                let decls = lower_decls(decls, at);
-
-                res.modules.insert(
-                    name,
-                    ModuleDef {
-                        name: binding,
-                        doc: decl.doc.map(hir::Doc),
-                        body: decls,
-                    },
-                );
-            }
-
             ast::DeclNode::Type((name, span), body) => {
                 let binding = (name.clone(), at.span(span.start, span.end));
                 let body = lower_expr(body, at);
@@ -153,6 +139,10 @@ fn lower_stmt(st: Spanned<ast::Stmt>, at: SourceId) -> hir::Stmt<ParsedData> {
 /// Lower some AST expression.
 fn lower_expr(ex: Spanned<ast::Expr>, at: SourceId) -> hir::Expr<ParsedData> {
     let node = match ex.0 {
+        ast::Expr::Class(decls) => {
+            let decls = lower_decls(decls, at);
+            hir::ExprNode::Class(decls)
+        }
         ast::Expr::Call(func, args) => {
             let func = lower_expr(*func, at);
             let args = args.into_iter().map(|ex| lower_expr(ex, at)).collect();
@@ -189,7 +179,7 @@ fn lower_binop(op: Spanned<ast::Op>, at: SourceId) -> hir::Expr<ParsedData> {
         ast::Op::And => hir::Operator::And,
         ast::Op::AndDo => hir::Operator::AndDo,
         ast::Op::Or => hir::Operator::Or,
-        ast::Op::OrElse => hir::Operator::OrElse,
+        ast::Op::OrDo => hir::Operator::OrDo,
         ast::Op::Xor => hir::Operator::Xor,
 
         ast::Op::Equal => hir::Operator::Equal,

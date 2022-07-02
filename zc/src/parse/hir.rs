@@ -36,9 +36,6 @@ pub struct Doc(pub String);
 pub struct Decls<D: HirData> {
     /// The scope of these declarations.
     pub scope: D::Scope,
-    /// Maps the defined module names with the span of those names and the
-    /// declarations within.
-    pub modules: HashMap<D::Name, ModuleDef<D>>,
     /// Maps the defined type names with the span of of those names and the type
     /// expression they map to.
     pub types: HashMap<D::Name, TypeDef<D>>,
@@ -55,7 +52,6 @@ where
     fn default() -> Self {
         Self {
             scope: Default::default(),
-            modules: HashMap::default(),
             types: HashMap::default(),
             values: HashMap::default(),
         }
@@ -70,20 +66,8 @@ impl<D: HirData> Decls<D> {
 
     /// Get the total number of items declared in this section.
     pub fn len(&self) -> usize {
-        self.modules.len() + self.types.len() + self.values.len()
+        self.types.len() + self.values.len()
     }
-}
-
-/// A module item definition, consisting of its name, the doc comment (if any),
-/// and its contained declarations.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ModuleDef<D: HirData> {
-    /// The name of this item.
-    pub name: D::Binding,
-    /// The preceeding documentation for this item.
-    pub doc: Option<Doc>,
-    /// The definition of this item.
-    pub body: Decls<D>,
 }
 
 /// A type item definition, consisting of its name, the doc comment (if any),
@@ -180,6 +164,9 @@ pub enum ExprNode<D: HirData> {
     /// A function definition, and the scope it introduces.
     Fun(Vec<D::Binding>, Block<D>, D::Scope),
 
+    /// A class definition.
+    Class(Decls<D>),
+
     /// A function type `fun(T, U) -> V`.
     Arrow(Vec<Expr<D>>, Box<Expr<D>>),
 
@@ -232,7 +219,7 @@ pub enum Operator {
 
     /// Short-circuiting logical `or`. Only accepts boolean arguments, and
     /// cannot be used in higher-order contexts.
-    OrElse,
+    OrDo,
 
     /// Logical or bitwise `xor`, depending on whether the arguments are
     /// booleans or integers.

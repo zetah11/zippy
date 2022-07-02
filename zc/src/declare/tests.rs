@@ -25,7 +25,6 @@ fn declare_names() {
     let (tree, scope) = db.decl(id);
 
     let top_scope = &tree.scope;
-    assert!(tree.modules.is_empty());
 
     let top_scope = scope.get(top_scope);
     assert_eq!(top_scope.names.len(), 2);
