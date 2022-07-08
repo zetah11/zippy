@@ -167,6 +167,10 @@ pub enum ExprNode<D: HirData> {
     /// A class definition.
     Class(Decls<D>),
 
+    /// Dot syntax `x.f(y)`. This could either be a function call `f(x, y)` or
+    /// a field access, depending on the type of `x`.
+    Dot(Box<Expr<D>>, Box<Expr<D>>),
+
     /// A function type `fun(T, U) -> V`.
     Arrow(Vec<Expr<D>>, Box<Expr<D>>),
 

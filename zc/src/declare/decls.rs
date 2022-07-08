@@ -204,6 +204,12 @@ impl<'a, 'b> Declarer<'a, 'b> {
                 ExprNode::Fun(args, body, scope_id)
             }
 
+            ExprNode::Dot(obj, field) => {
+                let obj = self.declare_expr(*obj, at);
+                let field = self.declare_expr(*field, at);
+                ExprNode::Dot(Box::new(obj), Box::new(field))
+            }
+
             ExprNode::Arrow(args, ret) => {
                 let args = args
                     .into_iter()

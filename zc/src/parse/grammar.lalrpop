@@ -272,16 +272,9 @@ CallExpr: Expr = {
     <f: Sp<CallExpr>> "(" <a: Comma<Sp<Expr>>> ")" =>
         Expr::Call(Box::new(f), a),
 
-    // x().f(y, z) = f(x(), y, z)
-    <a: Sp<CallExpr>> "." <f: Sp<BaseExpr>> => {
-        match f {
-            (Expr::Call(func, mut args), _) => {
-                args.insert(0, a);
-                Expr::Call(func, args)
-            }
-            other => Expr::Call(Box::new(other), vec![a]),
-        }
-    },
+    // x.f
+    <a: Sp<CallExpr>> "." <f: Sp<BaseExpr>> =>
+        Expr::Dot(Box::new(a), Box::new(f)),
 };
 
 BaseExpr: Expr = {

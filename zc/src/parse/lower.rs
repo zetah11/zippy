@@ -160,6 +160,11 @@ fn lower_expr(ex: Spanned<ast::Expr>, at: SourceId) -> hir::Expr<ParsedData> {
             let args = args.into_iter().map(|ex| lower_expr(ex, at)).collect();
             hir::ExprNode::Call(Box::new(func), args)
         }
+        ast::Expr::Dot(obj, field) => {
+            let obj = lower_expr(*obj, at);
+            let field = lower_expr(*field, at);
+            hir::ExprNode::Dot(Box::new(obj), Box::new(field))
+        }
         ast::Expr::Binary(op, x, y) => {
             let op = lower_binop(op, at);
             let args = vec![lower_expr(*x, at), lower_expr(*y, at)];

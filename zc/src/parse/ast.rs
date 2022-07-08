@@ -47,6 +47,7 @@ pub enum Stmt {
 pub enum Expr {
     Class(Vec<Decl>),
     Call(Box<Spanned<Expr>>, Vec<Spanned<Expr>>),
+    Dot(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
 
     Binary(Spanned<Op>, Box<Spanned<Expr>>, Box<Spanned<Expr>>),
     Unary(Spanned<Op>, Box<Spanned<Expr>>),
