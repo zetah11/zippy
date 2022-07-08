@@ -7,7 +7,7 @@
 
 pub mod scope;
 
-mod decls;
+mod declarer;
 
 #[cfg(test)]
 mod tests;
@@ -33,7 +33,7 @@ impl HirData for DeclData {
 mod decl {
     use std::sync::Arc;
 
-    use super::decls::Declarer;
+    use super::declarer::Declarer;
     use super::scope::{Scope, Scopes};
     use super::DeclData;
     use crate::name::{ActualName, NameData, NameInterner};
