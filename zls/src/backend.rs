@@ -10,6 +10,7 @@ use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer};
 
 use zc::parse::Parser;
+use zc::resolve::Resolve;
 use zc::source::{Source, SourceId};
 
 use crate::db::{Change, Database};
@@ -86,8 +87,21 @@ impl Backend {
                 .iter()
                 .filter_map(|msg| to_diagnostic(msg, rope))
                 .collect();
-            self.client.publish_diagnostics(uri, diags, version).await;
+            self.client
+                .publish_diagnostics(uri.clone(), diags, version)
+                .await;
         };
+
+        let errs = snapshot.resolve_errs(id);
+
+        if let Some(rope) = self.document_map.get(&id) {
+            let rope = &rope;
+            let diags = errs
+                .iter()
+                .filter_map(|msg| to_diagnostic(msg, rope))
+                .collect();
+            self.client.publish_diagnostics(uri, diags, version).await;
+        }
     }
 }
 

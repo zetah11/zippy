@@ -5,8 +5,6 @@
 //! 2. collecting scope information - namely the shape of the scope tree and
 //!    what names lie within it
 
-pub mod scope;
-
 mod declarer;
 
 #[cfg(test)]
@@ -16,12 +14,11 @@ pub use decl::{DeclStorage, Declare};
 
 use crate::name::{Bare, Name};
 use crate::parse::hir::HirData;
+use crate::scope::ScopeId;
 use crate::source::Span;
 
-use scope::ScopeId;
-
 /// The data assosciated with HIR trees after the declaration pass.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeclData;
 
 impl HirData for DeclData {
@@ -34,13 +31,15 @@ mod decl {
     use std::sync::Arc;
 
     use super::declarer::Declarer;
-    use super::scope::{Scope, Scopes};
     use super::DeclData;
-    use crate::name::{ActualName, NameData, NameInterner};
+    use crate::name::{ActualName, Bare, Name, NameData, NameInterner};
     use crate::parse::hir::Decls;
     use crate::parse::ParsedData;
     use crate::parse::Parser;
+    use crate::scope::{self, Scope};
     use crate::source::SourceId;
+
+    type Scopes = scope::Scopes<(Bare, Name)>;
 
     /// See the [module-level documentation](crate::declare) for more.
     #[salsa::query_group(DeclStorage)]

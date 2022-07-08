@@ -12,6 +12,8 @@ pub mod lex;
 pub mod message;
 pub mod name;
 pub mod parse;
+pub mod resolve;
+pub mod scope;
 pub mod source;
 
 use salsa::{Database, ParallelDatabase, Snapshot};
@@ -21,6 +23,7 @@ use inputs::InputsStorage;
 use lex::LexerStorage;
 use name::NameInternerStorage;
 use parse::ParserStorage;
+use resolve::ResolveStorage;
 
 /// The main database for the compiler.
 #[allow(missing_debug_implementations)]
@@ -29,7 +32,8 @@ use parse::ParserStorage;
     InputsStorage,
     LexerStorage,
     NameInternerStorage,
-    ParserStorage
+    ParserStorage,
+    ResolveStorage
 )]
 #[derive(Default)]
 pub struct ZcDatabase {

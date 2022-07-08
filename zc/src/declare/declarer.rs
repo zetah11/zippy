@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
-use super::scope::{Scope, ScopeId, Scopes};
 use super::{DeclData, Declare};
-use crate::name::{ActualName, BareData, Name, NameData};
+use crate::name::{ActualName, Bare, BareData, Name, NameData};
 use crate::parse::hir::{Block, Decls, Expr, ExprNode, Stmt, StmtNode, Stmts};
 use crate::parse::hir::{TypeDef, ValueDef};
 use crate::parse::ParsedData;
+use crate::scope::{Scope, ScopeId, Scopes};
 use crate::source::SourceId;
 
 pub struct Declarer<'scopes, 'names> {
-    scopes: &'scopes mut Scopes,
+    scopes: &'scopes mut Scopes<(Bare, Name)>,
     names: &'names dyn Declare,
     id: usize,
 }
 
 impl<'a, 'b> Declarer<'a, 'b> {
     /// Create a new name declarer.
-    pub fn new(scopes: &'a mut Scopes, names: &'b dyn Declare) -> Self {
+    pub fn new(scopes: &'a mut Scopes<(Bare, Name)>, names: &'b dyn Declare) -> Self {
         Self {
             scopes,
             names,
@@ -143,7 +143,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
         &mut self,
         stmt: Stmt<ParsedData>,
         at: (ScopeId, Name),
-        _scope: &mut Scope,
+        _scope: &mut Scope<(Bare, Name)>,
     ) -> Stmt<DeclData> {
         let node = match stmt.node {
             StmtNode::Block(b) => StmtNode::Block(self.declare_block(b, at, stmt.span.source)),
