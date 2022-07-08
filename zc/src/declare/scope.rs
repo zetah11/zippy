@@ -1,6 +1,8 @@
+//! A scope is some lexical grouping of items.
+
 use std::collections::HashMap;
 
-use crate::name::Name;
+use crate::name::{Bare, Name};
 
 /// A unique id to some scope.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -10,8 +12,11 @@ pub struct ScopeId(usize);
 /// bound on their lifetimes.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Scope {
+    /// The parent of this scope.
     pub parent: ScopeId,
-    pub names: Vec<(String, Name)>,
+
+    /// All of the names declared in this scope.
+    pub names: Vec<(Bare, Name)>,
 }
 
 /// A list of scopes.

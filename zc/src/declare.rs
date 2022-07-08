@@ -5,15 +5,16 @@
 //! 2. collecting scope information - namely the shape of the scope tree and
 //!    what names lie within it
 
+pub mod scope;
+
 mod decls;
-mod scope;
 
 #[cfg(test)]
 mod tests;
 
 pub use decl::{DeclStorage, Declare};
 
-use crate::name::Name;
+use crate::name::{Bare, Name};
 use crate::parse::hir::HirData;
 use crate::source::Span;
 
@@ -24,7 +25,7 @@ use scope::ScopeId;
 pub struct DeclData;
 
 impl HirData for DeclData {
-    type Name = String;
+    type Name = Bare;
     type Binding = (Name, Span);
     type Scope = ScopeId;
 }

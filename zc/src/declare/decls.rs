@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::scope::{Scope, ScopeId, Scopes};
 use super::{DeclData, Declare};
-use crate::name::{ActualName, Name, NameData};
+use crate::name::{ActualName, BareData, Name, NameData};
 use crate::parse::hir::{Block, Decls, Expr, ExprNode, Stmt, StmtNode, Stmts};
 use crate::parse::hir::{TypeDef, ValueDef};
 use crate::parse::ParsedData;
@@ -52,12 +52,13 @@ impl<'a, 'b> Declarer<'a, 'b> {
             let id = NameData::Child(at.1, ActualName::Name(name));
             let id = self.names.intern_name(id);
             let (name, span) = ty.name;
+            let name = self.names.intern_bare(BareData(name));
 
             let doc = ty.doc;
 
             let body = self.declare_expr(ty.body, (scope_id, id));
 
-            scope.names.push((name.clone(), id));
+            scope.names.push((name, id));
             types.insert(
                 name,
                 TypeDef {
@@ -73,13 +74,14 @@ impl<'a, 'b> Declarer<'a, 'b> {
             let id = NameData::Child(at.1, ActualName::Name(name));
             let id = self.names.intern_name(id);
             let (name, span) = value.name;
+            let name = self.names.intern_bare(BareData(name));
 
             let doc = value.doc;
 
             let anno = self.declare_expr(value.anno, (scope_id, id));
             let body = self.declare_expr(value.body, (scope_id, id));
 
-            scope.names.push((name.clone(), id));
+            scope.names.push((name, id));
             values.insert(
                 name,
                 ValueDef {
@@ -193,6 +195,8 @@ impl<'a, 'b> Declarer<'a, 'b> {
                 for (name, span) in params {
                     let id = NameData::Child(gen_name, ActualName::Name(name.clone()));
                     let id = self.names.intern_name(id);
+                    let name = self.names.intern_bare(BareData(name));
+
                     scope.names.push((name, id));
                     args.push((id, span));
                 }
@@ -234,7 +238,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
             ExprNode::Integer(v) => ExprNode::Integer(v),
             ExprNode::Decimal(v) => ExprNode::Decimal(v),
             ExprNode::Bool(v) => ExprNode::Bool(v),
-            ExprNode::Name(v) => ExprNode::Name(v),
+            ExprNode::Name(v) => ExprNode::Name(self.names.intern_bare(BareData(v))),
             ExprNode::Wildcard => ExprNode::Wildcard,
             ExprNode::Invalid => ExprNode::Invalid,
         };

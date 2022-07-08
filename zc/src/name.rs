@@ -15,7 +15,7 @@ use crate::source::SourceId;
 mod interner {
     #![allow(missing_docs)] // no docs for `lookup_*` methods
 
-    use super::{Name, NameData};
+    use super::{Bare, BareData, Name, NameData};
 
     /// Responsible for mapping more heavyweight names (with their paths) to the
     /// lightweight [`Name`](super::Name) ids.
@@ -24,13 +24,39 @@ mod interner {
         /// Intern a fully qualified name to a lightweight id.
         #[salsa::interned]
         fn intern_name(&self, name: NameData) -> Name;
+
+        /// Intern a field name to a lightweight id.
+        #[salsa::interned]
+        fn intern_bare(&self, field: BareData) -> Bare;
+    }
+}
+
+/// A `Bare` in this context is a name without any of its lexical scoping
+/// information (i.e. the bare name as it appears at its definition). The
+/// [`NameInterner`] interns fields such that we won't have to carry `String`s
+/// into the type checker or name resolver, and can instead determine field name
+/// equality with a much more lightweight [`Bare`].
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct BareData(pub String);
+
+/// A lightweight representation of a bare name.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+pub struct Bare(InternId);
+
+impl InternKey for Bare {
+    fn from_intern_id(v: InternId) -> Self {
+        Self(v)
+    }
+
+    fn as_intern_id(&self) -> InternId {
+        self.0
     }
 }
 
 /// A qualified name represents a complete, unambiguous path from the root
 /// through pacakges and modules and other containing items with its final name
 /// at the end.
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum NameData {
     /// A top-level item.
     Root(ActualName),

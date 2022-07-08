@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use super::Declare;
 use crate::inputs::Inputs;
+use crate::name::{BareData, NameInterner};
 use crate::parse::hir::ExprNode;
 use crate::source::SourceId;
 use crate::ZcDatabase;
@@ -29,10 +30,12 @@ fn declare_names() {
     let top_scope = scope.get(top_scope);
     assert_eq!(top_scope.names.len(), 2);
     for name in ["main", "Int"] {
-        assert!(top_scope.names.iter().any(|(n, _)| n.as_str() == name));
+        let name = db.intern_bare(BareData(name.into()));
+        assert!(top_scope.names.iter().any(|(n, _)| *n == name));
     }
 
-    let main = match tree.values.get(&String::from("main")) {
+    let main = db.intern_bare(BareData("main".into()));
+    let main = match tree.values.get(&main) {
         Some(main) => main,
         None => panic!("no top-level 'main'"),
     };
@@ -43,6 +46,7 @@ fn declare_names() {
     };
 
     let main_scope = scope.get(&body.decls.scope);
+    let x = db.intern_bare(BareData("x".into()));
     assert_eq!(main_scope.names.len(), 1);
-    assert_eq!(main_scope.names[0].0.as_str(), "x");
+    assert_eq!(main_scope.names[0].0, x);
 }
