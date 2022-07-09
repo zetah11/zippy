@@ -12,7 +12,7 @@ pub struct ScopeId(usize);
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Scope<Name> {
     /// The parent of this scope.
-    pub parent: ScopeId,
+    pub parent: Option<ScopeId>,
 
     /// All of the names declared in this scope.
     pub names: Vec<Name>,

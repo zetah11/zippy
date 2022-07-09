@@ -65,7 +65,7 @@ mod decl {
         scopes.add(
             top_id,
             Scope {
-                parent: top_id,
+                parent: None,
                 names: vec![],
             },
         );

@@ -177,7 +177,7 @@ impl<'a, 'b> Resolver<'a, 'b> {
 
             ExprNode::Name(bare) => {
                 let mut scope = self.lexical.get(&at);
-                let mut id = at;
+                let mut id;
 
                 'outer: loop {
                     for (other, name) in scope.names.iter().rev() {
@@ -193,10 +193,8 @@ impl<'a, 'b> Resolver<'a, 'b> {
                         }
                     }
 
-                    // Recursive scopes mean root scopes.
-                    // TODO: that's ugly
-                    if scope.parent != id {
-                        id = scope.parent;
+                    if let Some(parent) = scope.parent {
+                        id = parent;
                         scope = self.lexical.get(&id);
                     } else {
                         let name = self.names.lookup_intern_bare(bare).0;

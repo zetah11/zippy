@@ -38,7 +38,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
         at: (ScopeId, Name),
     ) -> Decls<DeclData> {
         let mut scope = Scope {
-            parent: at.0,
+            parent: Some(at.0),
             names: Vec::with_capacity(decls.len()),
         };
 
@@ -121,7 +121,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
 
         let scope_id = self.scopes.make_id();
         let mut scope = Scope {
-            parent: at.0,
+            parent: Some(at.0),
             names: vec![],
         };
 
@@ -184,7 +184,7 @@ impl<'a, 'b> Declarer<'a, 'b> {
                 let gen_name = self.names.intern_name(gen_name);
 
                 let mut scope = Scope {
-                    parent: at.0,
+                    parent: Some(at.0),
                     names: Vec::with_capacity(params.len()),
                 };
 
