@@ -15,6 +15,9 @@ use crate::mir;
 use crate::tyck;
 use crate::Driver;
 
-pub fn elaborate(_driver: &mut impl Driver, ex: tyck::Expr<tyck::Type>) -> (mir::Types, mir::Expr) {
-    lower::lower(ex)
+pub fn elaborate(
+    _driver: &mut impl Driver,
+    decls: tyck::Decls<tyck::Type>,
+) -> (mir::Types, mir::Decls) {
+    lower::lower(decls)
 }

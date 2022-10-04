@@ -18,6 +18,18 @@ pub enum Type {
 }
 
 #[derive(Debug)]
+pub struct Decls {
+    pub values: Vec<ValueDef>,
+}
+
+#[derive(Debug)]
+pub struct ValueDef {
+    pub span: Span,
+    pub pat: Pat,
+    pub bind: Expr,
+}
+
+#[derive(Debug)]
 pub struct Expr {
     pub node: ExprNode,
     pub span: Span,

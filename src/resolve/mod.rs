@@ -2,24 +2,26 @@
 
 pub mod names;
 
+mod declare_decl;
 mod declare_expr;
 mod declare_pat;
+mod resolve_decl;
 mod resolve_expr;
 mod resolve_pat;
 
-use crate::hir::{BindId, Expr};
+use crate::hir::{BindId, Decls};
 use crate::message::{Messages, Span};
 use crate::Driver;
 use names::{Actual, Name, Names, Path};
 
-pub fn resolve(driver: &mut impl Driver, expr: Expr) -> (Expr<Name>, Names) {
+pub fn resolve(driver: &mut impl Driver, decls: Decls) -> (Decls<Name>, Names) {
     let mut resolver = Resolver::new();
-    resolver.declare(&expr);
-    let expr = resolver.resolve(expr);
+    resolver.declare(&decls);
+    let decls = resolver.resolve(decls);
 
     driver.report(resolver.msgs);
 
-    (expr, resolver.names)
+    (decls, resolver.names)
 }
 
 #[derive(Debug, Default)]
@@ -38,13 +40,13 @@ impl Resolver {
         }
     }
 
-    pub fn declare(&mut self, expr: &Expr) {
-        self.declare_expr(expr);
+    pub fn declare(&mut self, decls: &Decls) {
+        self.declare_decls(decls);
         assert!(self.context.is_empty());
     }
 
-    pub fn resolve(&mut self, expr: Expr) -> Expr<Name> {
-        self.resolve_expr(expr)
+    pub fn resolve(&mut self, decls: Decls) -> Decls<Name> {
+        self.resolve_decls(decls)
     }
 
     fn enter(&mut self, span: Span, id: BindId) {

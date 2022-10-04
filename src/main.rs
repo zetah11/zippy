@@ -11,7 +11,8 @@ use console_driver::ConsoleDriver;
 
 fn main() {
     let src = r#"
-        ((->) => 0 -> 5) : (0 upto 10 -> 0 upto 10 -> 0 upto 10) -> 0 upto 10
+        let f : 0 upto 10 -> 0 upto 10 = x => x
+        let x : 0 upto 10 = f 5
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
@@ -25,6 +26,6 @@ fn main() {
     let (types, expr) = elaborate(&mut driver, expr);
 
     println!("{expr:?}");
-    println!("{types:?}");
     println!("{names:?}");
+    println!("{types:?}");
 }

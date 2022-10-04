@@ -2,8 +2,32 @@ use super::tree;
 use crate::hir;
 use crate::resolve::names::Name;
 
-pub fn lower(ex: hir::Expr<Name>) -> tree::Expr {
-    lower_expr(ex)
+pub fn lower(ex: hir::Decls<Name>) -> tree::Decls {
+    lower_decls(ex)
+}
+
+fn lower_decls(decls: hir::Decls<Name>) -> tree::Decls {
+    let mut values = Vec::with_capacity(decls.values.len());
+
+    for def in decls.values {
+        values.push(lower_value_def(def));
+    }
+
+    tree::Decls { values }
+}
+
+fn lower_value_def(def: hir::ValueDef<Name>) -> tree::ValueDef {
+    let pat = lower_pat(def.pat);
+    let _ = def.id;
+    let anno = def.anno.map(lower_type).unwrap();
+    let bind = lower_expr(def.bind);
+
+    tree::ValueDef {
+        span: def.span,
+        pat,
+        anno,
+        bind,
+    }
 }
 
 fn lower_expr(ex: hir::Expr<Name>) -> tree::Expr {

@@ -2,6 +2,9 @@ use logos::Logos;
 
 #[derive(Logos, Debug)]
 pub enum FreeToken<'src> {
+    #[token("let")]
+    Let,
+
     #[token("upto")]
     Upto,
 
@@ -16,6 +19,9 @@ pub enum FreeToken<'src> {
 
     #[token("=>")]
     EqArrow,
+
+    #[token("=")]
+    Equal,
 
     #[token(":")]
     Colon,

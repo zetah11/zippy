@@ -7,6 +7,7 @@ pub trait Matcher {
 impl Matcher for Token {
     fn matches(&self, tok: &Token) -> bool {
         match (self, tok) {
+            (_, Token::Invalid) => true,
             (Token::Name(..), Token::Name(..)) => true,
             (Token::Number(..), Token::Number(..)) => true,
             (t, u) => t == u,

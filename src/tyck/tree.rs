@@ -1,6 +1,19 @@
 use crate::message::Span;
 use crate::resolve::names::Name;
 
+#[derive(Debug)]
+pub struct Decls<Data = ()> {
+    pub values: Vec<ValueDef<Data>>,
+}
+
+#[derive(Debug)]
+pub struct ValueDef<Data = ()> {
+    pub span: Span,
+    pub pat: Pat<Data>,
+    pub anno: Type,
+    pub bind: Expr<Data>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Expr<Data = ()> {
     pub node: ExprNode<Data>,

@@ -20,8 +20,40 @@ impl Unconcretifier {
         }
     }
 
-    pub fn unconcretify(&mut self, expr: cst::Expr) -> hir::Expr {
-        self.unconc_expr(expr)
+    pub fn unconcretify(&mut self, decls: Vec<cst::Decl>) -> hir::Decls {
+        self.unconc_decls(decls)
+    }
+
+    fn unconc_decls(&mut self, decls: Vec<cst::Decl>) -> hir::Decls {
+        let mut values = Vec::with_capacity(decls.len());
+
+        for decl in decls {
+            match decl.node {
+                cst::DeclNode::ValueDecl { pat, anno, bind } => {
+                    let pat = self.unconc_pat(pat);
+                    let anno = anno.map(|anno| self.unconc_type(anno));
+
+                    let bind = if let Some(bind) = bind {
+                        self.unconc_expr(bind)
+                    } else {
+                        hir::Expr {
+                            node: hir::ExprNode::Invalid,
+                            span: decl.span,
+                        }
+                    };
+
+                    values.push(hir::ValueDef {
+                        span: decl.span,
+                        id: self.fresh_bind_id(),
+                        pat,
+                        anno,
+                        bind,
+                    });
+                }
+            }
+        }
+
+        hir::Decls { values }
     }
 
     fn unconc_expr(&mut self, expr: cst::Expr) -> hir::Expr {

@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use super::MessageAdder;
 
 const BASE_EXPR: &str = "EP00";
-//const NOT_AN_EXPR: &str = "EP01";
+const DECLARATION: &str = "EP01";
 const NOT_A_PAT: &str = "EP02";
 const NOT_A_TYPE: &str = "EP03";
 const RANGE_NOT_AN_INT: &str = "EP04";
@@ -22,18 +22,17 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
-    /*
-    pub fn parse_not_an_expression(&mut self) {
-        let labels = vec![Label::primary(self.at.file, self.at)];
+    pub fn parse_expected_declaration(&mut self) {
+        let labels =
+            vec![Label::primary(self.at.file, self.at).with_message("expected a 'let'-binding")];
 
         self.add(
             Diagnostic::error()
-                .with_code(NOT_AN_EXPR)
-                .with_message("expected an expression")
+                .with_code(DECLARATION)
+                .with_message("expected a declaration")
                 .with_labels(labels),
         );
     }
-    */
 
     pub fn parse_not_a_pattern(&mut self) {
         let labels = vec![Label::primary(self.at.file, self.at)];

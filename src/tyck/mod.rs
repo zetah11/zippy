@@ -1,4 +1,4 @@
-pub use tree::{Expr, ExprNode, Pat, PatNode, Type};
+pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, Type, ValueDef};
 
 mod bind;
 mod check;
@@ -14,14 +14,14 @@ use crate::{hir, Driver};
 use context::Context;
 use lower::lower;
 
-pub fn typeck(driver: &mut impl Driver, ex: hir::Expr<Name>) -> Expr<Type> {
-    let ex = lower(ex);
+pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> Decls<Type> {
+    let decls = lower(decls);
     let mut typer = Typer::new();
-    let ex = typer.infer(ex);
+    let decls = typer.typeck(decls);
 
     driver.report(typer.messages);
 
-    ex
+    decls
 }
 
 #[derive(Debug, Default)]
@@ -36,5 +36,44 @@ impl Typer {
             messages: Messages::new(),
             context: Context::new(),
         }
+    }
+
+    fn typeck(&mut self, decls: Decls) -> Decls<Type> {
+        let (pats, binds): (Vec<_>, Vec<_>) = decls
+            .values
+            .into_iter()
+            .map(|decl| {
+                (
+                    (decl.pat, decl.anno.clone()),
+                    (decl.span, decl.bind, decl.anno),
+                )
+            })
+            .unzip();
+
+        // Let's be extremely careful with our ordering now...
+
+        let mut new_pats = Vec::with_capacity(pats.len());
+        let mut new_binds = Vec::with_capacity(binds.len());
+
+        for (pat, anno) in pats {
+            new_pats.push(self.bind_pat(pat, anno));
+        }
+
+        for (span, bind, anno) in binds {
+            new_binds.push((span, self.check(bind, anno)));
+        }
+
+        let values = new_pats
+            .into_iter()
+            .zip(new_binds.into_iter())
+            .map(|(pat, (span, bind))| ValueDef {
+                span,
+                pat,
+                anno: Type::Invalid,
+                bind,
+            })
+            .collect();
+
+        Decls { values }
     }
 }

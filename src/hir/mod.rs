@@ -4,6 +4,20 @@ use crate::message::Span;
 pub struct BindId(pub(crate) usize);
 
 #[derive(Debug)]
+pub struct Decls<Name = String> {
+    pub values: Vec<ValueDef<Name>>,
+}
+
+#[derive(Debug)]
+pub struct ValueDef<Name = String> {
+    pub span: Span,
+    pub id: BindId,
+    pub pat: Pat<Name>,
+    pub anno: Option<Type>,
+    pub bind: Expr<Name>,
+}
+
+#[derive(Debug)]
 pub struct Expr<Name = String> {
     pub node: ExprNode<Name>,
     pub span: Span,

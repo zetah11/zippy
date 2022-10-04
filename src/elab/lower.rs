@@ -1,4 +1,4 @@
-use crate::mir::{Expr, ExprNode, Pat, PatNode, Type, TypeId, Types};
+use crate::mir::{Decls, Expr, ExprNode, Pat, PatNode, Type, TypeId, Types, ValueDef};
 use crate::tyck;
 
 type HiType = tyck::Type;
@@ -6,11 +6,29 @@ type HiPat = tyck::Pat<HiType>;
 type HiPatNode = tyck::PatNode;
 type HiExpr = tyck::Expr<HiType>;
 type HiExprNode = tyck::ExprNode<HiType>;
+type HiDecls = tyck::Decls<HiType>;
 
-pub fn lower(ex: HiExpr) -> (Types, Expr) {
+pub fn lower(decls: HiDecls) -> (Types, Decls) {
     let mut types = Types::new();
-    let ex = lower_expr(&mut types, ex);
-    (types, ex)
+    let decls = lower_decls(&mut types, decls);
+    (types, decls)
+}
+
+fn lower_decls(types: &mut Types, decls: HiDecls) -> Decls {
+    let mut values = Vec::with_capacity(decls.values.len());
+
+    for def in decls.values {
+        let pat = lower_pat(types, def.pat);
+        let bind = lower_expr(types, def.bind);
+
+        values.push(ValueDef {
+            span: def.span,
+            pat,
+            bind,
+        });
+    }
+
+    Decls { values }
 }
 
 fn lower_expr(types: &mut Types, ex: HiExpr) -> Expr {

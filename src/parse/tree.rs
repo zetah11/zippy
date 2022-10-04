@@ -3,6 +3,21 @@ use crate::message::Span;
 pub type Name = String;
 
 #[derive(Clone, Debug)]
+pub struct Decl {
+    pub node: DeclNode,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug)]
+pub enum DeclNode {
+    ValueDecl {
+        pat: Expr,
+        anno: Option<Expr>,
+        bind: Option<Expr>,
+    },
+}
+
+#[derive(Clone, Debug)]
 pub struct Expr {
     pub node: ExprNode,
     pub span: Span,

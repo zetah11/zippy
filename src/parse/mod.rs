@@ -1,10 +1,11 @@
 pub mod tree;
 
+mod decl;
 mod expr;
 mod matcher;
 mod unconcretify;
 
-use crate::hir::Expr;
+use crate::hir::Decls;
 use crate::lex::Token;
 use crate::message::{File, Messages, Span};
 use crate::Driver;
@@ -15,18 +16,18 @@ pub fn parse(
     driver: &mut impl Driver,
     tokens: impl IntoIterator<Item = (Token, Span)>,
     file: File,
-) -> Expr {
+) -> Decls {
     let mut parser = Parser::new(tokens, file);
-    let expr = parser.parse_expr();
+    let decls = parser.parse_program();
 
     driver.report(parser.msgs);
 
     let mut unconcretifier = Unconcretifier::new();
-    let expr = unconcretifier.unconcretify(expr);
+    let decls = unconcretifier.unconcretify(decls);
 
     driver.report(unconcretifier.msgs);
 
-    expr
+    decls
 }
 
 #[derive(Debug)]
@@ -84,6 +85,15 @@ where
             true
         } else {
             false
+        }
+    }
+
+    fn matches(&mut self, matcher: impl Matcher) -> Option<Span> {
+        if self.peek(matcher) {
+            self.advance();
+            self.prev.as_ref().map(|(_, span)| *span)
+        } else {
+            None
         }
     }
 }

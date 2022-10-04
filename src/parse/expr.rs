@@ -15,6 +15,13 @@ where
     }
 
     /// ```abnf
+    /// small-expr = arrow-expr
+    /// ```
+    pub fn parse_small_expr(&mut self) -> Expr {
+        self.arrow_expr()
+    }
+
+    /// ```abnf
     /// lam-expr = anno-expr ["=>" expr]
     /// ; reassoc 'f x => y' as 'f (x => y)'
     /// ```
@@ -48,12 +55,12 @@ where
     }
 
     /// ```abnf
-    /// anno-expr = arrow-expr [":" arrow-expr]
+    /// anno-expr = small-expr [":" small-expr]
     /// ```
     fn anno_expr(&mut self) -> Expr {
-        let expr = self.arrow_expr();
+        let expr = self.parse_small_expr();
         if self.consume(Token::Colon) {
-            let anno = self.arrow_expr();
+            let anno = self.parse_small_expr();
             let span = expr.span + anno.span;
 
             Expr {
