@@ -1,0 +1,28 @@
+; Basic lexical syntax; this is an "overapproximation" which does not
+; distinguish between types, patterns, or expressions.
+
+prog       = [decl *(";" decl)]
+prog      =/ "(" prog ")"
+
+decl       = sig-decl / let-decl
+
+sig-decl   = "let" expr ":" expr
+let-decl   = "let" expr "=" expr
+
+
+expr       = lam-expr
+
+lam-expr   = anno-expr ["=>" expr]
+
+anno-expr  = arrow-expr [":" arrow-expr]
+
+arrow-expr = range-expr ["->" arrow-expr]
+range-expr = app-expr ["upto" app-expr]
+
+app-expr   = base-expr [app-expr]
+
+base-expr  = NAME / INT
+base-expr =/ "(" expr ")"
+base-expr =/ "(" OP-NAME ")"
+
+OP-NAME    = "->" / "upto"
