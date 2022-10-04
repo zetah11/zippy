@@ -14,7 +14,6 @@ let-decl    = "let" small-expr [":" small-expr] ["=" expr]
 expr        = lam-expr
 
 lam-expr    = anno-expr ["=>" expr]
-
 anno-expr   = small-expr [":" small-expr]
 
 small-expr  = arrow-expr
