@@ -133,11 +133,12 @@ where
     const BASE_EXPR_STARTS: &'static [Token] = &[
         Token::Name(String::new()),
         Token::Number(0),
+        Token::Question,
         Token::GroupOpen,
     ];
 
     /// ```abnf
-    /// base-expr  = NAME / NUM
+    /// base-expr  = NAME / NUM / WILDCARD
     /// base-expr =/ "(" expr ")"
     /// base-expr =/ "(" OP-NAME ")"
     /// ```
@@ -147,6 +148,7 @@ where
             let node = match tok {
                 Token::Name(name) => ExprNode::Name(name),
                 Token::Number(num) => ExprNode::Int(num),
+                Token::Question => ExprNode::Wildcard,
                 Token::GroupOpen => {
                     let expr = if self.peek(Self::OP_NAME_STARTS) {
                         self.op_name()

@@ -11,8 +11,8 @@ use console_driver::ConsoleDriver;
 
 fn main() {
     let src = r#"
-        let f : 0 upto 10 -> 0 upto 10 = x => x
-        let x : 0 upto 10 = f 5
+        let f : 0 upto 10 -> 0 upto 10 = ?
+        let x : ? = f 5
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());

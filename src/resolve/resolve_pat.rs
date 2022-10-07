@@ -11,6 +11,7 @@ impl Resolver {
                 PatNode::Name(name)
             }
 
+            PatNode::Wildcard => PatNode::Wildcard,
             PatNode::Invalid => PatNode::Invalid,
         };
 

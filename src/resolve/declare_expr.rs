@@ -4,7 +4,7 @@ use crate::hir::{Expr, ExprNode};
 impl Resolver {
     pub fn declare_expr(&mut self, expr: &Expr) {
         match &expr.node {
-            ExprNode::Name(_) | ExprNode::Int(_) | ExprNode::Invalid => {}
+            ExprNode::Name(_) | ExprNode::Int(_) | ExprNode::Hole | ExprNode::Invalid => {}
             ExprNode::Lam(id, param, body) => {
                 self.enter(param.span, *id);
                 self.declare_pat(param);

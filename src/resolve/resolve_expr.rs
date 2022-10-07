@@ -4,6 +4,7 @@ use crate::hir::{Expr, ExprNode};
 impl Resolver {
     pub fn resolve_expr(&mut self, expr: Expr) -> Expr<Name> {
         let node = match expr.node {
+            ExprNode::Hole => ExprNode::Hole,
             ExprNode::Invalid => ExprNode::Invalid,
             ExprNode::Int(v) => ExprNode::Int(v),
             ExprNode::Name(name) => match self.lookup_name(expr.span, Actual::Lit(name)) {

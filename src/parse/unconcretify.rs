@@ -31,7 +31,12 @@ impl Unconcretifier {
             match decl.node {
                 cst::DeclNode::ValueDecl { pat, anno, bind } => {
                     let pat = self.unconc_pat(pat);
-                    let anno = anno.map(|anno| self.unconc_type(anno));
+                    let anno =
+                        anno.map(|anno| self.unconc_type(anno))
+                            .unwrap_or_else(|| hir::Type {
+                                node: hir::TypeNode::Wildcard,
+                                span: pat.span,
+                            });
 
                     let bind = if let Some(bind) = bind {
                         self.unconc_expr(bind)
@@ -109,6 +114,7 @@ impl Unconcretifier {
                 let anno = self.unconc_type(*anno);
                 hir::ExprNode::Anno(expr, anno)
             }
+            cst::ExprNode::Wildcard => hir::ExprNode::Hole,
             cst::ExprNode::Invalid => hir::ExprNode::Invalid,
         };
 
@@ -122,6 +128,7 @@ impl Unconcretifier {
         let node = match pat.node {
             cst::ExprNode::Name(name) => hir::PatNode::Name(name),
             cst::ExprNode::Group(pat) => return self.unconc_pat(*pat),
+            cst::ExprNode::Wildcard => hir::PatNode::Wildcard,
             cst::ExprNode::Invalid => hir::PatNode::Invalid,
             _ => {
                 self.msgs.at(pat.span).parse_not_a_pattern();
@@ -170,6 +177,8 @@ impl Unconcretifier {
             }
 
             cst::ExprNode::Group(typ) => return self.unconc_type(*typ),
+
+            cst::ExprNode::Wildcard => hir::TypeNode::Wildcard,
 
             _ => {
                 self.msgs.at(typ.span).parse_not_a_type();

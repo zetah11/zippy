@@ -20,6 +20,9 @@ pub enum FreeToken<'src> {
     #[token("=>")]
     EqArrow,
 
+    #[token("?")]
+    Question,
+
     #[token("=")]
     Equal,
 

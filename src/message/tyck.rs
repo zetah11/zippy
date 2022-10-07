@@ -7,6 +7,7 @@ const OUTSIDE_RANGE: &str = "ET01";
 const NARROW_RANGE: &str = "ET02";
 const NOT_A_FUN: &str = "ET03";
 const AMBIGUOUS: &str = "ET04";
+const RECURSIVE: &str = "ET05";
 
 impl<'a> MessageAdder<'a> {
     pub fn tyck_ambiguous(&mut self) {
@@ -79,7 +80,7 @@ impl<'a> MessageAdder<'a> {
             vec![Label::primary(self.at.file, self.at)
                 .with_message(format!("expected a function type, got '{}'", ty.into()))]
         } else {
-            Vec::new()
+            vec![Label::primary(self.at.file, self.at)]
         };
 
         self.add(
@@ -88,5 +89,22 @@ impl<'a> MessageAdder<'a> {
                 .with_message("expected a function type")
                 .with_labels(labels),
         );
+    }
+
+    pub fn tyck_recursive_inference(&mut self, var: impl Into<String>, ty: impl Into<String>) {
+        let labels = vec![Label::primary(self.at.file, self.at)];
+        let notes = vec![format!(
+            "the variable '{}' occurs inside the type '{}', so the two cannot be unified",
+            var.into(),
+            ty.into()
+        )];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(RECURSIVE)
+                .with_message("attempted to infer a recursive type")
+                .with_labels(labels)
+                .with_notes(notes),
+        )
     }
 }

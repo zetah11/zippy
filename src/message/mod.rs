@@ -1,5 +1,6 @@
 mod source;
 
+mod elab;
 mod lex;
 mod parse;
 mod resolve;
@@ -25,6 +26,10 @@ impl Messages {
             msgs: self,
             at: span,
         }
+    }
+
+    pub fn merge(&mut self, other: Messages) {
+        self.msgs.extend(other.msgs);
     }
 }
 

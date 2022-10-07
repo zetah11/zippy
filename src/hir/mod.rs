@@ -13,7 +13,7 @@ pub struct ValueDef<Name = String> {
     pub span: Span,
     pub id: BindId,
     pub pat: Pat<Name>,
-    pub anno: Option<Type>,
+    pub anno: Type,
     pub bind: Expr<Name>,
 }
 
@@ -33,6 +33,7 @@ pub enum ExprNode<Name> {
 
     Anno(Box<Expr<Name>>, Type),
 
+    Hole,
     Invalid,
 }
 
@@ -45,6 +46,7 @@ pub struct Pat<Name = String> {
 #[derive(Debug)]
 pub enum PatNode<Name> {
     Name(Name),
+    Wildcard,
     Invalid,
 }
 
@@ -58,5 +60,6 @@ pub struct Type {
 pub enum TypeNode {
     Range(i64, i64),
     Fun(Box<Type>, Box<Type>),
+    Wildcard,
     Invalid,
 }

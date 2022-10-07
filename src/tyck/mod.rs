@@ -1,4 +1,9 @@
-pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, Type, ValueDef};
+use std::collections::HashMap;
+
+pub mod constraint;
+
+pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
+pub use types::{Type, UniVar};
 
 mod bind;
 mod check;
@@ -7,27 +12,45 @@ mod infer;
 mod lower;
 mod solve;
 mod tree;
+mod types;
 
 use crate::message::Messages;
 use crate::resolve::names::Name;
 use crate::{hir, Driver};
+use constraint::Constraint;
 use context::Context;
-use lower::lower;
+use solve::Unifier;
 
-pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> Decls<Type> {
-    let decls = lower(decls);
+pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> TypeckResult {
     let mut typer = Typer::new();
+    let decls = typer.lower(decls);
     let decls = typer.typeck(decls);
 
+    typer.messages.merge(typer.unifier.messages);
     driver.report(typer.messages);
 
-    decls
+    TypeckResult {
+        decls,
+        context: typer.context,
+        subst: typer.unifier.subst,
+        constraints: typer.constraints,
+    }
+}
+
+#[derive(Debug)]
+pub struct TypeckResult {
+    pub context: Context,
+    pub decls: Decls<Type>,
+    pub subst: HashMap<UniVar, Type>,
+    pub constraints: Vec<Constraint>,
 }
 
 #[derive(Debug, Default)]
 struct Typer {
     pub messages: Messages,
     context: Context,
+    unifier: Unifier,
+    constraints: Vec<Constraint>,
 }
 
 impl Typer {
@@ -35,10 +58,12 @@ impl Typer {
         Self {
             messages: Messages::new(),
             context: Context::new(),
+            unifier: Unifier::new(),
+            constraints: Vec::new(),
         }
     }
 
-    fn typeck(&mut self, decls: Decls) -> Decls<Type> {
+    pub fn typeck(&mut self, decls: Decls) -> Decls<Type> {
         let (pats, binds): (Vec<_>, Vec<_>) = decls
             .values
             .into_iter()

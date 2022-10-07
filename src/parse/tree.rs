@@ -38,5 +38,7 @@ pub enum ExprNode {
 
     Anno(Box<Expr>, Box<Expr>),
 
+    Wildcard,
+
     Invalid,
 }

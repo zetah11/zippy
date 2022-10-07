@@ -20,6 +20,8 @@ pub enum Token {
     MinArrow,
     EqArrow,
 
+    Question,
+
     Equal,
     Colon,
 
@@ -48,7 +50,9 @@ impl Token {
             | Self::Colon
             | Self::Delimit => false,
 
-            Self::GroupClose | Self::Name(_) | Self::Number(_) | Self::Invalid => true,
+            Self::GroupClose | Self::Question | Self::Name(_) | Self::Number(_) | Self::Invalid => {
+                true
+            }
         }
     }
 
@@ -62,7 +66,12 @@ impl Token {
             | Self::Equal
             | Self::Colon => false,
 
-            Self::Let | Self::GroupOpen | Self::Name(_) | Self::Number(_) | Self::Invalid => true,
+            Self::Let
+            | Self::GroupOpen
+            | Self::Question
+            | Self::Name(_)
+            | Self::Number(_)
+            | Self::Invalid => true,
         }
     }
 }
@@ -114,6 +123,7 @@ impl<'src> Lexer<'src> {
                 FreeToken::RParen => Token::GroupClose,
                 FreeToken::MinArrow => Token::MinArrow,
                 FreeToken::EqArrow => Token::EqArrow,
+                FreeToken::Question => Token::Question,
                 FreeToken::Equal => Token::Equal,
                 FreeToken::Colon => Token::Colon,
                 FreeToken::Name(name) => Token::Name(name.into()),

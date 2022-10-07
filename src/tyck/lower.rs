@@ -1,85 +1,90 @@
-use super::tree;
+use super::{tree, Typer};
 use crate::hir;
 use crate::resolve::names::Name;
 
-pub fn lower(ex: hir::Decls<Name>) -> tree::Decls {
-    lower_decls(ex)
-}
-
-fn lower_decls(decls: hir::Decls<Name>) -> tree::Decls {
-    let mut values = Vec::with_capacity(decls.values.len());
-
-    for def in decls.values {
-        values.push(lower_value_def(def));
+impl Typer {
+    pub fn lower(&mut self, ex: hir::Decls<Name>) -> tree::Decls {
+        self.lower_decls(ex)
     }
 
-    tree::Decls { values }
-}
+    fn lower_decls(&mut self, decls: hir::Decls<Name>) -> tree::Decls {
+        let mut values = Vec::with_capacity(decls.values.len());
 
-fn lower_value_def(def: hir::ValueDef<Name>) -> tree::ValueDef {
-    let pat = lower_pat(def.pat);
-    let _ = def.id;
-    let anno = def.anno.map(lower_type).unwrap();
-    let bind = lower_expr(def.bind);
+        for def in decls.values {
+            values.push(self.lower_value_def(def));
+        }
 
-    tree::ValueDef {
-        span: def.span,
-        pat,
-        anno,
-        bind,
+        tree::Decls { values }
     }
-}
 
-fn lower_expr(ex: hir::Expr<Name>) -> tree::Expr {
-    let node = match ex.node {
-        hir::ExprNode::Name(name) => tree::ExprNode::Name(name),
-        hir::ExprNode::Int(v) => tree::ExprNode::Int(v),
-        hir::ExprNode::Lam(_, param, body) => {
-            let param = lower_pat(param);
-            let body = Box::new(lower_expr(*body));
-            tree::ExprNode::Lam(param, body)
-        }
-        hir::ExprNode::App(fun, arg) => {
-            let fun = Box::new(lower_expr(*fun));
-            let arg = Box::new(lower_expr(*arg));
-            tree::ExprNode::App(fun, arg)
-        }
-        hir::ExprNode::Anno(ex, ty) => {
-            let ex = Box::new(lower_expr(*ex));
-            let ty = lower_type(ty);
-            tree::ExprNode::Anno(ex, ty)
-        }
-        hir::ExprNode::Invalid => tree::ExprNode::Invalid,
-    };
+    fn lower_value_def(&mut self, def: hir::ValueDef<Name>) -> tree::ValueDef {
+        let pat = self.lower_pat(def.pat);
+        let _ = def.id;
+        let anno = self.lower_type(def.anno);
+        let bind = self.lower_expr(def.bind);
 
-    tree::Expr {
-        node,
-        span: ex.span,
-        data: (),
+        tree::ValueDef {
+            span: def.span,
+            pat,
+            anno,
+            bind,
+        }
     }
-}
 
-fn lower_pat(pat: hir::Pat<Name>) -> tree::Pat {
-    let node = match pat.node {
-        hir::PatNode::Name(name) => tree::PatNode::Name(name),
-        hir::PatNode::Invalid => tree::PatNode::Invalid,
-    };
+    fn lower_expr(&mut self, ex: hir::Expr<Name>) -> tree::Expr {
+        let node = match ex.node {
+            hir::ExprNode::Name(name) => tree::ExprNode::Name(name),
+            hir::ExprNode::Int(v) => tree::ExprNode::Int(v),
+            hir::ExprNode::Lam(_, param, body) => {
+                let param = self.lower_pat(param);
+                let body = Box::new(self.lower_expr(*body));
+                tree::ExprNode::Lam(param, body)
+            }
+            hir::ExprNode::App(fun, arg) => {
+                let fun = Box::new(self.lower_expr(*fun));
+                let arg = Box::new(self.lower_expr(*arg));
+                tree::ExprNode::App(fun, arg)
+            }
+            hir::ExprNode::Anno(ex, ty) => {
+                let ex = Box::new(self.lower_expr(*ex));
+                let ty = self.lower_type(ty);
+                tree::ExprNode::Anno(ex, ty)
+            }
+            hir::ExprNode::Hole => tree::ExprNode::Hole,
+            hir::ExprNode::Invalid => tree::ExprNode::Invalid,
+        };
 
-    tree::Pat {
-        node,
-        span: pat.span,
-        data: (),
-    }
-}
-
-fn lower_type(ty: hir::Type) -> tree::Type {
-    match ty.node {
-        hir::TypeNode::Range(lo, hi) => tree::Type::Range(lo, hi),
-        hir::TypeNode::Fun(t, u) => {
-            let t = Box::new(lower_type(*t));
-            let u = Box::new(lower_type(*u));
-            tree::Type::Fun(t, u)
+        tree::Expr {
+            node,
+            span: ex.span,
+            data: (),
         }
-        hir::TypeNode::Invalid => tree::Type::Invalid,
+    }
+
+    fn lower_pat(&mut self, pat: hir::Pat<Name>) -> tree::Pat {
+        let node = match pat.node {
+            hir::PatNode::Name(name) => tree::PatNode::Name(name),
+            hir::PatNode::Wildcard => tree::PatNode::Wildcard,
+            hir::PatNode::Invalid => tree::PatNode::Invalid,
+        };
+
+        tree::Pat {
+            node,
+            span: pat.span,
+            data: (),
+        }
+    }
+
+    fn lower_type(&mut self, ty: hir::Type) -> tree::Type {
+        match ty.node {
+            hir::TypeNode::Range(lo, hi) => tree::Type::Range(lo, hi),
+            hir::TypeNode::Fun(t, u) => {
+                let t = Box::new(self.lower_type(*t));
+                let u = Box::new(self.lower_type(*u));
+                tree::Type::Fun(t, u)
+            }
+            hir::TypeNode::Wildcard => tree::Type::Var(self.context.fresh()),
+            hir::TypeNode::Invalid => tree::Type::Invalid,
+        }
     }
 }

@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
+use crate::message::Messages;
 use crate::mir::{Decls, Expr, ExprNode, Pat, PatNode, Type, TypeId, Types, ValueDef};
-use crate::tyck;
+use crate::tyck::{self, UniVar};
+use crate::Driver;
 
 type HiType = tyck::Type;
 type HiPat = tyck::Pat<HiType>;
@@ -8,92 +12,132 @@ type HiExpr = tyck::Expr<HiType>;
 type HiExprNode = tyck::ExprNode<HiType>;
 type HiDecls = tyck::Decls<HiType>;
 
-pub fn lower(decls: HiDecls) -> (Types, Decls) {
-    let mut types = Types::new();
-    let decls = lower_decls(&mut types, decls);
-    (types, decls)
+pub fn lower(
+    driver: &mut impl Driver,
+    subst: &HashMap<UniVar, HiType>,
+    decls: HiDecls,
+) -> (Types, Decls) {
+    let mut lowerer = Lowerer::new(subst);
+
+    let decls = lowerer.lower_decls(decls);
+
+    driver.report(lowerer.messages);
+    (lowerer.types, decls)
 }
 
-fn lower_decls(types: &mut Types, decls: HiDecls) -> Decls {
-    let mut values = Vec::with_capacity(decls.values.len());
+#[derive(Debug)]
+struct Lowerer<'a> {
+    types: Types,
+    subst: &'a HashMap<UniVar, HiType>,
+    messages: Messages,
+}
 
-    for def in decls.values {
-        let pat = lower_pat(types, def.pat);
-        let bind = lower_expr(types, def.bind);
-
-        values.push(ValueDef {
-            span: def.span,
-            pat,
-            bind,
-        });
+impl<'a> Lowerer<'a> {
+    pub fn new(subst: &'a HashMap<UniVar, HiType>) -> Self {
+        Self {
+            types: Types::new(),
+            subst,
+            messages: Messages::new(),
+        }
     }
 
-    Decls { values }
-}
+    pub fn lower_decls(&mut self, decls: HiDecls) -> Decls {
+        let mut values = Vec::with_capacity(decls.values.len());
 
-fn lower_expr(types: &mut Types, ex: HiExpr) -> Expr {
-    if let HiType::Invalid = ex.data {
-        Expr {
-            node: ExprNode::Invalid,
-            span: ex.span,
-            typ: types.add(Type::Invalid),
+        for def in decls.values {
+            let pat = self.lower_pat(def.pat);
+            let bind = self.lower_expr(def.bind);
+
+            values.push(ValueDef {
+                span: def.span,
+                pat,
+                bind,
+            });
         }
-    } else {
-        let node = match ex.node {
-            HiExprNode::Int(v) => ExprNode::Int(v),
 
-            HiExprNode::Name(name) => ExprNode::Name(name),
+        Decls { values }
+    }
 
-            HiExprNode::Lam(param, body) => {
-                let param = lower_pat(types, param);
-                let body = lower_expr(types, *body);
-                ExprNode::Lam(param, Box::new(body))
+    fn lower_expr(&mut self, ex: HiExpr) -> Expr {
+        if let HiType::Invalid = ex.data {
+            Expr {
+                node: ExprNode::Invalid,
+                span: ex.span,
+                typ: self.types.add(Type::Invalid),
             }
+        } else {
+            let typ = self.lower_type(ex.data);
+            let node = match ex.node {
+                HiExprNode::Int(v) => ExprNode::Int(v),
 
-            HiExprNode::App(fun, arg) => {
-                let fun = lower_expr(types, *fun);
-                let arg = lower_expr(types, *arg);
+                HiExprNode::Name(name) => ExprNode::Name(name),
 
-                ExprNode::App(Box::new(fun), Box::new(arg))
+                HiExprNode::Lam(param, body) => {
+                    let param = self.lower_pat(param);
+                    let body = self.lower_expr(*body);
+                    ExprNode::Lam(param, Box::new(body))
+                }
+
+                HiExprNode::App(fun, arg) => {
+                    let fun = self.lower_expr(*fun);
+                    let arg = self.lower_expr(*arg);
+
+                    ExprNode::App(Box::new(fun), Box::new(arg))
+                }
+
+                HiExprNode::Hole => {
+                    self.messages
+                        .at(ex.span)
+                        .elab_report_hole(format!("{:?}", typ));
+                    ExprNode::Invalid
+                }
+                HiExprNode::Invalid => ExprNode::Invalid,
+
+                HiExprNode::Anno(..) => unreachable!(),
+            };
+
+            Expr {
+                node,
+                span: ex.span,
+                typ,
             }
+        }
+    }
 
-            HiExprNode::Invalid => ExprNode::Invalid,
-
-            HiExprNode::Anno(..) => unreachable!(),
+    fn lower_pat(&mut self, pat: HiPat) -> Pat {
+        let node = match pat.node {
+            HiPatNode::Name(name) => PatNode::Name(name),
+            HiPatNode::Wildcard => PatNode::Wildcard,
+            HiPatNode::Invalid => PatNode::Invalid,
         };
 
-        Expr {
+        Pat {
             node,
-            span: ex.span,
-            typ: lower_type(types, ex.data),
+            span: pat.span,
+            typ: self.lower_type(pat.data),
         }
     }
-}
 
-fn lower_pat(types: &mut Types, pat: HiPat) -> Pat {
-    let node = match pat.node {
-        HiPatNode::Name(name) => PatNode::Name(name),
-        HiPatNode::Invalid => PatNode::Invalid,
-    };
+    fn lower_type(&mut self, ty: HiType) -> TypeId {
+        match ty {
+            HiType::Fun(t, u) => {
+                let t = self.lower_type(*t);
+                let u = self.lower_type(*u);
 
-    Pat {
-        node,
-        span: pat.span,
-        typ: lower_type(types, pat.data),
-    }
-}
+                self.types.add(Type::Fun(t, u))
+            }
 
-fn lower_type(types: &mut Types, ty: HiType) -> TypeId {
-    match ty {
-        HiType::Fun(t, u) => {
-            let t = lower_type(types, *t);
-            let u = lower_type(types, *u);
+            HiType::Range(lo, hi) => self.types.add(Type::Range(lo, hi)),
 
-            types.add(Type::Fun(t, u))
+            HiType::Var(v) => {
+                if let Some(ty) = self.subst.get(&v).cloned() {
+                    self.lower_type(ty)
+                } else {
+                    unimplemented!()
+                }
+            }
+
+            HiType::Invalid | HiType::Number => unreachable!(),
         }
-
-        HiType::Range(lo, hi) => types.add(Type::Range(lo, hi)),
-
-        HiType::Invalid | HiType::Number => unreachable!(),
     }
 }

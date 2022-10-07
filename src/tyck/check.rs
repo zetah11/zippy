@@ -15,6 +15,8 @@ impl Typer {
                 )
             }
 
+            ExprNode::Hole => (ExprNode::Hole, self.report_hole(ex.span, ty)),
+
             _ => {
                 let ex = self.infer(ex);
                 self.assignable(ex.span, ty, ex.data.clone());

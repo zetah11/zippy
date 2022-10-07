@@ -55,5 +55,6 @@ pub struct Pat {
 #[derive(Debug)]
 pub enum PatNode {
     Name(Name),
+    Wildcard,
     Invalid,
 }

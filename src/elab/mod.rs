@@ -12,12 +12,9 @@
 mod lower;
 
 use crate::mir;
-use crate::tyck;
+use crate::tyck::TypeckResult;
 use crate::Driver;
 
-pub fn elaborate(
-    _driver: &mut impl Driver,
-    decls: tyck::Decls<tyck::Type>,
-) -> (mir::Types, mir::Decls) {
-    lower::lower(decls)
+pub fn elaborate(driver: &mut impl Driver, tyckres: TypeckResult) -> (mir::Types, mir::Decls) {
+    lower::lower(driver, &tyckres.subst, tyckres.decls)
 }

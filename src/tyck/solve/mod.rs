@@ -1,37 +1,15 @@
+pub use unify::Unifier;
+
+mod unify;
+
 use super::{Type, Typer};
 use crate::message::Span;
 
 impl Typer {
     /// Check if `from` can be given where `into` is expected (i.e. if `from` is wider than `into`), and return the
     /// widest type.
-    pub fn assignable(&mut self, span: Span, into: Type, from: Type) -> Type {
-        match (into, from) {
-            (Type::Invalid, _) | (_, Type::Invalid) => Type::Invalid,
-            (Type::Number, Type::Range(..)) => Type::Number,
-
-            (Type::Range(lo1, hi1), Type::Range(lo2, hi2)) => {
-                if !(lo1 <= lo2 && hi1 >= hi2) {
-                    self.messages
-                        .at(span)
-                        .tyck_narrow_range((lo1, hi1), (lo2, hi2));
-                }
-
-                Type::Range(lo1, hi1)
-            }
-
-            (Type::Fun(t1, u1), Type::Fun(t2, u2)) => {
-                self.assignable(span, *t2, (*t1).clone());
-                let u1 = self.assignable(span, *u1, *u2);
-                Type::Fun(t1, Box::new(u1))
-            }
-
-            (expected, actual) => {
-                self.messages
-                    .at(span)
-                    .tyck_incompatible(Some(format!("{expected:?}")), Some(format!("{actual:?}")));
-                Type::Invalid
-            }
-        }
+    pub fn assignable(&mut self, span: Span, into: Type, from: Type) {
+        self.unifier.unify(span, into, from);
     }
 
     pub fn contains_int(&mut self, (v, span): (i64, Span), ty: Type) -> Type {
@@ -60,5 +38,11 @@ impl Typer {
                 (Type::Invalid, Type::Invalid)
             }
         }
+    }
+
+    pub fn report_hole(&mut self, span: Span, ty: Type) -> Type {
+        let var = self.context.fresh();
+        self.assignable(span, Type::Var(var), ty);
+        Type::Var(var)
     }
 }

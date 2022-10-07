@@ -8,7 +8,7 @@ impl Resolver {
             PatNode::Name(name) => {
                 self.declare_name(pat.span, Actual::Lit(name.clone()));
             }
-            PatNode::Invalid => (),
+            PatNode::Wildcard | PatNode::Invalid => (),
         }
     }
 }

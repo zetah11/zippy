@@ -1,3 +1,5 @@
+pub use super::Type;
+
 use crate::message::Span;
 use crate::resolve::names::Name;
 
@@ -31,6 +33,7 @@ pub enum ExprNode<Data> {
 
     Anno(Box<Expr<Data>>, Type),
 
+    Hole,
     Invalid,
 }
 
@@ -44,13 +47,6 @@ pub struct Pat<Data = ()> {
 #[derive(Clone, Debug)]
 pub enum PatNode {
     Name(Name),
-    Invalid,
-}
-
-#[derive(Clone, Debug)]
-pub enum Type {
-    Range(i64, i64),
-    Fun(Box<Type>, Box<Type>),
-    Number,
+    Wildcard,
     Invalid,
 }

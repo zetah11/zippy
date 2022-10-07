@@ -23,7 +23,7 @@ range-expr  = app-expr ["upto" app-expr]
 
 app-expr    = base-expr [app-expr]
 
-base-expr   = NAME / INT
+base-expr   = NAME / NUM / WILDCARD
 base-expr  =/ "(" expr ")"
 base-expr  =/ "(" OP-NAME ")"
 
