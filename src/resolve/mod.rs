@@ -9,17 +9,26 @@ mod resolve_decl;
 mod resolve_expr;
 mod resolve_pat;
 
+use log::{debug, info, trace};
+
 use crate::hir::{BindId, Decls};
 use crate::message::{Messages, Span};
 use crate::Driver;
 use names::{Actual, Name, Names, Path};
 
 pub fn resolve(driver: &mut impl Driver, decls: Decls) -> (Decls<Name>, Names) {
+    info!("beginning name resolution");
+    debug!("declaring");
+
     let mut resolver = Resolver::new();
     resolver.declare(&decls);
+
+    debug!("resolving");
     let decls = resolver.resolve(decls);
 
     driver.report(resolver.msgs);
+
+    trace!("done resolving");
 
     (decls, resolver.names)
 }

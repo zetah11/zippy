@@ -10,6 +10,8 @@ use corollary::tyck::typeck;
 use console_driver::ConsoleDriver;
 
 fn main() {
+    env_logger::init();
+
     let src = r#"
         let f : 0 upto 10 -> 0 upto 10 = ?
         let x : ? = f 5

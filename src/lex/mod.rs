@@ -1,6 +1,7 @@
 mod convert;
 mod token;
 
+use log::{info, trace};
 use logos::Logos;
 
 use crate::message::{File, Messages, Span};
@@ -32,9 +33,11 @@ pub enum Token {
 }
 
 pub fn lex(driver: &mut impl Driver, src: impl AsRef<str>, file: File) -> Vec<(Token, Span)> {
+    info!("lexing file with id {file}");
     let mut lexer = Lexer::new(src.as_ref(), file);
     lexer.lex();
     driver.report(lexer.msgs);
+    trace!("done lexing {file}");
     lexer.res
 }
 

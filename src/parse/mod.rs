@@ -5,6 +5,8 @@ mod expr;
 mod matcher;
 mod unconcretify;
 
+use log::{info, trace};
+
 use crate::hir::Decls;
 use crate::lex::Token;
 use crate::message::{File, Messages, Span};
@@ -17,6 +19,8 @@ pub fn parse(
     tokens: impl IntoIterator<Item = (Token, Span)>,
     file: File,
 ) -> Decls {
+    info!("parsing file with id {file}");
+
     let mut parser = Parser::new(tokens, file);
     let decls = parser.parse_program();
 
@@ -26,6 +30,8 @@ pub fn parse(
     let decls = unconcretifier.unconcretify(decls);
 
     driver.report(unconcretifier.msgs);
+
+    trace!("done parsing file {file}");
 
     decls
 }

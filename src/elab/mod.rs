@@ -11,10 +11,18 @@
 
 mod lower;
 
+use log::{info, trace};
+
 use crate::mir;
 use crate::tyck::TypeckResult;
 use crate::Driver;
 
 pub fn elaborate(driver: &mut impl Driver, tyckres: TypeckResult) -> (mir::Types, mir::Decls) {
-    lower::lower(driver, &tyckres.subst, tyckres.decls)
+    info!("beginning elaboration");
+
+    let res = lower::lower(driver, &tyckres.subst, tyckres.decls);
+
+    trace!("done elaborating");
+
+    res
 }

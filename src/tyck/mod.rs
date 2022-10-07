@@ -14,6 +14,8 @@ mod solve;
 mod tree;
 mod types;
 
+use log::{info, trace};
+
 use crate::message::Messages;
 use crate::resolve::names::Name;
 use crate::{hir, Driver};
@@ -22,12 +24,16 @@ use context::Context;
 use solve::Unifier;
 
 pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> TypeckResult {
+    info!("beginning typechecking");
+
     let mut typer = Typer::new();
     let decls = typer.lower(decls);
     let decls = typer.typeck(decls);
 
     typer.messages.merge(typer.unifier.messages);
     driver.report(typer.messages);
+
+    trace!("done typechecking");
 
     TypeckResult {
         decls,
