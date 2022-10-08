@@ -6,12 +6,16 @@ use crate::hir::BindId;
 use crate::message::Span;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GeneratedName(usize);
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Name(usize);
 
 #[derive(Debug, Default)]
 pub struct Names {
     names: BiMap<Name, Path>,
     decls: HashMap<Name, Span>,
+    curr_gen: usize,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -21,6 +25,7 @@ pub struct Path(pub Vec<Name>, pub Actual);
 pub enum Actual {
     Lit(String),
     Scope(BindId),
+    Generated(GeneratedName),
 }
 
 impl Names {
@@ -28,6 +33,7 @@ impl Names {
         Self {
             names: BiMap::new(),
             decls: HashMap::new(),
+            curr_gen: 0,
         }
     }
 
@@ -40,6 +46,14 @@ impl Names {
             self.decls.insert(id, at);
             id
         }
+    }
+
+    /// Generate a unique name, optionally at a given path.
+    pub fn fresh(&mut self, at: Span, ctx: Option<Name>) -> Name {
+        let id = GeneratedName(self.curr_gen);
+        self.curr_gen += 1;
+
+        self.add(at, Path(ctx.into_iter().collect(), Actual::Generated(id)))
     }
 
     pub fn get_path(&self, name: &Name) -> &Path {

@@ -13,7 +13,7 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let f : 0 upto 10 -> 0 upto 10 = ?
+        let f : 0 upto 10 -> 0 upto 10 = x => x
         let x : ? = f 5
     "#;
     let mut files = SimpleFiles::new();
@@ -23,9 +23,9 @@ fn main() {
 
     let toks = lex(&mut driver, src, file);
     let expr = parse(&mut driver, toks, file);
-    let (expr, names) = resolve(&mut driver, expr);
+    let (expr, mut names) = resolve(&mut driver, expr);
     let expr = typeck(&mut driver, expr);
-    let (types, expr) = elaborate(&mut driver, expr);
+    let (types, expr) = elaborate(&mut driver, &mut names, expr);
 
     println!("{expr:?}");
     println!("{names:?}");

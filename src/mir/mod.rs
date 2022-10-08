@@ -29,14 +29,14 @@ pub struct ValueDef {
     pub bind: Expr,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Expr {
     pub node: ExprNode,
     pub span: Span,
     pub typ: TypeId,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ExprNode {
     Int(i64),
     Name(Name),
@@ -45,14 +45,14 @@ pub enum ExprNode {
     Invalid,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Pat {
     pub node: PatNode,
     pub span: Span,
     pub typ: TypeId,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PatNode {
     Name(Name),
     Wildcard,
