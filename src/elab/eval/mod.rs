@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use log::{info, trace};
 
 use crate::message::Messages;
+use crate::mir::pretty::Prettier;
 use crate::mir::{Decls, Expr, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
@@ -30,8 +31,8 @@ pub fn evaluate(driver: &mut impl Driver, names: &mut Names, decls: Decls) -> De
 pub struct Evaluator<'a, Driver> {
     context: (HashMap<Name, Expr>, Vec<HashMap<Name, Expr>>),
     messages: Messages,
-    _driver: &'a mut Driver,
-    _names: &'a mut Names,
+    driver: &'a mut Driver,
+    names: &'a mut Names,
 }
 
 impl<'a, D: Driver> Evaluator<'a, D> {
@@ -39,8 +40,8 @@ impl<'a, D: Driver> Evaluator<'a, D> {
         Self {
             context: (HashMap::new(), Vec::new()),
             messages: Messages::new(),
-            _driver: driver,
-            _names: names,
+            driver,
+            names,
         }
     }
 
@@ -54,6 +55,12 @@ impl<'a, D: Driver> Evaluator<'a, D> {
 
         for def in decls.values {
             let ValueDef { span, pat, bind } = def;
+
+            self.driver.report_eval({
+                let prettier = Prettier::new(self.names);
+                prettier.pretty_pat(&pat)
+            });
+
             self.enter();
             let bind = self.reduce(bind);
             self.exit();

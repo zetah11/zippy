@@ -1,5 +1,4 @@
-//pub mod pretty;
-
+pub mod pretty;
 pub use types::Types;
 
 mod types;

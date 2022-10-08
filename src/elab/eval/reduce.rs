@@ -8,7 +8,10 @@ impl<'a, D: Driver> Evaluator<'a, D> {
             ExprNode::Invalid => ExprNode::Invalid,
             ExprNode::Int(v) => ExprNode::Int(v),
             ExprNode::Name(name) => match self.lookup(&name) {
-                Some(value) => return value.clone(),
+                Some(value) => {
+                    let value = value.clone();
+                    return value;
+                }
                 None => ExprNode::Name(name),
             },
             ExprNode::Lam(param, body) => ExprNode::Lam(param, Box::new(self.reduce(*body))),
