@@ -31,7 +31,7 @@ pub enum ExprNode<Data> {
     Lam(Pat<Data>, Box<Expr<Data>>),
     App(Box<Expr<Data>>, Box<Expr<Data>>),
 
-    Anno(Box<Expr<Data>>, Type),
+    Anno(Box<Expr<Data>>, Span, Type),
 
     Tuple(Box<Expr<Data>>, Box<Expr<Data>>),
 

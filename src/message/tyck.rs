@@ -17,7 +17,7 @@ impl<'a> MessageAdder<'a> {
         self.add(
             Diagnostic::error()
                 .with_code(AMBIGUOUS)
-                .with_message("ambigous expression")
+                .with_message("cannot infer the type of an ambiguous expression")
                 .with_labels(labels),
         );
     }
@@ -61,7 +61,7 @@ impl<'a> MessageAdder<'a> {
     pub fn tyck_not_a_fun(&mut self, ty: Option<impl Into<String>>) {
         let labels = if let Some(ty) = ty {
             vec![Label::primary(self.at.file, self.at)
-                .with_message(format!("expected a function type, got '{}'", ty.into()))]
+                .with_message(format!("a function cannot initialize '{}'", ty.into()))]
         } else {
             vec![Label::primary(self.at.file, self.at)]
         };
@@ -69,7 +69,7 @@ impl<'a> MessageAdder<'a> {
         self.add(
             Diagnostic::error()
                 .with_code(NOT_A_FUN)
-                .with_message("expected a function type")
+                .with_message("cannot create non-function type with a function")
                 .with_labels(labels),
         );
     }
@@ -77,7 +77,7 @@ impl<'a> MessageAdder<'a> {
     pub fn tyck_not_an_int(&mut self, ty: Option<impl Into<String>>) {
         let labels = if let Some(ty) = ty {
             vec![Label::primary(self.at.file, self.at)
-                .with_message(format!("expected an integer type, got '{}'", ty.into()))]
+                .with_message(format!("a number cannot initialize '{}'", ty.into()))]
         } else {
             vec![Label::primary(self.at.file, self.at)]
         };
@@ -85,7 +85,7 @@ impl<'a> MessageAdder<'a> {
         self.add(
             Diagnostic::error()
                 .with_code(NOT_AN_INT)
-                .with_message("expected an integer type")
+                .with_message("cannot create non-numeric type with a number")
                 .with_labels(labels),
         );
     }

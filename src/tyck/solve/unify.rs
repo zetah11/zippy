@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use crate::message::{Messages, Span};
+use crate::tyck::because::Because;
 use crate::tyck::{Type, UniVar};
 
 #[derive(Debug, Default)]
 pub struct Unifier {
     pub subst: HashMap<UniVar, Type>,
+    pub causes: HashMap<UniVar, Because>,
     pub messages: Messages,
 }
 
@@ -13,6 +15,7 @@ impl Unifier {
     pub fn new() -> Self {
         Self {
             subst: HashMap::new(),
+            causes: HashMap::new(),
             messages: Messages::new(),
         }
     }
@@ -51,6 +54,7 @@ impl Unifier {
                     self.set(v, Type::Invalid);
                 } else {
                     self.set(v, u);
+                    self.causes.insert(v, Because::Unified(span));
                 }
             }
 
@@ -64,6 +68,7 @@ impl Unifier {
                     self.set(w, Type::Invalid);
                 } else {
                     self.set(w, t);
+                    self.causes.insert(w, Because::Unified(span));
                 }
             }
 

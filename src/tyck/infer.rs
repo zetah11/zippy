@@ -1,3 +1,4 @@
+use super::because::Because;
 use super::{Expr, ExprNode, Type, Typer};
 
 impl Typer {
@@ -12,12 +13,12 @@ impl Typer {
             ExprNode::App(fun, arg) => {
                 let fun = self.infer(*fun);
                 let (t, u) = self.fun_type(ex.span, fun.data.clone());
-                let arg = self.check(*arg, t);
+                let arg = self.check(Because::Inferred(fun.span, None), *arg, t);
                 (ExprNode::App(Box::new(fun), Box::new(arg)), u)
             }
 
-            ExprNode::Anno(ex, ty) => {
-                return self.check(*ex, ty);
+            ExprNode::Anno(ex, anno_span, ty) => {
+                return self.check(Because::Annotation(anno_span), *ex, ty);
             }
 
             ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),

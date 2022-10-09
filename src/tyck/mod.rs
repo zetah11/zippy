@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub mod because;
 pub mod constraint;
 
 pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
@@ -19,6 +20,7 @@ use log::{info, trace};
 use crate::message::Messages;
 use crate::resolve::names::Name;
 use crate::{hir, Driver};
+use because::Because;
 use constraint::Constraint;
 use context::Context;
 use solve::Unifier;
@@ -92,7 +94,7 @@ impl Typer {
         }
 
         for (span, bind, anno) in binds {
-            new_binds.push((span, self.check(bind, anno)));
+            new_binds.push((span, self.check(Because::Annotation(span), bind, anno)));
         }
 
         let values = new_pats
@@ -114,8 +116,8 @@ impl Typer {
 
         for constraint in constraints {
             match constraint {
-                Constraint::IntType(span, ty) => {
-                    let _ = self.int_type(span, ty);
+                Constraint::IntType { at, because, ty } => {
+                    let _ = self.int_type(at, because, ty);
                 }
             }
         }

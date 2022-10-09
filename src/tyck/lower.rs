@@ -47,8 +47,9 @@ impl Typer {
             }
             hir::ExprNode::Anno(ex, ty) => {
                 let ex = Box::new(self.lower_expr(*ex));
+                let anno_span = ty.span;
                 let ty = self.lower_type(ty);
-                tree::ExprNode::Anno(ex, ty)
+                tree::ExprNode::Anno(ex, anno_span, ty)
             }
             hir::ExprNode::Tuple(x, y) => {
                 let x = Box::new(self.lower_expr(*x));
