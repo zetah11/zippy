@@ -6,6 +6,8 @@ pub enum Type {
     Range(i64, i64),
     Fun(Box<Type>, Box<Type>),
 
+    Product(Box<Type>, Box<Type>),
+
     Var(UniVar),
     Number,
 

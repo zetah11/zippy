@@ -16,10 +16,14 @@ expr        = lam-expr
 lam-expr    = anno-expr ["=>" expr]
 anno-expr   = small-expr [":" small-expr]
 
-small-expr  = arrow-expr
+small-expr  = tuple-expr
+
+tuple-expr  = arrow-expr ["," tuple-expr]
 
 arrow-expr  = range-expr ["->" arrow-expr]
-range-expr  = app-expr ["upto" app-expr]
+range-expr  = mul-expr ["upto" mul-expr]
+
+mul-expr    = app-expr *("*" app-expr)
 
 app-expr    = base-expr [app-expr]
 
@@ -28,3 +32,4 @@ base-expr  =/ "(" expr ")"
 base-expr  =/ "(" OP-NAME ")"
 
 OP-NAME     = "->" / "upto"
+OP-NAME    =/ "*"

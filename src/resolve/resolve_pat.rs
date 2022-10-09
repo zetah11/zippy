@@ -11,6 +11,12 @@ impl Resolver {
                 PatNode::Name(name)
             }
 
+            PatNode::Tuple(x, y) => {
+                let x = Box::new(self.resolve_pat(*x));
+                let y = Box::new(self.resolve_pat(*y));
+                PatNode::Tuple(x, y)
+            }
+
             PatNode::Wildcard => PatNode::Wildcard,
             PatNode::Invalid => PatNode::Invalid,
         };

@@ -23,6 +23,12 @@ pub enum FreeToken<'src> {
     #[token("?")]
     Question,
 
+    #[token(",")]
+    Comma,
+
+    #[token("*")]
+    Star,
+
     #[token("=")]
     Equal,
 

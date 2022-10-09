@@ -50,6 +50,11 @@ impl Typer {
                 let ty = self.lower_type(ty);
                 tree::ExprNode::Anno(ex, ty)
             }
+            hir::ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.lower_expr(*x));
+                let y = Box::new(self.lower_expr(*y));
+                tree::ExprNode::Tuple(x, y)
+            }
             hir::ExprNode::Hole => tree::ExprNode::Hole,
             hir::ExprNode::Invalid => tree::ExprNode::Invalid,
         };
@@ -64,6 +69,11 @@ impl Typer {
     fn lower_pat(&mut self, pat: hir::Pat<Name>) -> tree::Pat {
         let node = match pat.node {
             hir::PatNode::Name(name) => tree::PatNode::Name(name),
+            hir::PatNode::Tuple(x, y) => {
+                let x = Box::new(self.lower_pat(*x));
+                let y = Box::new(self.lower_pat(*y));
+                tree::PatNode::Tuple(x, y)
+            }
             hir::PatNode::Wildcard => tree::PatNode::Wildcard,
             hir::PatNode::Invalid => tree::PatNode::Invalid,
         };
@@ -82,6 +92,11 @@ impl Typer {
                 let t = Box::new(self.lower_type(*t));
                 let u = Box::new(self.lower_type(*u));
                 tree::Type::Fun(t, u)
+            }
+            hir::TypeNode::Prod(t, u) => {
+                let t = Box::new(self.lower_type(*t));
+                let u = Box::new(self.lower_type(*u));
+                tree::Type::Product(t, u)
             }
             hir::TypeNode::Wildcard => tree::Type::Var(self.context.fresh()),
             hir::TypeNode::Invalid => tree::Type::Invalid,

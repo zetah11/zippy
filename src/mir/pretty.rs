@@ -47,13 +47,27 @@ impl<'a> Prettier<'a> {
                 .append(self.doc_expr(arg))
                 .parens()
                 .group(),
+            ExprNode::Tuple(x, y) => self
+                .doc_expr(x)
+                .append(self.allocator.text(","))
+                .append(self.allocator.space())
+                .append(self.doc_expr(y))
+                .parens()
+                .group(),
             ExprNode::Invalid => self.allocator.text("<invalid>"),
         }
     }
 
     fn doc_pat(&'a self, pat: &Pat) -> DocBuilder<Arena<'a>> {
-        match pat.node {
-            PatNode::Name(name) => self.doc_name(name),
+        match &pat.node {
+            PatNode::Name(name) => self.doc_name(*name),
+            PatNode::Tuple(x, y) => self
+                .doc_pat(x)
+                .append(self.allocator.text(","))
+                .append(self.allocator.space())
+                .append(self.doc_pat(y))
+                .parens()
+                .group(),
             PatNode::Wildcard => self.allocator.text("?"),
             PatNode::Invalid => self.allocator.text("<invalid>"),
         }

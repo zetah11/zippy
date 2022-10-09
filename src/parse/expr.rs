@@ -1,4 +1,4 @@
-use super::tree::{Expr, ExprNode};
+use super::tree::{BinOp, Expr, ExprNode};
 use super::Parser;
 use crate::lex::Token;
 use crate::message::Span;
@@ -18,7 +18,7 @@ where
     /// small-expr = arrow-expr
     /// ```
     pub fn parse_small_expr(&mut self) -> Expr {
-        self.arrow_expr()
+        self.tuple_expr()
     }
 
     /// ```abnf
@@ -73,6 +73,23 @@ where
     }
 
     /// ```abnf
+    /// tuple-expr = arrow-expr ["," tuple-expr]
+    /// ```
+    fn tuple_expr(&mut self) -> Expr {
+        let expr = self.arrow_expr();
+        if self.consume(Token::Comma) {
+            let other = self.tuple_expr();
+            let span = expr.span + other.span;
+            Expr {
+                node: ExprNode::Tuple(Box::new(expr), Box::new(other)),
+                span,
+            }
+        } else {
+            expr
+        }
+    }
+
+    /// ```abnf
     /// arrow-expr = range-expr ["->" arrow-expr]
     /// ```
     fn arrow_expr(&mut self) -> Expr {
@@ -92,13 +109,12 @@ where
     }
 
     /// ```abnf
-    /// range-expr = app-expr ["upto" app-expr]
+    /// range-expr = mul-expr ["upto" mul-expr]
     /// ```
     fn range_expr(&mut self) -> Expr {
-        let expr = self.app_expr();
-        if self.consume(Token::Upto) {
-            let op_span = self.prev.as_ref().map(|(_, span)| span).copied().unwrap();
-            let other = self.app_expr();
+        let expr = self.mul_expr();
+        if let Some(op_span) = self.matches(Token::Upto) {
+            let other = self.mul_expr();
             let span = expr.span + other.span;
 
             Expr {
@@ -108,6 +124,25 @@ where
         } else {
             expr
         }
+    }
+
+    /// ```abnf
+    /// mul-expr = app-expr *("*" app-expr)
+    /// ```
+    fn mul_expr(&mut self) -> Expr {
+        let mut expr = self.app_expr();
+
+        while let Some(op_span) = self.matches(Token::Star) {
+            let other = self.app_expr();
+            let span = expr.span + other.span;
+
+            expr = Expr {
+                node: ExprNode::BinOp(op_span, BinOp::Mul, Box::new(expr), Box::new(other)),
+                span,
+            };
+        }
+
+        expr
     }
 
     /// ```abnf
@@ -184,7 +219,7 @@ where
     }
 
     /// Tokens that may start an `op_name`.
-    const OP_NAME_STARTS: &'static [Token] = &[Token::MinArrow, Token::Upto];
+    const OP_NAME_STARTS: &'static [Token] = &[Token::MinArrow, Token::Upto, Token::Star];
 
     /// ```abnf
     /// OP-NAME = "->" / "upto"
@@ -195,6 +230,7 @@ where
             let node = match tok {
                 Token::MinArrow => ExprNode::Name("->".into()),
                 Token::Upto => ExprNode::Name("upto".into()),
+                Token::Star => ExprNode::Name("*".into()),
                 _ => unreachable!(),
             };
 

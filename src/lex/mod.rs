@@ -22,6 +22,8 @@ pub enum Token {
     EqArrow,
 
     Question,
+    Comma,
+    Star,
 
     Equal,
     Colon,
@@ -49,6 +51,8 @@ impl Token {
             | Self::GroupOpen
             | Self::MinArrow
             | Self::EqArrow
+            | Self::Comma
+            | Self::Star
             | Self::Equal
             | Self::Colon
             | Self::Delimit => false,
@@ -66,6 +70,8 @@ impl Token {
             | Self::Delimit
             | Self::MinArrow
             | Self::EqArrow
+            | Self::Comma
+            | Self::Star
             | Self::Equal
             | Self::Colon => false,
 
@@ -127,6 +133,8 @@ impl<'src> Lexer<'src> {
                 FreeToken::MinArrow => Token::MinArrow,
                 FreeToken::EqArrow => Token::EqArrow,
                 FreeToken::Question => Token::Question,
+                FreeToken::Comma => Token::Comma,
+                FreeToken::Star => Token::Star,
                 FreeToken::Equal => Token::Equal,
                 FreeToken::Colon => Token::Colon,
                 FreeToken::Name(name) => Token::Name(name.into()),

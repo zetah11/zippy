@@ -4,7 +4,7 @@ impl Typer {
     /// Check that an expression conforms to a given type.
     pub fn check(&mut self, ex: Expr, ty: Type) -> Expr<Type> {
         let (node, ty) = match ex.node {
-            ExprNode::Int(v) => (ExprNode::Int(v), self.contains_int((v, ex.span), ty)),
+            ExprNode::Int(v) => (ExprNode::Int(v), self.int_type(ex.span, ty)),
             ExprNode::Lam(param, body) => {
                 let (t, u) = self.fun_type(ex.span, ty);
                 let param = self.bind_pat(param, t.clone());
@@ -12,6 +12,17 @@ impl Typer {
                 (
                     ExprNode::Lam(param, Box::new(body)),
                     Type::Fun(Box::new(t), Box::new(u)),
+                )
+            }
+
+            ExprNode::Tuple(x, y) => {
+                let (t, u) = self.tuple_type(ex.span, ty);
+                let x = Box::new(self.check(*x, t.clone()));
+                let y = Box::new(self.check(*y, u.clone()));
+
+                (
+                    ExprNode::Tuple(x, y),
+                    Type::Product(Box::new(t), Box::new(u)),
                 )
             }
 

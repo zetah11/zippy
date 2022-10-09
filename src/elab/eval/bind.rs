@@ -1,5 +1,5 @@
 use super::Evaluator;
-use crate::mir::{Expr, Pat, PatNode};
+use crate::mir::{Expr, ExprNode, Pat, PatNode};
 use crate::Driver;
 
 impl<'a, D: Driver> Evaluator<'a, D> {
@@ -10,6 +10,15 @@ impl<'a, D: Driver> Evaluator<'a, D> {
             PatNode::Name(name) => {
                 self.set(name, value);
             }
+
+            PatNode::Tuple(a, b) => match value.node {
+                ExprNode::Tuple(x, y) => {
+                    self.bind(*a, *x);
+                    self.bind(*b, *y);
+                }
+
+                _ => todo!(),
+            },
         }
     }
 }

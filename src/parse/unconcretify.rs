@@ -99,6 +99,28 @@ impl Unconcretifier {
 
                 hir::ExprNode::App(Box::new(fun), u)
             }
+            cst::ExprNode::BinOp(span, op, x, y) => {
+                let x = Box::new(self.unconc_expr(*x));
+                let y = Box::new(self.unconc_expr(*y));
+
+                let fun = hir::Expr {
+                    node: hir::ExprNode::Name(binop_to_name(op).into()),
+                    span,
+                };
+
+                let span = x.span + span;
+                let fun = hir::Expr {
+                    node: hir::ExprNode::App(Box::new(fun), x),
+                    span,
+                };
+
+                hir::ExprNode::App(Box::new(fun), y)
+            }
+            cst::ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.unconc_expr(*x));
+                let y = Box::new(self.unconc_expr(*y));
+                hir::ExprNode::Tuple(x, y)
+            }
             cst::ExprNode::Lam(pat, body) => {
                 let pat = self.unconc_pat(*pat);
                 let body = Box::new(self.unconc_expr(*body));
@@ -128,6 +150,12 @@ impl Unconcretifier {
         let node = match pat.node {
             cst::ExprNode::Name(name) => hir::PatNode::Name(name),
             cst::ExprNode::Group(pat) => return self.unconc_pat(*pat),
+            cst::ExprNode::BinOp(..) => todo!("constructor patterns not yet supported"),
+            cst::ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.unconc_pat(*x));
+                let y = Box::new(self.unconc_pat(*y));
+                hir::PatNode::Tuple(x, y)
+            }
             cst::ExprNode::Wildcard => hir::PatNode::Wildcard,
             cst::ExprNode::Invalid => hir::PatNode::Invalid,
             _ => {
@@ -176,6 +204,12 @@ impl Unconcretifier {
                 hir::TypeNode::Fun(t, u)
             }
 
+            cst::ExprNode::BinOp(_, cst::BinOp::Mul, t, u) => {
+                let t = Box::new(self.unconc_type(*t));
+                let u = Box::new(self.unconc_type(*u));
+                hir::TypeNode::Prod(t, u)
+            }
+
             cst::ExprNode::Group(typ) => return self.unconc_type(*typ),
 
             cst::ExprNode::Wildcard => hir::TypeNode::Wildcard,
@@ -196,5 +230,11 @@ impl Unconcretifier {
         let id = BindId(self.bind_id);
         self.bind_id += 1;
         id
+    }
+}
+
+fn binop_to_name(op: cst::BinOp) -> &'static str {
+    match op {
+        cst::BinOp::Mul => "*",
     }
 }

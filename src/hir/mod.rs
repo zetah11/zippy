@@ -31,6 +31,8 @@ pub enum ExprNode<Name> {
     Lam(BindId, Pat<Name>, Box<Expr<Name>>),
     App(Box<Expr<Name>>, Box<Expr<Name>>),
 
+    Tuple(Box<Expr<Name>>, Box<Expr<Name>>),
+
     Anno(Box<Expr<Name>>, Type),
 
     Hole,
@@ -46,6 +48,7 @@ pub struct Pat<Name = String> {
 #[derive(Debug)]
 pub enum PatNode<Name> {
     Name(Name),
+    Tuple(Box<Pat<Name>>, Box<Pat<Name>>),
     Wildcard,
     Invalid,
 }
@@ -60,6 +63,7 @@ pub struct Type {
 pub enum TypeNode {
     Range(i64, i64),
     Fun(Box<Type>, Box<Type>),
+    Prod(Box<Type>, Box<Type>),
     Wildcard,
     Invalid,
 }

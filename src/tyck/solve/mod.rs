@@ -2,6 +2,7 @@ pub use unify::Unifier;
 
 mod unify;
 
+use super::constraint::Constraint;
 use super::{Type, Typer};
 use crate::message::Span;
 
@@ -10,21 +11,6 @@ impl Typer {
     /// widest type.
     pub fn assignable(&mut self, span: Span, into: Type, from: Type) {
         self.unifier.unify(span, into, from);
-    }
-
-    pub fn contains_int(&mut self, (v, span): (i64, Span), ty: Type) -> Type {
-        match ty {
-            Type::Range(lo, hi) => {
-                if !(lo <= v && v < hi) {
-                    self.messages.at(span).tyck_outside_range(v, lo, hi);
-                    Type::Invalid
-                } else {
-                    Type::Range(lo, hi)
-                }
-            }
-
-            _ => Type::Invalid,
-        }
     }
 
     pub fn fun_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
@@ -38,6 +24,40 @@ impl Typer {
                 (Type::Invalid, Type::Invalid)
             }
         }
+    }
+
+    pub fn int_type(&mut self, span: Span, ty: Type) -> Type {
+        match ty {
+            Type::Range(lo, hi) => Type::Range(lo, hi),
+            Type::Invalid => Type::Invalid,
+
+            Type::Var(v) => {
+                if let Some(ty) = self.unifier.subst.get(&v) {
+                    self.int_type(span, ty.clone())
+                } else {
+                    self.constraints
+                        .push(Constraint::IntType(span, Type::Var(v)));
+                    Type::Var(v)
+                }
+            }
+
+            ty => {
+                self.messages
+                    .at(span)
+                    .tyck_not_an_int(Some(format!("{ty:?}")));
+                Type::Invalid
+            }
+        }
+    }
+
+    pub fn tuple_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
+        let t = self.context.fresh();
+        let u = self.context.fresh();
+        let expect = Type::Product(Box::new(Type::Var(t)), Box::new(Type::Var(u)));
+
+        self.assignable(span, expect, ty);
+
+        (Type::Var(t), Type::Var(u))
     }
 
     pub fn report_hole(&mut self, span: Span, ty: Type) -> Type {

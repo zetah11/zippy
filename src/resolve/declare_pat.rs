@@ -8,6 +8,10 @@ impl Resolver {
             PatNode::Name(name) => {
                 self.declare_name(pat.span, Actual::Lit(name.clone()));
             }
+            PatNode::Tuple(x, y) => {
+                self.declare_pat(x);
+                self.declare_pat(y);
+            }
             PatNode::Wildcard | PatNode::Invalid => (),
         }
     }

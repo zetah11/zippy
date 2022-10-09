@@ -33,6 +33,10 @@ pub enum ExprNode {
     Range(Span, Box<Expr>, Box<Expr>),
     Fun(Span, Box<Expr>, Box<Expr>),
 
+    BinOp(Span, BinOp, Box<Expr>, Box<Expr>),
+
+    Tuple(Box<Expr>, Box<Expr>),
+
     Lam(Box<Expr>, Box<Expr>),
     App(Box<Expr>, Box<Expr>),
 
@@ -41,4 +45,9 @@ pub enum ExprNode {
     Wildcard,
 
     Invalid,
+}
+
+#[derive(Clone, Debug)]
+pub enum BinOp {
+    Mul,
 }

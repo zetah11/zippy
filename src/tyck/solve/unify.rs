@@ -34,6 +34,11 @@ impl Unifier {
                 self.unify(span, *u1, *u2);
             }
 
+            (Type::Product(t1, u1), Type::Product(t2, u2)) => {
+                self.unify(span, *t1, *t2);
+                self.unify(span, *u1, *u2);
+            }
+
             (Type::Var(v), Type::Var(w)) if v == w => {}
 
             (Type::Var(v), u) => {
@@ -77,6 +82,7 @@ impl Unifier {
             Type::Invalid | Type::Number => false,
             Type::Range(_, _) => false,
             Type::Fun(t, u) => self.occurs(var, t) || self.occurs(var, u),
+            Type::Product(t, u) => self.occurs(var, t) || self.occurs(var, u),
             Type::Var(war) => var == war,
         }
     }

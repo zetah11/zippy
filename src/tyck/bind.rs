@@ -9,6 +9,16 @@ impl Typer {
                 (PatNode::Name(name), ty)
             }
 
+            PatNode::Tuple(x, y) => {
+                let (t, u) = self.tuple_type(pat.span, ty);
+                let x = Box::new(self.bind_pat(*x, t));
+                let y = Box::new(self.bind_pat(*y, u));
+
+                let ty = Type::Product(Box::new(x.data.clone()), Box::new(y.data.clone()));
+
+                (PatNode::Tuple(x, y), ty)
+            }
+
             PatNode::Wildcard => (PatNode::Wildcard, ty),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),

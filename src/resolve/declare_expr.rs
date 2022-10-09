@@ -17,6 +17,11 @@ impl Resolver {
                 self.declare_expr(arg);
             }
 
+            ExprNode::Tuple(x, y) => {
+                self.declare_expr(x);
+                self.declare_expr(y);
+            }
+
             ExprNode::Anno(expr, _) => self.declare_expr(expr),
         }
     }

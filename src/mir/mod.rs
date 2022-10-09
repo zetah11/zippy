@@ -13,6 +13,7 @@ pub struct TypeId(usize);
 pub enum Type {
     Range(i64, i64),
     Fun(TypeId, TypeId),
+    Product(TypeId, TypeId),
     Invalid,
 }
 
@@ -41,6 +42,7 @@ pub enum ExprNode {
     Name(Name),
     Lam(Pat, Box<Expr>),
     App(Box<Expr>, Box<Expr>),
+    Tuple(Box<Expr>, Box<Expr>),
     Invalid,
 }
 
@@ -54,6 +56,7 @@ pub struct Pat {
 #[derive(Clone, Debug)]
 pub enum PatNode {
     Name(Name),
+    Tuple(Box<Pat>, Box<Pat>),
     Wildcard,
     Invalid,
 }

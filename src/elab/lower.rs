@@ -7,7 +7,7 @@ use crate::Driver;
 
 type HiType = tyck::Type;
 type HiPat = tyck::Pat<HiType>;
-type HiPatNode = tyck::PatNode;
+type HiPatNode = tyck::PatNode<HiType>;
 type HiExpr = tyck::Expr<HiType>;
 type HiExprNode = tyck::ExprNode<HiType>;
 type HiDecls = tyck::Decls<HiType>;
@@ -85,6 +85,13 @@ impl<'a> Lowerer<'a> {
                     ExprNode::App(Box::new(fun), Box::new(arg))
                 }
 
+                HiExprNode::Tuple(x, y) => {
+                    let x = Box::new(self.lower_expr(*x));
+                    let y = Box::new(self.lower_expr(*y));
+
+                    ExprNode::Tuple(x, y)
+                }
+
                 HiExprNode::Hole => {
                     self.messages
                         .at(ex.span)
@@ -107,6 +114,11 @@ impl<'a> Lowerer<'a> {
     fn lower_pat(&mut self, pat: HiPat) -> Pat {
         let node = match pat.node {
             HiPatNode::Name(name) => PatNode::Name(name),
+            HiPatNode::Tuple(x, y) => {
+                let x = Box::new(self.lower_pat(*x));
+                let y = Box::new(self.lower_pat(*y));
+                PatNode::Tuple(x, y)
+            }
             HiPatNode::Wildcard => PatNode::Wildcard,
             HiPatNode::Invalid => PatNode::Invalid,
         };
@@ -125,6 +137,13 @@ impl<'a> Lowerer<'a> {
                 let u = self.lower_type(*u);
 
                 self.types.add(Type::Fun(t, u))
+            }
+
+            HiType::Product(t, u) => {
+                let t = self.lower_type(*t);
+                let u = self.lower_type(*u);
+
+                self.types.add(Type::Product(t, u))
             }
 
             HiType::Range(lo, hi) => self.types.add(Type::Range(lo, hi)),

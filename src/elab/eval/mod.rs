@@ -20,6 +20,7 @@ pub fn evaluate(driver: &mut impl Driver, names: &mut Names, decls: Decls) -> De
         (res, evaler.messages)
     };
 
+    driver.done_eval();
     driver.report(messages);
 
     trace!("done evaluating");

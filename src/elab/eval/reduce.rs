@@ -15,6 +15,12 @@ impl<'a, D: Driver> Evaluator<'a, D> {
                 None => ExprNode::Name(name),
             },
             ExprNode::Lam(param, body) => ExprNode::Lam(param, Box::new(self.reduce(*body))),
+            ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.reduce(*x));
+                let y = Box::new(self.reduce(*y));
+
+                ExprNode::Tuple(x, y)
+            }
             ExprNode::App(fun, arg) => {
                 let fun = self.reduce(*fun);
                 let arg = self.reduce(*arg);

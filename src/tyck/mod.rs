@@ -29,6 +29,7 @@ pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> TypeckResult
     let mut typer = Typer::new();
     let decls = typer.lower(decls);
     let decls = typer.typeck(decls);
+    typer.solve();
 
     typer.messages.merge(typer.unifier.messages);
     driver.report(typer.messages);
@@ -106,5 +107,19 @@ impl Typer {
             .collect();
 
         Decls { values }
+    }
+
+    pub fn solve(&mut self) {
+        let constraints: Vec<_> = self.constraints.drain(..).collect();
+
+        for constraint in constraints {
+            match constraint {
+                Constraint::IntType(span, ty) => {
+                    let _ = self.int_type(span, ty);
+                }
+            }
+        }
+
+        assert!(self.constraints.is_empty());
     }
 }

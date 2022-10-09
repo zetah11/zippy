@@ -6,8 +6,9 @@ const INCOMPATIBLE_TYPES: &str = "ET00";
 const OUTSIDE_RANGE: &str = "ET01";
 const NARROW_RANGE: &str = "ET02";
 const NOT_A_FUN: &str = "ET03";
-const AMBIGUOUS: &str = "ET04";
-const RECURSIVE: &str = "ET05";
+const NOT_AN_INT: &str = "ET04";
+const AMBIGUOUS: &str = "ET05";
+const RECURSIVE: &str = "ET06";
 
 impl<'a> MessageAdder<'a> {
     pub fn tyck_ambiguous(&mut self) {
@@ -87,6 +88,22 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(NOT_A_FUN)
                 .with_message("expected a function type")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn tyck_not_an_int(&mut self, ty: Option<impl Into<String>>) {
+        let labels = if let Some(ty) = ty {
+            vec![Label::primary(self.at.file, self.at)
+                .with_message(format!("expected an integer type, got '{}'", ty.into()))]
+        } else {
+            vec![Label::primary(self.at.file, self.at)]
+        };
+
+        self.add(
+            Diagnostic::error()
+                .with_code(NOT_AN_INT)
+                .with_message("expected an integer type")
                 .with_labels(labels),
         );
     }

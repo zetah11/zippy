@@ -26,6 +26,12 @@ impl Resolver {
                 ExprNode::App(fun, arg)
             }
 
+            ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.resolve_expr(*x));
+                let y = Box::new(self.resolve_expr(*y));
+                ExprNode::Tuple(x, y)
+            }
+
             ExprNode::Anno(expr, ty) => {
                 let expr = Box::new(self.resolve_expr(*expr));
                 ExprNode::Anno(expr, ty)

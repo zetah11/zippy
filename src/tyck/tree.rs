@@ -33,20 +33,23 @@ pub enum ExprNode<Data> {
 
     Anno(Box<Expr<Data>>, Type),
 
+    Tuple(Box<Expr<Data>>, Box<Expr<Data>>),
+
     Hole,
     Invalid,
 }
 
 #[derive(Clone, Debug)]
 pub struct Pat<Data = ()> {
-    pub node: PatNode,
+    pub node: PatNode<Data>,
     pub span: Span,
     pub data: Data,
 }
 
 #[derive(Clone, Debug)]
-pub enum PatNode {
+pub enum PatNode<Data> {
     Name(Name),
+    Tuple(Box<Pat<Data>>, Box<Pat<Data>>),
     Wildcard,
     Invalid,
 }

@@ -1,10 +1,9 @@
 use std::io::{self, Write};
 
 use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term::termcolor::{
-    Color, ColorChoice, ColorSpec, StandardStream, WriteColor,
-};
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, Config, DisplayStyle};
+use console::{style, Term};
 
 use corollary::message::Messages;
 use corollary::Driver;
@@ -12,6 +11,7 @@ use corollary::Driver;
 pub struct ConsoleDriver {
     files: SimpleFiles<String, String>,
     writer: StandardStream,
+    term: Term,
     config: Config,
 }
 
@@ -20,6 +20,7 @@ impl ConsoleDriver {
         Self {
             files,
             writer: StandardStream::stderr(ColorChoice::Auto),
+            term: Term::stderr(),
             config: Config {
                 display_style: DisplayStyle::Rich,
                 ..Default::default()
@@ -36,16 +37,15 @@ impl Driver for ConsoleDriver {
     }
 
     fn report_eval(&mut self, at: String) {
-        write_eval(&mut self.writer, at).unwrap();
+        write_eval(&mut self.term, at).unwrap();
+    }
+
+    fn done_eval(&mut self) {
+        self.term.clear_line().unwrap();
     }
 }
 
-fn write_eval(stream: &mut StandardStream, at: String) -> io::Result<()> {
-    stream.set_color(ColorSpec::new().set_fg(Some(Color::Green)))?;
-    write!(stream, "note")?;
-
-    stream.reset()?;
-    write!(stream, ": evaluating '{at}'\r")?;
-
-    Ok(())
+fn write_eval(term: &mut Term, at: String) -> io::Result<()> {
+    term.clear_line()?;
+    write!(term, "{}: evaluating '{at}'", style("note").green())
 }
