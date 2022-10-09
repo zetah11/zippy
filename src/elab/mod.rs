@@ -27,7 +27,7 @@ pub fn elaborate(
     info!("beginning elaboration");
 
     let (types, res) = lower::lower(driver, &tyckres.subst, tyckres.decls);
-    let res = eval::evaluate(driver, names, res);
+    let res = eval::evaluate(driver, names, &types, res);
 
     trace!("done elaborating");
 

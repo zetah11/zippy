@@ -3,12 +3,11 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use super::MessageAdder;
 
 const INCOMPATIBLE_TYPES: &str = "ET00";
-const OUTSIDE_RANGE: &str = "ET01";
-const NARROW_RANGE: &str = "ET02";
-const NOT_A_FUN: &str = "ET03";
-const NOT_AN_INT: &str = "ET04";
-const AMBIGUOUS: &str = "ET05";
-const RECURSIVE: &str = "ET06";
+const NARROW_RANGE: &str = "ET01";
+const NOT_A_FUN: &str = "ET02";
+const NOT_AN_INT: &str = "ET03";
+const AMBIGUOUS: &str = "ET04";
+const RECURSIVE: &str = "ET05";
 
 impl<'a> MessageAdder<'a> {
     pub fn tyck_ambiguous(&mut self) {
@@ -42,23 +41,6 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(INCOMPATIBLE_TYPES)
                 .with_message("incompatible types")
-                .with_labels(labels),
-        );
-    }
-
-    pub fn tyck_outside_range(&mut self, lit: i64, lo: i64, hi: i64) {
-        let labels = vec![
-            Label::primary(self.at.file, self.at).with_message(if lit < lo {
-                format!("{lit} is too low for the range '{lo} .. {hi}'")
-            } else {
-                format!("{lit} is too big for the range '{lo} .. {hi}'")
-            }),
-        ];
-
-        self.add(
-            Diagnostic::error()
-                .with_code(OUTSIDE_RANGE)
-                .with_message("literal is too big for type")
                 .with_labels(labels),
         );
     }

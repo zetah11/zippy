@@ -1,4 +1,5 @@
 mod bind;
+mod checks;
 mod reduce;
 
 use std::collections::HashMap;
@@ -7,15 +8,15 @@ use log::{info, trace};
 
 use crate::message::Messages;
 use crate::mir::pretty::Prettier;
-use crate::mir::{Decls, Expr, ValueDef};
+use crate::mir::{Decls, Expr, Types, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
 
-pub fn evaluate(driver: &mut impl Driver, names: &mut Names, decls: Decls) -> Decls {
+pub fn evaluate(driver: &mut impl Driver, names: &mut Names, types: &Types, decls: Decls) -> Decls {
     info!("beginning evaluation");
 
     let (res, messages) = {
-        let mut evaler = Evaluator::new(names, driver);
+        let mut evaler = Evaluator::new(names, types, driver);
         let res = evaler.reduce_decls(decls);
         (res, evaler.messages)
     };
@@ -32,17 +33,21 @@ pub fn evaluate(driver: &mut impl Driver, names: &mut Names, decls: Decls) -> De
 pub struct Evaluator<'a, Driver> {
     context: (HashMap<Name, Expr>, Vec<HashMap<Name, Expr>>),
     messages: Messages,
-    driver: &'a mut Driver,
     names: &'a mut Names,
+    types: &'a Types,
+
+    driver: &'a mut Driver,
 }
 
 impl<'a, D: Driver> Evaluator<'a, D> {
-    pub fn new(names: &'a mut Names, driver: &'a mut D) -> Self {
+    pub fn new(names: &'a mut Names, types: &'a Types, driver: &'a mut D) -> Self {
         Self {
             context: (HashMap::new(), Vec::new()),
             messages: Messages::new(),
-            driver,
             names,
+            types,
+
+            driver,
         }
     }
 

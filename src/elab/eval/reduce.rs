@@ -6,7 +6,10 @@ impl<'a, D: Driver> Evaluator<'a, D> {
     pub fn reduce(&mut self, ex: Expr) -> Expr {
         let node = match ex.node {
             ExprNode::Invalid => ExprNode::Invalid,
-            ExprNode::Int(v) => ExprNode::Int(v),
+            ExprNode::Int(v) => {
+                self.check_int(ex.span, v, &ex.typ);
+                ExprNode::Int(v)
+            }
             ExprNode::Name(name) => match self.lookup(&name) {
                 Some(value) => {
                     let value = value.clone();

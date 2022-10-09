@@ -14,7 +14,7 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let a, b : (0 upto 10) * (10 upto 20) = 5, 15
+        let a, b : (0 upto 10) * (0 upto 10) = 5, 15
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
