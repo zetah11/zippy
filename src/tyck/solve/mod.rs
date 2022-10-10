@@ -15,16 +15,13 @@ impl Typer {
     }
 
     pub fn fun_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
-        match ty {
-            Type::Fun(t1, t2) => (*t1, *t2),
-            Type::Invalid => (Type::Invalid, Type::Invalid),
-            ty => {
-                self.messages
-                    .at(span)
-                    .tyck_not_a_fun(Some(format!("{ty:?}")));
-                (Type::Invalid, Type::Invalid)
-            }
-        }
+        let t = self.context.fresh();
+        let u = self.context.fresh();
+        let expect = Type::Fun(Box::new(Type::Var(t)), Box::new(Type::Var(u)));
+
+        self.assignable(span, expect, ty);
+
+        (Type::Var(t), Type::Var(u))
     }
 
     pub fn int_type(&mut self, span: Span, because: Because, ty: Type) -> Type {
