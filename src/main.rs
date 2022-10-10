@@ -14,7 +14,8 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let a, b : (0 upto 10) * (0 upto 10) = 5, 15
+        let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
+            (f, x) => x
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
@@ -30,8 +31,8 @@ fn main() {
     let prettier = Prettier::new(&names);
 
     for def in decls.values.iter() {
-        let pat = prettier.pretty_pat(&def.pat);
-        let exp = prettier.pretty_expr(&def.bind);
+        let pat = prettier.pretty_name(&def.name);
+        let exp = prettier.pretty_exprs(&def.bind);
         println!("let {pat} = {exp}");
     }
 }

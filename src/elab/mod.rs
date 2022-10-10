@@ -9,7 +9,7 @@
 //! Finally, the resulting code is converted into the [mid-level intermediate representation](crate::mir), on which the
 //! compiler can begin lowering code for generation.
 
-pub mod eval;
+//pub mod eval;
 mod lower;
 
 use log::{info, trace};
@@ -26,8 +26,8 @@ pub fn elaborate(
 ) -> (mir::Types, mir::Decls) {
     info!("beginning elaboration");
 
-    let (types, res) = lower::lower(driver, &tyckres.subst, tyckres.decls);
-    let res = eval::evaluate(driver, names, &types, res);
+    let (types, res) = lower::lower(driver, &tyckres.subst, names, tyckres.decls);
+    /*let res = eval::evaluate(driver, names, &types, res);*/
 
     trace!("done elaborating");
 

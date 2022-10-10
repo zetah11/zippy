@@ -18,7 +18,7 @@ anno-expr   = small-expr [":" small-expr]
 
 small-expr  = tuple-expr
 
-tuple-expr  = arrow-expr ["," tuple-expr]
+tuple-expr  = arrow-expr *("," arrow-expr)
 
 arrow-expr  = range-expr ["->" arrow-expr]
 range-expr  = mul-expr ["upto" mul-expr]

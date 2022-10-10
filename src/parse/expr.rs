@@ -73,20 +73,19 @@ where
     }
 
     /// ```abnf
-    /// tuple-expr = arrow-expr ["," tuple-expr]
+    /// tuple-expr = arrow-expr *("," tuple-expr)
     /// ```
     fn tuple_expr(&mut self) -> Expr {
-        let expr = self.arrow_expr();
-        if self.consume(Token::Comma) {
-            let other = self.tuple_expr();
+        let mut expr = self.arrow_expr();
+        while self.consume(Token::Comma) {
+            let other = self.arrow_expr();
             let span = expr.span + other.span;
-            Expr {
+            expr = Expr {
                 node: ExprNode::Tuple(Box::new(expr), Box::new(other)),
                 span,
-            }
-        } else {
-            expr
+            };
         }
+        expr
     }
 
     /// ```abnf
