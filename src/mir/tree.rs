@@ -36,7 +36,7 @@ impl ExprSeq {
 pub struct Expr {
     pub node: ExprNode,
     pub span: Span,
-    pub typ: TypeId,
+    pub ty: TypeId,
 }
 
 #[derive(Clone, Debug)]

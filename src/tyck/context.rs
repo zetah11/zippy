@@ -29,3 +29,12 @@ impl Context {
         id
     }
 }
+
+impl IntoIterator for Context {
+    type IntoIter = std::collections::hash_map::IntoIter<Name, Type>;
+    type Item = (Name, Type);
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.names.into_iter()
+    }
+}

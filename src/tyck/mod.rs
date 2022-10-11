@@ -3,6 +3,7 @@ use std::collections::HashMap;
 pub mod because;
 pub mod constraint;
 
+pub use context::Context;
 pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
 pub use types::{Type, UniVar};
 
@@ -22,7 +23,6 @@ use crate::resolve::names::Name;
 use crate::{hir, Driver};
 use because::Because;
 use constraint::Constraint;
-use context::Context;
 use solve::Unifier;
 
 pub fn typeck(driver: &mut impl Driver, decls: hir::Decls<Name>) -> TypeckResult {

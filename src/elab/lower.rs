@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::message::{Messages, Span};
-use crate::mir::{Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef};
+use crate::mir::{Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::tyck::{self, UniVar};
 use crate::Driver;
@@ -12,19 +12,23 @@ type HiPatNode = tyck::PatNode<HiType>;
 type HiExpr = tyck::Expr<HiType>;
 type HiExprNode = tyck::ExprNode<HiType>;
 type HiDecls = tyck::Decls<HiType>;
+type HiCtx = tyck::Context;
 
 pub fn lower(
     driver: &mut impl Driver,
     subst: &HashMap<UniVar, HiType>,
     names: &mut Names,
+    context: HiCtx,
     decls: HiDecls,
-) -> (Types, Decls) {
+) -> (Types, Context, Decls) {
     let mut lowerer = Lowerer::new(names, subst);
+
+    lowerer.lower_context(context);
     let decls = lowerer.lower_decls(decls);
 
     driver.report(lowerer.messages);
 
-    (lowerer.types, decls)
+    (lowerer.types, lowerer.context, decls)
 }
 
 #[derive(Debug)]
@@ -33,6 +37,7 @@ struct Lowerer<'a> {
     names: &'a mut Names,
     subst: &'a HashMap<UniVar, HiType>,
     messages: Messages,
+    context: Context,
 }
 
 impl<'a> Lowerer<'a> {
@@ -42,6 +47,14 @@ impl<'a> Lowerer<'a> {
             names,
             subst,
             messages: Messages::new(),
+            context: Context::new(),
+        }
+    }
+
+    fn lower_context(&mut self, context: HiCtx) {
+        for (name, ty) in context {
+            let ty = self.lower_type(ty);
+            self.context.add(name, ty);
         }
     }
 
@@ -98,12 +111,15 @@ impl<'a> Lowerer<'a> {
             HiPatNode::Name(name) => within.push(ValueDef { span, name, bind }),
 
             HiPatNode::Tuple(a, b) => {
+                let ty = self.lower_type(pat.data);
                 let name = self.names.fresh(pat.span, None);
+                self.context.add(name, ty);
 
                 within.push(ValueDef { name, span, bind });
 
                 let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, typ| {
                     let inner = lowerer.names.fresh(span, None);
+                    lowerer.context.add(name, typ);
                     within.push(ValueDef {
                         name,
                         span,
@@ -116,12 +132,12 @@ impl<'a> Lowerer<'a> {
                                         at,
                                     },
                                     span,
-                                    typ,
+                                    ty,
                                 },
                                 Expr {
                                     node: ExprNode::Produce(Value::Name(inner)),
                                     span,
-                                    typ,
+                                    ty,
                                 },
                             ],
                         },
@@ -140,7 +156,9 @@ impl<'a> Lowerer<'a> {
             HiPatNode::Invalid | HiPatNode::Wildcard => self.names.fresh(pat.span, None),
             HiPatNode::Name(name) => name,
             HiPatNode::Tuple(a, b) => {
+                let ty = self.lower_type(pat.data);
                 let target = self.names.fresh(pat.span, None);
+                self.context.add(target, ty);
 
                 let mut proj = |_: &mut Lowerer<'a>, name, value, ndx, span, typ| {
                     within.push(Expr {
@@ -150,7 +168,7 @@ impl<'a> Lowerer<'a> {
                             at: ndx,
                         },
                         span,
-                        typ,
+                        ty: typ,
                     });
                 };
 
@@ -174,10 +192,11 @@ impl<'a> Lowerer<'a> {
             }
 
             HiPatNode::Tuple(a, b) => {
+                let ty = self.lower_type(pat.data);
                 let projd = self.names.fresh(pat.span, None);
-                let typ = self.lower_type(pat.data);
+                self.context.add(projd, ty);
 
-                proj(self, projd, value, ndx, pat.span, typ);
+                proj(self, projd, value, ndx, pat.span, ty);
 
                 self.make_proj(*a, projd, 0, proj);
                 self.make_proj(*b, projd, 1, proj);
@@ -192,7 +211,7 @@ impl<'a> Lowerer<'a> {
         seq.push(Expr {
             node: ExprNode::Produce(value),
             span,
-            typ,
+            ty: typ,
         });
         seq
     }
@@ -209,14 +228,15 @@ impl<'a> Lowerer<'a> {
 
                 let body = bodys;
 
-                let typ = self.lower_type(ex.data);
+                let ty = self.lower_type(ex.data);
 
                 let name = self.names.fresh(ex.span, None);
+                self.context.add(name, ty);
 
                 within.push(Expr {
                     node: ExprNode::Function { name, param, body },
                     span: ex.span,
-                    typ,
+                    ty,
                 });
 
                 Value::Name(name)
@@ -231,13 +251,15 @@ impl<'a> Lowerer<'a> {
 
                 let (arg, _) = self.make_expr(within, *arg);
 
-                let typ = self.lower_type(ex.data);
+                let ty = self.lower_type(ex.data);
 
                 let name = self.names.fresh(ex.span, None);
+                self.context.add(name, ty);
+
                 within.push(Expr {
                     node: ExprNode::Apply { name, fun, arg },
                     span: ex.span,
-                    typ,
+                    ty,
                 });
 
                 Value::Name(name)
@@ -247,16 +269,18 @@ impl<'a> Lowerer<'a> {
                 let (t, _) = self.make_expr(within, *t);
                 let (u, _) = self.make_expr(within, *u);
 
-                let typ = self.lower_type(ex.data);
+                let ty = self.lower_type(ex.data);
 
                 let name = self.names.fresh(ex.span, None);
+                self.context.add(name, ty);
+
                 within.push(Expr {
                     node: ExprNode::Tuple {
                         name,
                         values: vec![t, u],
                     },
                     span: ex.span,
-                    typ,
+                    ty,
                 });
 
                 Value::Name(name)

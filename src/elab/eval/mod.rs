@@ -6,15 +6,21 @@ use im::HashMap;
 
 use crate::message::Messages;
 use crate::mir::pretty::Prettier;
-use crate::mir::{Decls, Types, ValueDef};
+use crate::mir::{Context, Decls, Types, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
 
 use self::irreducible::Irreducible;
 
-pub fn evaluate(driver: &mut impl Driver, names: &mut Names, types: &Types, decls: Decls) -> Decls {
+pub fn evaluate(
+    driver: &mut impl Driver,
+    context: &mut Context,
+    names: &mut Names,
+    types: &Types,
+    decls: Decls,
+) -> Decls {
     let (res, messages) = {
-        let mut lowerer = Lowerer::new(driver, names, types);
+        let mut lowerer = Lowerer::new(driver, context, names, types);
         let res = lowerer.reduce_decls(decls);
 
         (res, lowerer.messages)
@@ -70,17 +76,24 @@ struct Lowerer<'a, Driver> {
     env: Env,
     names: &'a mut Names,
     types: &'a Types,
+    context: &'a mut Context,
 
     driver: &'a mut Driver,
     messages: Messages,
 }
 
 impl<'a, D: Driver> Lowerer<'a, D> {
-    fn new(driver: &'a mut D, names: &'a mut Names, types: &'a Types) -> Self {
+    fn new(
+        driver: &'a mut D,
+        context: &'a mut Context,
+        names: &'a mut Names,
+        types: &'a Types,
+    ) -> Self {
         Self {
             env: Env::new(),
             names,
             types,
+            context,
 
             driver,
             messages: Messages::new(),
@@ -96,13 +109,12 @@ impl<'a, D: Driver> Lowerer<'a, D> {
                 prettier.pretty_name(&def.name)
             });
 
-            let typ = def.bind.exprs[0].typ;
-            let bind = self.reduce_exprs(self.env.clone(), def.bind);
+            let (bind, ty) = self.reduce_exprs(self.env.clone(), def.bind);
             self.env.set(def.name, bind.clone());
             values.push(ValueDef {
                 name: def.name,
                 span: def.span,
-                bind: self.promote(def.span, typ, bind),
+                bind: self.promote(def.span, ty, bind),
             });
         }
 
