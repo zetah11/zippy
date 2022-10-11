@@ -1,4 +1,4 @@
-use crate::mir::{Expr, ExprNode, ExprSeq, Value, ValueNode};
+use crate::mir::{Expr, ExprNode, ExprSeq, Type, Value, ValueNode};
 use crate::Driver;
 
 use super::{Env, Irreducible, IrreducibleNode, Lowerer};
@@ -50,10 +50,11 @@ impl<D: Driver> Lowerer<'_, D> {
                 ExprNode::Jump(..) | ExprNode::Join { .. } => todo!(),
 
                 ExprNode::Function { name, param, body } => {
+                    let body_irr = self.reduce_exprs(env.clone(), body.clone());
                     env.set(
                         name,
                         Irreducible {
-                            node: IrreducibleNode::Lambda(param, body.clone(), env.clone()),
+                            node: IrreducibleNode::Lambda(param, Box::new(body_irr), env.clone()),
                             span: expr.span,
                             ty: expr.ty,
                         },
@@ -69,7 +70,8 @@ impl<D: Driver> Lowerer<'_, D> {
                     }) = env.lookup(&fun)
                     {
                         let arg = self.reduce_value(&env, arg);
-                        let result = self.reduce_exprs(closed.with(*param, arg), body.clone());
+                        let result = self.reduce_irr(closed.with(*param, arg), *body.clone());
+
                         env.set(name, result);
 
                         continue;
@@ -122,10 +124,57 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
+    fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
+        let node = match irr.node {
+            IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, exprs),
+            IrreducibleNode::Lambda(param, body, _) => {
+                let t = match self.types.get(&irr.ty) {
+                    Type::Fun(t, _) => *t,
+                    Type::Invalid => irr.ty,
+                    _ => unreachable!(),
+                };
+
+                let new_name = self.names.fresh(irr.span, None);
+                self.context.add(new_name, t);
+
+                let closed = env.with(
+                    param,
+                    Irreducible {
+                        node: IrreducibleNode::Quote(ExprSeq {
+                            exprs: vec![Expr {
+                                node: ExprNode::Produce(Value {
+                                    node: ValueNode::Name(new_name),
+                                    span: irr.span, // todo?
+                                    ty: t,
+                                }),
+                                span: irr.span,
+                                ty: t,
+                            }],
+                            span: irr.span,
+                            ty: t,
+                        }),
+                        span: irr.span,
+                        ty: t,
+                    },
+                );
+
+                let body = self.reduce_irr(closed.clone(), *body);
+                IrreducibleNode::Lambda(new_name, Box::new(body), closed)
+            }
+            irr => irr,
+        };
+
+        Irreducible {
+            node,
+            span: irr.span,
+            ty: irr.ty,
+        }
+    }
+
     fn reduce_value(&mut self, env: &Env, value: Value) -> Irreducible {
         let node = match value.node {
-            ValueNode::Int(i) => IrreducibleNode::Integer(i),
             ValueNode::Invalid => IrreducibleNode::Invalid,
+            ValueNode::Int(i) => IrreducibleNode::Integer(i),
             ValueNode::Name(name) => {
                 if let Some(value) = env.lookup(&name) {
                     return value.clone();

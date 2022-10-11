@@ -34,6 +34,8 @@ impl<D: Driver> Lowerer<'_, D> {
                 let name = self.names.fresh(value.span, None);
                 self.context.add(name, value.ty);
 
+                let body = self.promote(*body);
+
                 within.push(Expr {
                     node: ExprNode::Function { name, param, body },
                     span: value.span,
