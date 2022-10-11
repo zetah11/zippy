@@ -35,7 +35,10 @@ impl<D: Driver> Lowerer<'_, D> {
     ) -> Value {
         match value {
             Irreducible::Invalid => Value::Invalid,
-            Irreducible::Integer(i) => Value::Int(i),
+            Irreducible::Integer(i) => {
+                self.check_int_range(span, i, &ty);
+                Value::Int(i)
+            }
             Irreducible::Lambda(param, body, _) => {
                 let name = self.names.fresh(span, None);
                 self.context.add(name, ty);

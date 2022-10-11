@@ -1,3 +1,4 @@
+mod check;
 mod irreducible;
 mod promote;
 mod reduce;
