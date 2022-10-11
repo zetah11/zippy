@@ -1,21 +1,18 @@
 //! Promotion converts an [`Irreducible`](super::Irreducible) back to an `ExprSeq`.
 
-use super::Irreducible;
-use super::Lowerer;
-use crate::message::Span;
-use crate::mir::Type;
-use crate::mir::TypeId;
-use crate::mir::Value;
+use super::{Irreducible, IrreducibleNode, Lowerer};
 use crate::mir::{Expr, ExprNode, ExprSeq};
+use crate::mir::{Value, ValueNode};
 use crate::Driver;
 
 impl<D: Driver> Lowerer<'_, D> {
-    pub fn promote(&mut self, span: Span, ty: TypeId, value: Irreducible) -> ExprSeq {
-        if let Irreducible::Quote(exprs) = value {
+    pub fn promote(&mut self, value: Irreducible) -> ExprSeq {
+        if let IrreducibleNode::Quote(exprs) = value.node {
             exprs
         } else {
-            let mut exprs = ExprSeq::default();
-            let res = self.make_irr(&mut exprs, span, ty, value);
+            let mut exprs = ExprSeq::new(value.span, value.ty);
+            let Irreducible { span, ty, .. } = value;
+            let res = self.make_irr(&mut exprs, value);
             exprs.push(Expr {
                 node: ExprNode::Produce(res),
                 span,
@@ -26,67 +23,60 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    fn make_irr(
-        &mut self,
-        within: &mut ExprSeq,
-        span: Span,
-        ty: TypeId,
-        value: Irreducible,
-    ) -> Value {
-        match value {
-            Irreducible::Invalid => Value::Invalid,
-            Irreducible::Integer(i) => {
-                self.check_int_range(span, i, &ty);
-                Value::Int(i)
+    fn make_irr(&mut self, within: &mut ExprSeq, value: Irreducible) -> Value {
+        let node = match value.node {
+            IrreducibleNode::Invalid => ValueNode::Invalid,
+            IrreducibleNode::Integer(i) => {
+                self.check_int_range(value.span, i, &value.ty);
+                ValueNode::Int(i)
             }
-            Irreducible::Lambda(param, body, _) => {
-                let name = self.names.fresh(span, None);
-                self.context.add(name, ty);
+            IrreducibleNode::Lambda(param, body, _) => {
+                let name = self.names.fresh(value.span, None);
+                self.context.add(name, value.ty);
 
                 within.push(Expr {
                     node: ExprNode::Function { name, param, body },
-                    span,
-                    ty,
+                    span: value.span,
+                    ty: value.ty,
                 });
 
-                Value::Name(name)
+                ValueNode::Name(name)
             }
 
-            Irreducible::Tuple(values) => {
-                let ties = match self.types.get(&ty) {
-                    Type::Product(t, u) => vec![*t, *u],
-                    Type::Invalid => vec![ty; values.len()],
-                    _ => unreachable!(),
-                };
-
+            IrreducibleNode::Tuple(values) => {
                 let values = values
                     .into_iter()
-                    .zip(ties)
-                    .map(|(value, ty)| self.make_irr(within, span, ty, value))
+                    .map(|value| self.make_irr(within, value))
                     .collect();
 
-                let name = self.names.fresh(span, None);
-                self.context.add(name, ty);
+                let name = self.names.fresh(value.span, None);
+                self.context.add(name, value.ty);
 
                 within.push(Expr {
                     node: ExprNode::Tuple { name, values },
-                    span,
-                    ty,
+                    span: value.span,
+                    ty: value.ty,
                 });
 
-                Value::Name(name)
+                ValueNode::Name(name)
             }
 
-            Irreducible::Quote(exprs) => {
+            IrreducibleNode::Quote(exprs) => {
                 let last = exprs.exprs.last().unwrap();
                 if let ExprNode::Produce(ref value) = last.node {
                     let value = value.clone();
                     within.extend(exprs.exprs);
-                    value
+                    return value;
                 } else {
                     unreachable!()
                 }
             }
+        };
+
+        Value {
+            node,
+            span: value.span,
+            ty: value.ty,
         }
     }
 }

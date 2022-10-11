@@ -11,7 +11,7 @@ use crate::mir::{Context, Decls, Types, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
 
-use self::irreducible::Irreducible;
+use self::irreducible::{Irreducible, IrreducibleNode};
 
 pub fn evaluate(
     driver: &mut impl Driver,
@@ -110,12 +110,12 @@ impl<'a, D: Driver> Lowerer<'a, D> {
                 prettier.pretty_name(&def.name)
             });
 
-            let (bind, ty) = self.reduce_exprs(self.env.clone(), def.bind);
+            let bind = self.reduce_exprs(self.env.clone(), def.bind);
             self.env.set(def.name, bind.clone());
             values.push(ValueDef {
                 name: def.name,
                 span: def.span,
-                bind: self.promote(def.span, ty, bind),
+                bind: self.promote(bind),
             });
         }
 

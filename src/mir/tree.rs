@@ -14,12 +14,22 @@ pub struct ValueDef {
     pub bind: ExprSeq,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ExprSeq {
     pub exprs: Vec<Expr>,
+    pub span: Span,
+    pub ty: TypeId,
 }
 
 impl ExprSeq {
+    pub fn new(span: Span, ty: TypeId) -> Self {
+        Self {
+            exprs: Vec::new(),
+            span,
+            ty,
+        }
+    }
+
     pub(crate) fn push(&mut self, ex: Expr) {
         self.exprs.push(ex);
     }
@@ -70,7 +80,14 @@ pub enum ExprNode {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Value {
+pub struct Value {
+    pub node: ValueNode,
+    pub span: Span,
+    pub ty: TypeId,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ValueNode {
     Int(i64),
     Name(Name),
     Invalid,

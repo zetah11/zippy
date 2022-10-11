@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::message::{Messages, Span};
-use crate::mir::{Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef};
+use crate::mir::pretty::Prettier;
+use crate::mir::{
+    Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef, ValueNode,
+};
 use crate::resolve::names::{Name, Names};
 use crate::tyck::{self, UniVar};
 use crate::Driver;
@@ -117,13 +120,15 @@ impl<'a> Lowerer<'a> {
 
                 within.push(ValueDef { name, span, bind });
 
-                let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, typ| {
+                let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, ty| {
                     let inner = lowerer.names.fresh(span, None);
-                    lowerer.context.add(name, typ);
+                    lowerer.context.add(name, ty);
                     within.push(ValueDef {
                         name,
                         span,
                         bind: ExprSeq {
+                            span,
+                            ty,
                             exprs: vec![
                                 Expr {
                                     node: ExprNode::Proj {
@@ -135,7 +140,11 @@ impl<'a> Lowerer<'a> {
                                     ty,
                                 },
                                 Expr {
-                                    node: ExprNode::Produce(Value::Name(inner)),
+                                    node: ExprNode::Produce(Value {
+                                        node: ValueNode::Name(inner),
+                                        span,
+                                        ty,
+                                    }),
                                     span,
                                     ty,
                                 },
@@ -160,7 +169,7 @@ impl<'a> Lowerer<'a> {
                 let target = self.names.fresh(pat.span, None);
                 self.context.add(target, ty);
 
-                let mut proj = |_: &mut Lowerer<'a>, name, value, ndx, span, typ| {
+                let mut proj = |_: &mut Lowerer<'a>, name, value, ndx, span, ty| {
                     within.push(Expr {
                         node: ExprNode::Proj {
                             name,
@@ -168,7 +177,7 @@ impl<'a> Lowerer<'a> {
                             at: ndx,
                         },
                         span,
-                        ty: typ,
+                        ty,
                     });
                 };
 
@@ -205,30 +214,31 @@ impl<'a> Lowerer<'a> {
     }
 
     fn lower_expr(&mut self, ex: HiExpr) -> ExprSeq {
-        let mut seq = ExprSeq::default();
-        let typ = self.lower_type(ex.data.clone());
-        let (value, span) = self.make_expr(&mut seq, ex);
+        let ty = self.lower_type(ex.data.clone());
+        let mut seq = ExprSeq::new(ex.span, ty);
+        let value = self.make_expr(&mut seq, ex);
+        let span = value.span;
         seq.push(Expr {
             node: ExprNode::Produce(value),
             span,
-            ty: typ,
+            ty,
         });
         seq
     }
 
-    fn make_expr(&mut self, within: &mut ExprSeq, ex: HiExpr) -> (Value, Span) {
-        let value = match ex.node {
-            HiExprNode::Int(i) => Value::Int(i),
-            HiExprNode::Name(name) => Value::Name(name),
+    fn make_expr(&mut self, within: &mut ExprSeq, ex: HiExpr) -> Value {
+        let ty = self.lower_type(ex.data);
+        let node = match ex.node {
+            HiExprNode::Int(i) => ValueNode::Int(i),
+            HiExprNode::Name(name) => ValueNode::Name(name),
             HiExprNode::Lam(param, body) => {
-                let mut bodys = ExprSeq::default();
+                let body_ty = self.lower_type(body.data.clone());
+                let mut bodys = ExprSeq::new(body.span, body_ty);
 
                 let param = self.destruct_expr(&mut bodys, param);
                 bodys.extend(self.lower_expr(*body).exprs);
 
                 let body = bodys;
-
-                let ty = self.lower_type(ex.data);
 
                 let name = self.names.fresh(ex.span, None);
                 self.context.add(name, ty);
@@ -239,19 +249,21 @@ impl<'a> Lowerer<'a> {
                     ty,
                 });
 
-                Value::Name(name)
+                ValueNode::Name(name)
             }
 
             HiExprNode::App(fun, arg) => {
-                let fun = if let (Value::Name(name), _) = self.make_expr(within, *fun) {
+                let fun = if let Value {
+                    node: ValueNode::Name(name),
+                    ..
+                } = self.make_expr(within, *fun)
+                {
                     name
                 } else {
                     unreachable!()
                 };
 
-                let (arg, _) = self.make_expr(within, *arg);
-
-                let ty = self.lower_type(ex.data);
+                let arg = self.make_expr(within, *arg);
 
                 let name = self.names.fresh(ex.span, None);
                 self.context.add(name, ty);
@@ -262,14 +274,12 @@ impl<'a> Lowerer<'a> {
                     ty,
                 });
 
-                Value::Name(name)
+                ValueNode::Name(name)
             }
 
             HiExprNode::Tuple(t, u) => {
-                let (t, _) = self.make_expr(within, *t);
-                let (u, _) = self.make_expr(within, *u);
-
-                let ty = self.lower_type(ex.data);
+                let t = self.make_expr(within, *t);
+                let u = self.make_expr(within, *u);
 
                 let name = self.names.fresh(ex.span, None);
                 self.context.add(name, ty);
@@ -283,21 +293,27 @@ impl<'a> Lowerer<'a> {
                     ty,
                 });
 
-                Value::Name(name)
+                ValueNode::Name(name)
             }
 
             HiExprNode::Hole => {
-                self.messages
-                    .at(ex.span)
-                    .elab_report_hole(format!("{:?}", ex.data));
-                Value::Invalid
+                self.messages.at(ex.span).elab_report_hole({
+                    let prettier = Prettier::new(self.names, &self.types);
+                    prettier.pretty_type(&ty)
+                });
+
+                ValueNode::Invalid
             }
 
-            HiExprNode::Invalid => Value::Invalid,
+            HiExprNode::Invalid => ValueNode::Invalid,
 
             HiExprNode::Anno(..) => unreachable!(),
         };
 
-        (value, ex.span)
+        Value {
+            node,
+            span: ex.span,
+            ty,
+        }
     }
 }

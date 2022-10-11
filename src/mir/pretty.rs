@@ -1,6 +1,8 @@
 use crate::resolve::names::{Actual, Names};
 
-use super::{Decls, Expr, ExprNode, ExprSeq, Name, Type, TypeId, Types, Value, ValueDef};
+use super::{
+    Decls, Expr, ExprNode, ExprSeq, Name, Type, TypeId, Types, Value, ValueDef, ValueNode,
+};
 use pretty::{Arena, DocAllocator, DocBuilder};
 
 pub struct Prettier<'a> {
@@ -39,7 +41,7 @@ impl<'a> Prettier<'a> {
     }
 
     pub fn pretty_name(&'a self, name: &Name) -> String {
-        let doc = self.doc_name(*name);
+        let doc = self.doc_name(name);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
@@ -63,7 +65,7 @@ impl<'a> Prettier<'a> {
         let bind = self.doc_expr_seq(&def.bind);
         self.allocator
             .text("let ")
-            .append(self.doc_name(def.name))
+            .append(self.doc_name(&def.name))
             .append(self.allocator.text(" ="))
             .append(self.allocator.line().append(bind))
             .nest(2)
@@ -102,7 +104,7 @@ impl<'a> Prettier<'a> {
                 .allocator
                 .text("jump")
                 .append(self.allocator.space())
-                .append(self.doc_name(*to))
+                .append(self.doc_name(to))
                 .append(self.doc_value(arg).parens())
                 .group(),
             ExprNode::Join { name, param, body } => self
@@ -121,7 +123,7 @@ impl<'a> Prettier<'a> {
             }
             ExprNode::Apply { name, fun, arg } => self
                 .doc_let(name)
-                .append(self.doc_name(*fun))
+                .append(self.doc_name(fun))
                 .append(self.allocator.space())
                 .append(self.doc_value(arg))
                 .group(),
@@ -138,7 +140,7 @@ impl<'a> Prettier<'a> {
                 .group(),
             ExprNode::Proj { name, of, at } => self
                 .doc_let(name)
-                .append(self.doc_name(*of))
+                .append(self.doc_name(of))
                 .append(self.allocator.text("."))
                 .append(self.allocator.text(format!("{at}")))
                 .group(),
@@ -150,9 +152,9 @@ impl<'a> Prettier<'a> {
             .text(kw)
             .append(self.allocator.space())
             .append(
-                self.doc_name(*name)
+                self.doc_name(name)
                     .append(self.allocator.space())
-                    .append(self.doc_name(*param)),
+                    .append(self.doc_name(param)),
             )
             .append(" =")
             .group()
@@ -163,21 +165,21 @@ impl<'a> Prettier<'a> {
         self.allocator
             .text("let")
             .append(self.allocator.space())
-            .append(self.doc_name(*name))
+            .append(self.doc_name(name))
             .append(" =")
             .append(self.allocator.space())
     }
 
     fn doc_value(&'a self, value: &Value) -> DocBuilder<Arena<'a>> {
-        match value {
-            Value::Int(i) => self.allocator.text(format!("{i}")),
-            Value::Name(name) => self.doc_name(*name),
-            Value::Invalid => self.allocator.text("<error>"),
+        match &value.node {
+            ValueNode::Int(i) => self.allocator.text(format!("{i}")),
+            ValueNode::Name(name) => self.doc_name(name),
+            ValueNode::Invalid => self.allocator.text("<error>"),
         }
     }
 
-    fn doc_name(&'a self, name: Name) -> DocBuilder<Arena<'a>> {
-        let path = self.names.get_path(&name);
+    fn doc_name(&'a self, name: &Name) -> DocBuilder<Arena<'a>> {
+        let path = self.names.get_path(name);
         match &path.1 {
             Actual::Lit(lit) => self.allocator.text(lit),
             Actual::Generated(id) => self.allocator.text(String::from(*id)),
