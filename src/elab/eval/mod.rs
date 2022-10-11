@@ -1,110 +1,113 @@
-mod bind;
-mod checks;
+mod irreducible;
+mod promote;
 mod reduce;
 
-use std::collections::HashMap;
-
-use log::{info, trace};
+use im::HashMap;
 
 use crate::message::Messages;
 use crate::mir::pretty::Prettier;
-use crate::mir::{Decls, Expr, Types, ValueDef};
+use crate::mir::{Decls, Types, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
 
-pub fn evaluate(driver: &mut impl Driver, names: &mut Names, types: &Types, decls: Decls) -> Decls {
-    info!("beginning evaluation");
+use self::irreducible::Irreducible;
 
+pub fn evaluate(driver: &mut impl Driver, names: &mut Names, types: &Types, decls: Decls) -> Decls {
     let (res, messages) = {
-        let mut evaler = Evaluator::new(names, types, driver);
-        let res = evaler.reduce_decls(decls);
-        (res, evaler.messages)
+        let mut lowerer = Lowerer::new(driver, names, types);
+        let res = lowerer.reduce_decls(decls);
+
+        (res, lowerer.messages)
     };
 
-    driver.done_eval();
     driver.report(messages);
-
-    trace!("done evaluating");
 
     res
 }
 
+#[derive(Clone, Debug, Default)]
+struct Env {
+    map: HashMap<Name, Irreducible>,
+    parent: Option<Box<Env>>,
+}
+
+impl Env {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            parent: None,
+        }
+    }
+
+    fn child(&self) -> Self {
+        Self {
+            map: HashMap::new(),
+            parent: Some(Box::new(self.clone())),
+        }
+    }
+
+    fn lookup(&self, name: &Name) -> Option<&Irreducible> {
+        self.map
+            .get(name)
+            .or_else(|| self.parent.as_ref().and_then(|parent| parent.lookup(name)))
+    }
+
+    fn set(&mut self, name: Name, value: Irreducible) {
+        self.map.insert(name, value);
+    }
+
+    /// Create a child environment where the given name is bound to the given value.
+    fn with(&self, name: Name, value: Irreducible) -> Self {
+        Self {
+            map: self.map.update(name, value),
+            parent: Some(Box::new(self.clone())),
+        }
+    }
+}
+
 #[derive(Debug)]
-pub struct Evaluator<'a, Driver> {
-    context: (HashMap<Name, Expr>, Vec<HashMap<Name, Expr>>),
-    messages: Messages,
+struct Lowerer<'a, Driver> {
+    env: Env,
     names: &'a mut Names,
     types: &'a Types,
 
     driver: &'a mut Driver,
+    messages: Messages,
 }
 
-impl<'a, D: Driver> Evaluator<'a, D> {
-    pub fn new(names: &'a mut Names, types: &'a Types, driver: &'a mut D) -> Self {
+impl<'a, D: Driver> Lowerer<'a, D> {
+    fn new(driver: &'a mut D, names: &'a mut Names, types: &'a Types) -> Self {
         Self {
-            context: (HashMap::new(), Vec::new()),
-            messages: Messages::new(),
+            env: Env::new(),
             names,
             types,
 
             driver,
+            messages: Messages::new(),
         }
     }
 
-    /// Reduce the given declarations by partially evaluating the non-effectful code.
-    pub fn reduce_decls(&mut self, decls: Decls) -> Decls {
+    fn reduce_decls(&mut self, decls: Decls) -> Decls {
         let mut values = Vec::with_capacity(decls.values.len());
 
-        for def in decls.values.iter() {
-            self.bind(def.pat.clone(), def.bind.clone());
-        }
-
         for def in decls.values {
-            let ValueDef { span, pat, bind } = def;
-
             self.driver.report_eval({
-                let prettier = Prettier::new(self.names);
-                prettier.pretty_pat(&pat)
+                let prettier = Prettier::new(self.names, self.types);
+                prettier.pretty_name(&def.name)
             });
 
-            self.enter();
-            let bind = self.reduce(bind);
-            self.exit();
-            self.bind(pat.clone(), bind.clone());
-            values.push(ValueDef { span, pat, bind });
+            let typ = def.bind.exprs[0].typ;
+            let bind = self.reduce_exprs(self.env.clone(), def.bind);
+            self.env.set(def.name, bind.clone());
+            values.push(ValueDef {
+                name: def.name,
+                span: def.span,
+                bind: self.promote(def.span, typ, bind),
+            });
         }
+
+        self.driver.done_eval();
 
         Decls { values }
-    }
-
-    /// Reduce the given expression by partially evaluating its non-effectful sub-expressions.
-    pub fn reduce_expr(&mut self, expr: Expr) -> Expr {
-        self.reduce(expr)
-    }
-
-    fn enter(&mut self) {
-        self.context.1.push(HashMap::new());
-    }
-
-    fn exit(&mut self) {
-        assert!(self.context.1.pop().is_some());
-    }
-
-    fn lookup(&mut self, name: &Name) -> Option<&Expr> {
-        for ctx in self.context.1.iter().rev() {
-            if let Some(v) = ctx.get(name) {
-                return Some(v);
-            }
-        }
-
-        self.context.0.get(name)
-    }
-
-    fn set(&mut self, name: Name, value: Expr) {
-        if let Some(map) = self.context.1.last_mut() {
-            map.insert(name, value);
-        } else {
-            self.context.0.insert(name, value);
-        }
     }
 }

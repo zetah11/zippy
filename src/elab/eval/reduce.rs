@@ -1,58 +1,95 @@
-use super::Evaluator;
-use crate::mir::{Expr, ExprNode};
+use crate::message::Span;
+use crate::mir::{Expr, ExprNode, ExprSeq, TypeId, Value};
 use crate::Driver;
 
-impl<'a, D: Driver> Evaluator<'a, D> {
-    pub fn reduce(&mut self, ex: Expr) -> Expr {
-        let node = match ex.node {
-            ExprNode::Invalid => ExprNode::Invalid,
-            ExprNode::Int(v) => {
-                self.check_int(ex.span, v, &ex.typ);
-                ExprNode::Int(v)
-            }
-            ExprNode::Name(name) => match self.lookup(&name) {
-                Some(value) => {
-                    let value = value.clone();
-                    return value;
-                }
-                None => ExprNode::Name(name),
-            },
-            ExprNode::Lam(param, body) => ExprNode::Lam(param, Box::new(self.reduce(*body))),
-            ExprNode::Tuple(x, y) => {
-                let x = Box::new(self.reduce(*x));
-                let y = Box::new(self.reduce(*y));
+use super::Env;
+use super::Irreducible;
+use super::Lowerer;
 
-                ExprNode::Tuple(x, y)
-            }
-            ExprNode::App(fun, arg) => {
-                let fun = self.reduce(*fun);
-                let arg = self.reduce(*arg);
+impl<D: Driver> Lowerer<'_, D> {
+    pub fn reduce_exprs(&mut self, env: Env, exprs: ExprSeq) -> Irreducible {
+        let mut env = env.child();
 
-                match fun.node {
-                    ExprNode::Lam(param, body) => {
-                        self.enter();
-                        self.bind(param, arg);
-                        let body = self.reduce(*body);
-                        self.exit();
-                        return body;
+        let mut new_exprs = ExprSeq::default();
+
+        for expr in exprs.exprs {
+            let node = match expr.node {
+                ExprNode::Produce(Value::Int(i)) => return Irreducible::Integer(i),
+                ExprNode::Produce(Value::Invalid) => return Irreducible::Invalid,
+                ExprNode::Produce(Value::Name(name)) => {
+                    if let Some(value) = env.lookup(&name) {
+                        return value.clone();
+                    } else {
+                        ExprNode::Produce(Value::Name(name))
                     }
+                }
 
-                    e => ExprNode::App(
-                        Box::new(Expr {
-                            node: e,
-                            span: fun.span,
-                            typ: fun.typ,
-                        }),
-                        Box::new(arg),
-                    ),
+                ExprNode::Jump(..) | ExprNode::Join { .. } => todo!(),
+
+                ExprNode::Function { name, param, body } => {
+                    env.set(name, Irreducible::Lambda(param, body.clone(), env.clone()));
+                    ExprNode::Function { name, param, body }
+                }
+
+                ExprNode::Apply { name, fun, arg } => {
+                    if let Some(Irreducible::Lambda(param, body, closed)) = env.lookup(&fun) {
+                        let arg = self.reduce_value(expr.span, expr.typ, &env, arg);
+
+                        let result = self.reduce_exprs(closed.with(*param, arg), body.clone());
+                        env.set(name, result);
+
+                        continue;
+                    } else {
+                        ExprNode::Apply { name, fun, arg }
+                    }
+                }
+
+                ExprNode::Tuple { name, values } => {
+                    let values = values
+                        .into_iter()
+                        .map(|value| self.reduce_value(expr.span, expr.typ, &env, value))
+                        .collect();
+                    env.set(name, Irreducible::Tuple(values));
+                    continue;
+                }
+
+                ExprNode::Proj { name, of, at } => {
+                    if let Some(Irreducible::Tuple(values)) = env.lookup(&of) {
+                        env.set(name, values[at].clone());
+                        continue;
+                    } else {
+                        ExprNode::Proj { name, of, at }
+                    }
+                }
+            };
+
+            new_exprs.push(Expr {
+                node,
+                span: expr.span,
+                typ: expr.typ,
+            })
+        }
+
+        Irreducible::Quote(new_exprs)
+    }
+
+    fn reduce_value(&mut self, span: Span, typ: TypeId, env: &Env, value: Value) -> Irreducible {
+        match value {
+            Value::Int(i) => Irreducible::Integer(i),
+            Value::Invalid => Irreducible::Invalid,
+            Value::Name(name) => {
+                if let Some(value) = env.lookup(&name) {
+                    value.clone()
+                } else {
+                    Irreducible::Quote(ExprSeq {
+                        exprs: vec![Expr {
+                            node: ExprNode::Produce(Value::Name(name)),
+                            span,
+                            typ, // todo
+                        }],
+                    })
                 }
             }
-        };
-
-        Expr {
-            node,
-            span: ex.span,
-            typ: ex.typ,
         }
     }
 }
