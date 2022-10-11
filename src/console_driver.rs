@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{self, Write};
 
 use codespan_reporting::files::SimpleFiles;
@@ -27,6 +28,14 @@ impl ConsoleDriver {
             },
         }
     }
+
+    fn clear_line(&mut self) -> io::Result<()> {
+        if env::var("PRESERVE_OUTPUT").is_ok() {
+            self.term.write_line("")
+        } else {
+            self.term.clear_line()
+        }
+    }
 }
 
 impl Driver for ConsoleDriver {
@@ -37,15 +46,11 @@ impl Driver for ConsoleDriver {
     }
 
     fn report_eval(&mut self, at: String) {
-        write_eval(&mut self.term, at).unwrap();
+        self.clear_line().unwrap();
+        write!(self.term, "{}: evaluating '{at}'", style("note").green()).unwrap();
     }
 
     fn done_eval(&mut self) {
-        self.term.clear_line().unwrap();
+        self.clear_line().unwrap();
     }
-}
-
-fn write_eval(term: &mut Term, at: String) -> io::Result<()> {
-    term.clear_line()?;
-    write!(term, "{}: evaluating '{at}'", style("note").green())
 }

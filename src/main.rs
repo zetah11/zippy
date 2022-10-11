@@ -17,7 +17,7 @@ fn main() {
         let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
             (f, x) => f x
         let id: 0 upto 10 -> 0 upto 10 = x => x
-        let x: 0 upto 10 = apply (id, 5)
+        let x = apply (id, 15)
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
