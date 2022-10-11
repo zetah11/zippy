@@ -45,6 +45,10 @@ impl Driver for ConsoleDriver {
         }
     }
 
+    fn entry_name(&mut self) -> Option<String> {
+        Some("main".into())
+    }
+
     fn report_eval(&mut self, at: String) {
         self.clear_line().unwrap();
         write!(self.term, "{}: evaluating '{at}'", style("note").green()).unwrap();

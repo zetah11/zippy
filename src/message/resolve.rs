@@ -1,9 +1,20 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
-use super::{MessageAdder, Span};
+use super::{MessageAdder, Messages, Span};
 
 const REDECLARATION: &str = "ER00";
 const UNKNOWN_NAME: &str = "ER01";
+const NO_ENTRY_POINT: &str = "ER02";
+
+impl Messages {
+    pub fn resolve_no_entry_point(&mut self) {
+        self.msgs.push(
+            Diagnostic::error()
+                .with_code(NO_ENTRY_POINT)
+                .with_message("program has no entry point"),
+        );
+    }
+}
 
 impl<'a> MessageAdder<'a> {
     pub fn resolve_redeclaration(&mut self, prev: Span) {

@@ -35,7 +35,7 @@ pub enum FreeToken<'src> {
     #[token(":")]
     Colon,
 
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_']*")]
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*")]
     Name(&'src str),
 
     #[regex(r"[0-9][0-9_']*")]

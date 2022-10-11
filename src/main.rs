@@ -5,7 +5,7 @@ use corollary::elab::elaborate;
 use corollary::lex::lex;
 use corollary::mir::pretty::Prettier;
 use corollary::parse::parse;
-use corollary::resolve::resolve;
+use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
 
 use console_driver::ConsoleDriver;
@@ -21,6 +21,9 @@ fn main() {
             x => x
 
         let x = pipe 10 id
+
+        let main: 0 upto 1 -> 0 upto 10 =  ? =>
+            x
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
@@ -29,7 +32,12 @@ fn main() {
 
     let toks = lex(&mut driver, src, file);
     let decls = parse(&mut driver, toks, file);
-    let (decls, mut names) = resolve(&mut driver, decls);
+    let ResolveRes {
+        decls,
+        mut names,
+        entry: _entry,
+    } = resolve(&mut driver, decls);
+
     let tyckres = typeck(&mut driver, decls);
     let (types, decls) = elaborate(&mut driver, &mut names, tyckres);
 

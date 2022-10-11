@@ -10,7 +10,7 @@ pub struct GeneratedName(usize);
 
 impl From<GeneratedName> for String {
     fn from(name: GeneratedName) -> Self {
-        format!("${}", name.0)
+        format!("_t{}", name.0)
     }
 }
 
@@ -73,5 +73,10 @@ impl Names {
 
     pub fn lookup(&self, name: &Path) -> Option<Name> {
         self.names.get_by_right(name).copied()
+    }
+
+    /// Look for a top-level name, such as an entry point.
+    pub fn find_top_level(&self, name: impl Into<String>) -> Option<Name> {
+        self.lookup(&Path(Vec::new(), Actual::Lit(name.into())))
     }
 }

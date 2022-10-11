@@ -16,7 +16,14 @@ use crate::message::{Messages, Span};
 use crate::Driver;
 use names::{Actual, Name, Names, Path};
 
-pub fn resolve(driver: &mut impl Driver, decls: Decls) -> (Decls<Name>, Names) {
+#[derive(Debug)]
+pub struct ResolveRes {
+    pub decls: Decls<Name>,
+    pub names: Names,
+    pub entry: Option<Name>,
+}
+
+pub fn resolve(driver: &mut impl Driver, decls: Decls) -> ResolveRes {
     info!("beginning name resolution");
     debug!("declaring");
 
@@ -26,11 +33,23 @@ pub fn resolve(driver: &mut impl Driver, decls: Decls) -> (Decls<Name>, Names) {
     debug!("resolving");
     let decls = resolver.resolve(decls);
 
+    let entry = driver.entry_name().and_then(|entry| {
+        let res = resolver.names.find_top_level(entry);
+        if res.is_none() {
+            resolver.msgs.resolve_no_entry_point();
+        }
+        res
+    });
+
     driver.report(resolver.msgs);
 
     trace!("done resolving");
 
-    (decls, resolver.names)
+    ResolveRes {
+        decls,
+        names: resolver.names,
+        entry,
+    }
 }
 
 #[derive(Debug, Default)]
