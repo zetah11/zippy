@@ -1,6 +1,6 @@
 pub mod pretty;
 
-pub use tree::{Decls, Expr, ExprNode, ExprSeq, Pat, PatNode, Value, ValueDef};
+pub use tree::{Decls, Expr, ExprNode, ExprSeq, Value, ValueDef};
 pub use types::Types;
 
 mod tree;

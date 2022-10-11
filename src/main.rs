@@ -16,6 +16,9 @@ fn main() {
     let src = r#"
         let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
             (f, x) => f x
+        
+        let f: 0 upto 10 -> 0 upto 10 = x => x
+        let x = apply (f, 5)
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
@@ -26,13 +29,8 @@ fn main() {
     let decls = parse(&mut driver, toks, file);
     let (decls, mut names) = resolve(&mut driver, decls);
     let tyckres = typeck(&mut driver, decls);
-    let (_types, decls) = elaborate(&mut driver, &mut names, tyckres);
+    let (types, decls) = elaborate(&mut driver, &mut names, tyckres);
 
-    let prettier = Prettier::new(&names);
-
-    for def in decls.values.iter() {
-        let pat = prettier.pretty_name(&def.name);
-        let exp = prettier.pretty_exprs(&def.bind);
-        println!("let {pat} = {exp}");
-    }
+    let prettier = Prettier::new(&names, &types).with_width(20);
+    println!("{}", prettier.pretty_decls(&decls));
 }

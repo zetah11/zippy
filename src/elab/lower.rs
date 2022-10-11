@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use crate::message::{Messages, Span};
-use crate::mir::{
-    Decls, Expr, ExprNode, ExprSeq, Pat, PatNode, Type, TypeId, Types, Value, ValueDef,
-};
+use crate::mir::{Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef};
 use crate::resolve::names::{Name, Names};
 use crate::tyck::{self, UniVar};
 use crate::Driver;
@@ -51,7 +49,7 @@ impl<'a> Lowerer<'a> {
         let mut values = Vec::with_capacity(decls.values.len());
 
         for def in decls.values {
-            values.extend(self.destruct_binding(def.span, def.pat, def.bind));
+            self.destruct_binding(&mut values, def.span, def.pat, def.bind);
         }
 
         Decls { values }
@@ -87,84 +85,52 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn destruct_binding(&mut self, span: Span, pat: HiPat, bind: HiExpr) -> Vec<ValueDef> {
+    fn destruct_binding(
+        &mut self,
+        within: &mut Vec<ValueDef>,
+        span: Span,
+        pat: HiPat,
+        bind: HiExpr,
+    ) {
         let bind = self.lower_expr(bind);
         match pat.node {
-            HiPatNode::Invalid | HiPatNode::Wildcard => vec![],
-            HiPatNode::Name(name) => vec![ValueDef { span, name, bind }],
+            HiPatNode::Invalid | HiPatNode::Wildcard => {}
+            HiPatNode::Name(name) => within.push(ValueDef { span, name, bind }),
 
             HiPatNode::Tuple(a, b) => {
                 let name = self.names.fresh(pat.span, None);
-                let mut defs = vec![ValueDef { span, name, bind }];
 
-                defs.extend(self.make_proj_binding(*a, name, 0));
-                defs.extend(self.make_proj_binding(*b, name, 1));
+                within.push(ValueDef { name, span, bind });
 
-                defs
-            }
-        }
-    }
-
-    fn make_proj_binding(&mut self, pat: HiPat, value: Name, ndx: usize) -> Vec<ValueDef> {
-        match pat.node {
-            HiPatNode::Invalid | HiPatNode::Wildcard => vec![],
-            HiPatNode::Name(name) => {
-                let projd = self.names.fresh(pat.span, None);
-                let typ = self.lower_type(pat.data);
-                let exprs = vec![
-                    Expr {
-                        node: ExprNode::Proj {
-                            name: projd,
-                            of: value,
-                            at: ndx,
-                        },
-                        span: pat.span,
-                        typ,
-                    },
-                    Expr {
-                        node: ExprNode::Produce(Value::Name(projd)),
-                        span: pat.span,
-                        typ,
-                    },
-                ];
-
-                vec![ValueDef {
-                    name,
-                    bind: ExprSeq { exprs },
-                    span: pat.span,
-                }]
-            }
-            HiPatNode::Tuple(a, b) => {
-                let inner = self.names.fresh(pat.span, None);
-                let projd = self.names.fresh(pat.span, None);
-                let typ = self.lower_type(pat.data);
-                let mut defs = vec![ValueDef {
-                    name: projd,
-                    span: pat.span,
-                    bind: ExprSeq {
-                        exprs: vec![
-                            Expr {
-                                node: ExprNode::Proj {
-                                    name: inner,
-                                    of: value,
-                                    at: ndx,
+                let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, typ| {
+                    let inner = lowerer.names.fresh(span, None);
+                    within.push(ValueDef {
+                        name,
+                        span,
+                        bind: ExprSeq {
+                            exprs: vec![
+                                Expr {
+                                    node: ExprNode::Proj {
+                                        name: inner,
+                                        of,
+                                        at,
+                                    },
+                                    span,
+                                    typ,
                                 },
-                                span: pat.span,
-                                typ,
-                            },
-                            Expr {
-                                node: ExprNode::Produce(Value::Name(inner)),
-                                span: pat.span,
-                                typ,
-                            },
-                        ],
-                    },
-                }];
+                                Expr {
+                                    node: ExprNode::Produce(Value::Name(inner)),
+                                    span,
+                                    typ,
+                                },
+                            ],
+                        },
+                    })
+                };
 
-                defs.extend(self.make_proj_binding(*a, projd, 0));
-                defs.extend(self.make_proj_binding(*b, projd, 1));
-
-                defs
+                println!("{:?}", self.names.get_path(&name).1);
+                self.make_proj(*a, name, 0, &mut proj);
+                self.make_proj(*b, name, 1, &mut proj);
             }
         }
     }
@@ -176,69 +142,53 @@ impl<'a> Lowerer<'a> {
             HiPatNode::Tuple(a, b) => {
                 let target = self.names.fresh(pat.span, None);
 
-                (self.make_proj_expr(within, *a, target, 0));
-                (self.make_proj_expr(within, *b, target, 1));
+                let mut proj = |_: &mut Lowerer<'a>, name, value, ndx, span, typ| {
+                    within.push(Expr {
+                        node: ExprNode::Proj {
+                            name,
+                            of: value,
+                            at: ndx,
+                        },
+                        span,
+                        typ,
+                    });
+                };
+
+                self.make_proj(*a, target, 0, &mut proj);
+                self.make_proj(*b, target, 1, &mut proj);
 
                 target
             }
         }
     }
 
-    fn make_proj_expr(&mut self, within: &mut ExprSeq, pat: HiPat, value: Name, ndx: usize) {
+    fn make_proj<F>(&mut self, pat: HiPat, value: Name, ndx: usize, proj: &mut F)
+    where
+        F: FnMut(&mut Lowerer<'a>, Name, Name, usize, Span, TypeId),
+    {
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {}
             HiPatNode::Name(name) => {
                 let typ = self.lower_type(pat.data);
-                within.push(Expr {
-                    node: ExprNode::Proj {
-                        name,
-                        of: value,
-                        at: ndx,
-                    },
-                    span: pat.span,
-                    typ,
-                })
+                proj(self, name, value, ndx, pat.span, typ);
             }
 
             HiPatNode::Tuple(a, b) => {
                 let projd = self.names.fresh(pat.span, None);
                 let typ = self.lower_type(pat.data);
-                within.push(Expr {
-                    node: ExprNode::Proj {
-                        name: projd,
-                        of: value,
-                        at: ndx,
-                    },
-                    span: pat.span,
-                    typ,
-                });
 
-                (self.make_proj_expr(within, *a, projd, 0));
-                (self.make_proj_expr(within, *b, projd, 1));
+                proj(self, projd, value, ndx, pat.span, typ);
+
+                self.make_proj(*a, projd, 0, proj);
+                self.make_proj(*b, projd, 1, proj);
             }
-        }
-    }
-
-    fn lower_pat(&mut self, pat: HiPat) -> Pat {
-        let node = match pat.node {
-            HiPatNode::Name(name) => PatNode::Name(name),
-            HiPatNode::Wildcard => PatNode::Wildcard,
-            HiPatNode::Invalid => PatNode::Invalid,
-
-            HiPatNode::Tuple(..) => todo!(),
-        };
-
-        Pat {
-            node,
-            span: pat.span,
-            typ: self.lower_type(pat.data),
         }
     }
 
     fn lower_expr(&mut self, ex: HiExpr) -> ExprSeq {
         let mut seq = ExprSeq::default();
         let typ = self.lower_type(ex.data.clone());
-        let (value, span) = self.go(&mut seq, ex);
+        let (value, span) = self.make_expr(&mut seq, ex);
         seq.push(Expr {
             node: ExprNode::Produce(value),
             span,
@@ -247,7 +197,7 @@ impl<'a> Lowerer<'a> {
         seq
     }
 
-    fn go(&mut self, within: &mut ExprSeq, ex: HiExpr) -> (Value, Span) {
+    fn make_expr(&mut self, within: &mut ExprSeq, ex: HiExpr) -> (Value, Span) {
         let value = match ex.node {
             HiExprNode::Int(i) => Value::Int(i),
             HiExprNode::Name(name) => Value::Name(name),
@@ -273,13 +223,13 @@ impl<'a> Lowerer<'a> {
             }
 
             HiExprNode::App(fun, arg) => {
-                let fun = if let (Value::Name(name), _) = self.go(within, *fun) {
+                let fun = if let (Value::Name(name), _) = self.make_expr(within, *fun) {
                     name
                 } else {
                     unreachable!()
                 };
 
-                let (arg, _) = self.go(within, *arg);
+                let (arg, _) = self.make_expr(within, *arg);
 
                 let typ = self.lower_type(ex.data);
 
@@ -294,8 +244,8 @@ impl<'a> Lowerer<'a> {
             }
 
             HiExprNode::Tuple(t, u) => {
-                let (t, _) = self.go(within, *t);
-                let (u, _) = self.go(within, *u);
+                let (t, _) = self.make_expr(within, *t);
+                let (u, _) = self.make_expr(within, *u);
 
                 let typ = self.lower_type(ex.data);
 

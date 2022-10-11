@@ -14,20 +14,6 @@ pub struct ValueDef {
     pub bind: ExprSeq,
 }
 
-#[derive(Clone, Debug)]
-pub struct Pat {
-    pub node: PatNode,
-    pub span: Span,
-    pub typ: TypeId,
-}
-
-#[derive(Clone, Debug)]
-pub enum PatNode {
-    Name(Name),
-    Wildcard,
-    Invalid,
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct ExprSeq {
     pub exprs: Vec<Expr>,
