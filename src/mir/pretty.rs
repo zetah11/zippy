@@ -99,7 +99,11 @@ impl<'a> Prettier<'a> {
 
     fn doc_expr(&'a self, expr: &Expr) -> DocBuilder<Arena<'a>> {
         match &expr.node {
-            ExprNode::Produce(value) => self.doc_value(value),
+            ExprNode::Produce(value) => self
+                .allocator
+                .text("return")
+                .append(self.allocator.space())
+                .append(self.doc_value(value)),
             ExprNode::Jump(to, arg) => self
                 .allocator
                 .text("jump")

@@ -14,13 +14,11 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let apply: (0 upto 10 -> 0 upto 10) -> 0 upto 10 -> 0 upto 10 =
-            f => x => f x
+        let id: 0 upto 10 -> 0 upto 10 -> 0 upto 10 =
+            x => y => x
         
-        let id = apply (x => x)
-
         let main: 0 upto 1 -> 0 upto 10 =
-            ? => id 10
+            ? => id 5 6
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
