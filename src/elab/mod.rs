@@ -1,5 +1,5 @@
-mod close;
 mod eval;
+mod hoist;
 mod lower;
 
 use log::{info, trace};
@@ -16,16 +16,15 @@ pub fn elaborate(
 ) -> (mir::Types, mir::Decls) {
     info!("beginning elaboration");
 
-    let (mut types, mut context, res) = lower::lower(
+    let (types, mut context, res) = lower::lower(
         driver,
         &tyckres.subst,
         names,
         tyckres.context,
         tyckres.decls,
     );
-
-    let res = close::close(names, &mut types, &mut context, res);
     let res = eval::evaluate(driver, &mut context, names, &types, res);
+    let res = hoist::hoist(driver, names, &mut context, res);
 
     trace!("done elaborating");
 

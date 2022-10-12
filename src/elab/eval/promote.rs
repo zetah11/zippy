@@ -34,7 +34,7 @@ impl<D: Driver> Lowerer<'_, D> {
                 self.check_int_range(value.span, i, &value.ty);
                 ValueNode::Int(i)
             }
-            IrreducibleNode::Lambda(param, body, _) => {
+            IrreducibleNode::Lambda(param, body) => {
                 let name = self.names.fresh(value.span, None);
                 self.context.add(name, value.ty);
 

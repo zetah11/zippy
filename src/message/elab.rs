@@ -1,10 +1,27 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
-use super::MessageAdder;
+use super::{MessageAdder, Messages, Span};
 
 const OUTSIDE_RANGE: &str = "EE00";
+const CLOSURE: &str = "EE01";
 
 const REPORT_HOLE: &str = "HE00";
+
+impl Messages {
+    pub fn elab_closure_not_permitted(&mut self, free: impl Iterator<Item = Span>) {
+        let labels = free.map(|span| Label::secondary(span.file, span)).collect();
+
+        let notes = vec!["note: these variables are not defined inside the function".into()];
+
+        self.msgs.push(
+            Diagnostic::error()
+                .with_code(CLOSURE)
+                .with_message("closures are not permitted")
+                .with_labels(labels)
+                .with_notes(notes),
+        );
+    }
+}
 
 impl<'a> MessageAdder<'a> {
     pub fn elab_report_hole(&mut self, ty: impl Into<String>) {

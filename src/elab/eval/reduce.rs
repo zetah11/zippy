@@ -18,7 +18,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     env.set(
                         name,
                         Irreducible {
-                            node: IrreducibleNode::Lambda(param, Box::new(body_irr), env.clone()),
+                            node: IrreducibleNode::Lambda(param, Box::new(body_irr)),
                             span: expr.span,
                             ty: expr.ty,
                         },
@@ -29,12 +29,12 @@ impl<D: Driver> Lowerer<'_, D> {
 
                 ExprNode::Apply { name, fun, arg } => {
                     if let Some(Irreducible {
-                        node: IrreducibleNode::Lambda(param, body, closed),
+                        node: IrreducibleNode::Lambda(param, body),
                         ..
                     }) = env.lookup(&fun)
                     {
                         let arg = self.reduce_value(&env, arg.clone());
-                        let result = self.reduce_irr(closed.with(*param, arg), *body.clone());
+                        let result = self.reduce_irr(env.with(*param, arg), *body.clone());
 
                         env.set(name, result);
                     }
@@ -138,7 +138,7 @@ impl<D: Driver> Lowerer<'_, D> {
     fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
         let node = match irr.node {
             IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, exprs),
-            IrreducibleNode::Lambda(param, body, _) => {
+            IrreducibleNode::Lambda(param, body) => {
                 let t = match self.types.get(&irr.ty) {
                     Type::Fun(t, _) => *t,
                     Type::Invalid => irr.ty,
@@ -170,8 +170,8 @@ impl<D: Driver> Lowerer<'_, D> {
                     },
                 );
 
-                let body = self.reduce_irr(closed.clone(), *body);
-                IrreducibleNode::Lambda(new_name, Box::new(body), closed)
+                let body = self.reduce_irr(closed, *body);
+                IrreducibleNode::Lambda(new_name, Box::new(body))
             }
             irr => irr,
         };
