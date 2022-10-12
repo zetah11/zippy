@@ -1,4 +1,4 @@
-use crate::mir::{Expr, ExprNode, ExprSeq, Type, Value, ValueNode};
+use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq, Type, Value, ValueNode};
 use crate::Driver;
 
 use super::{Env, Irreducible, IrreducibleNode, Lowerer};
@@ -7,47 +7,11 @@ impl<D: Driver> Lowerer<'_, D> {
     pub fn reduce_exprs(&mut self, env: Env, exprs: ExprSeq) -> Irreducible {
         let mut env = env.child();
 
-        let mut new_exprs = ExprSeq::new(exprs.span, exprs.ty);
+        let mut new_exprs = Vec::new();
 
         for expr in exprs.exprs {
             let node = match expr.node {
-                ExprNode::Produce(Value {
-                    node: ValueNode::Int(i),
-                    ..
-                }) => {
-                    return Irreducible {
-                        node: IrreducibleNode::Integer(i),
-                        span: expr.span,
-                        ty: expr.ty,
-                    };
-                }
-                ExprNode::Produce(Value {
-                    node: ValueNode::Invalid,
-                    ..
-                }) => {
-                    return Irreducible {
-                        node: IrreducibleNode::Invalid,
-                        span: expr.span,
-                        ty: expr.ty,
-                    };
-                }
-                ExprNode::Produce(Value {
-                    node: ValueNode::Name(name),
-                    span,
-                    ty,
-                }) => {
-                    if let Some(value) = env.lookup(&name) {
-                        return value.clone();
-                    } else {
-                        ExprNode::Produce(Value {
-                            node: ValueNode::Name(name),
-                            span,
-                            ty,
-                        })
-                    }
-                }
-
-                ExprNode::Jump(..) | ExprNode::Join { .. } => todo!(),
+                ExprNode::Join { .. } => todo!(),
 
                 ExprNode::Function { name, param, body } => {
                     let body_irr = self.reduce_exprs(env.clone(), body.clone());
@@ -69,31 +33,31 @@ impl<D: Driver> Lowerer<'_, D> {
                         ..
                     }) = env.lookup(&fun)
                     {
-                        let arg = self.reduce_value(&env, arg);
+                        let arg = self.reduce_value(&env, arg.clone());
                         let result = self.reduce_irr(closed.with(*param, arg), *body.clone());
 
                         env.set(name, result);
-
-                        continue;
-                    } else {
-                        ExprNode::Apply { name, fun, arg }
                     }
+
+                    ExprNode::Apply { name, fun, arg }
                 }
 
                 ExprNode::Tuple { name, values } => {
-                    let values = values
+                    let new_values = values
+                        .clone()
                         .into_iter()
                         .map(|value| self.reduce_value(&env, value))
                         .collect();
                     env.set(
                         name,
                         Irreducible {
-                            node: IrreducibleNode::Tuple(values),
+                            node: IrreducibleNode::Tuple(new_values),
                             span: expr.span,
                             ty: expr.ty,
                         },
                     );
-                    continue;
+
+                    ExprNode::Tuple { name, values }
                 }
 
                 ExprNode::Proj { name, of, at } => {
@@ -103,10 +67,9 @@ impl<D: Driver> Lowerer<'_, D> {
                     }) = env.lookup(&of)
                     {
                         env.set(name, values[at].clone());
-                        continue;
-                    } else {
-                        ExprNode::Proj { name, of, at }
                     }
+
+                    ExprNode::Proj { name, of, at }
                 }
             };
 
@@ -117,8 +80,56 @@ impl<D: Driver> Lowerer<'_, D> {
             })
         }
 
+        let branch = match exprs.branch.node {
+            BranchNode::Return(Value {
+                node: ValueNode::Int(i),
+                ..
+            }) => {
+                return Irreducible {
+                    node: IrreducibleNode::Integer(i),
+                    span: exprs.branch.span,
+                    ty: exprs.branch.ty,
+                };
+            }
+            BranchNode::Return(Value {
+                node: ValueNode::Invalid,
+                ..
+            }) => {
+                return Irreducible {
+                    node: IrreducibleNode::Invalid,
+                    span: exprs.branch.span,
+                    ty: exprs.branch.ty,
+                };
+            }
+            BranchNode::Return(Value {
+                node: ValueNode::Name(name),
+                span,
+                ty,
+            }) => {
+                if let Some(value) = env.lookup(&name) {
+                    return value.clone();
+                } else {
+                    BranchNode::Return(Value {
+                        node: ValueNode::Name(name),
+                        span,
+                        ty,
+                    })
+                }
+            }
+            BranchNode::Jump(to, arg) => BranchNode::Jump(to, arg),
+        };
+
         Irreducible {
-            node: IrreducibleNode::Quote(new_exprs),
+            node: IrreducibleNode::Quote(ExprSeq {
+                exprs: new_exprs,
+                branch: Branch {
+                    node: branch,
+                    span: exprs.branch.span,
+                    ty: exprs.branch.ty,
+                },
+                span: exprs.span,
+                ty: exprs.ty,
+            }),
             span: exprs.span,
             ty: exprs.ty,
         }
@@ -141,15 +152,16 @@ impl<D: Driver> Lowerer<'_, D> {
                     param,
                     Irreducible {
                         node: IrreducibleNode::Quote(ExprSeq {
-                            exprs: vec![Expr {
-                                node: ExprNode::Produce(Value {
+                            exprs: vec![],
+                            branch: Branch {
+                                node: BranchNode::Return(Value {
                                     node: ValueNode::Name(new_name),
                                     span: irr.span, // todo?
                                     ty: t,
                                 }),
                                 span: irr.span,
                                 ty: t,
-                            }],
+                            },
                             span: irr.span,
                             ty: t,
                         }),
@@ -180,17 +192,18 @@ impl<D: Driver> Lowerer<'_, D> {
                     return value.clone();
                 } else {
                     IrreducibleNode::Quote(ExprSeq {
+                        exprs: vec![],
                         span: value.span,
                         ty: value.ty,
-                        exprs: vec![Expr {
-                            node: ExprNode::Produce(Value {
+                        branch: Branch {
+                            node: BranchNode::Return(Value {
                                 node: ValueNode::Name(name),
                                 span: value.span,
                                 ty: value.ty,
                             }),
                             span: value.span,
                             ty: value.ty,
-                        }],
+                        },
                     })
                 }
             }

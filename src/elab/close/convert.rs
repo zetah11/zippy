@@ -42,28 +42,18 @@ impl<'a> Converter<'a> {
     }
 
     fn convert_exprs(&mut self, bound: &HashSet<Name>, exprs: ExprSeq) -> ExprSeq {
-        let mut res = ExprSeq::new(exprs.span, exprs.ty);
+        let mut res = Vec::new();
 
         for expr in exprs.exprs {
             self.convert_expr(bound, &mut res, expr);
         }
 
-        res
+        ExprSeq::new(exprs.span, exprs.ty, res, exprs.branch)
     }
 
-    fn convert_expr(&mut self, bound: &HashSet<Name>, within: &mut ExprSeq, expr: Expr) {
+    fn convert_expr(&mut self, bound: &HashSet<Name>, within: &mut Vec<Expr>, expr: Expr) {
         let node = match expr.node {
             ExprNode::Apply { name, fun, arg } => {
-                if self.non_closures.contains(&fun) {
-                    within.push(Expr {
-                        node: ExprNode::Apply { name, fun, arg },
-                        span: expr.span,
-                        ty: expr.ty,
-                    });
-
-                    return;
-                }
-
                 let fun_ptr = self.names.fresh(expr.span, None);
                 let closure_arg = self.names.fresh(expr.span, None);
                 within.extend([
@@ -114,26 +104,10 @@ impl<'a> Converter<'a> {
                     .into_iter()
                     .collect();
 
-                // Don't make closures from functions with no free vars
-                // TODO: this is buggy!
-                if free_vars.is_empty() {
-                    self.non_closures.insert(name);
-
-                    let body = self.convert_exprs(bound, body);
-
-                    within.push(Expr {
-                        node: ExprNode::Function { name, param, body },
-                        span: expr.span,
-                        ty: expr.ty,
-                    });
-
-                    return;
-                }
-
                 let env = self.names.fresh(expr.span, None);
                 let new_param = self.names.fresh(expr.span, None);
 
-                let mut new_body = ExprSeq::new(body.span, body.ty);
+                let mut new_body = Vec::new();
 
                 new_body.extend([
                     Expr {
@@ -177,7 +151,7 @@ impl<'a> Converter<'a> {
                     node: ExprNode::Function {
                         name: new_name,
                         param: new_param,
-                        body: new_body,
+                        body: ExprSeq::new(body.span, body.ty, new_body, body.branch),
                     },
                     span: expr.span,
                     ty: expr.ty, // todo!
@@ -204,8 +178,6 @@ impl<'a> Converter<'a> {
                 return;
             }
 
-            ExprNode::Produce(value) => ExprNode::Produce(value),
-            ExprNode::Jump(name, arg) => ExprNode::Jump(name, arg),
             ExprNode::Join { name, param, body } => {
                 let body = self.convert_exprs(bound, body);
                 ExprNode::Join { name, param, body }

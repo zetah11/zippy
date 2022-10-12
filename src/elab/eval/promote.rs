@@ -1,7 +1,7 @@
 //! Promotion converts an [`Irreducible`](super::Irreducible) back to an `ExprSeq`.
 
 use super::{Irreducible, IrreducibleNode, Lowerer};
-use crate::mir::{Expr, ExprNode, ExprSeq};
+use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq};
 use crate::mir::{Value, ValueNode};
 use crate::Driver;
 
@@ -10,20 +10,24 @@ impl<D: Driver> Lowerer<'_, D> {
         if let IrreducibleNode::Quote(exprs) = value.node {
             exprs
         } else {
-            let mut exprs = ExprSeq::new(value.span, value.ty);
+            let mut exprs = Vec::new();
             let Irreducible { span, ty, .. } = value;
             let res = self.make_irr(&mut exprs, value);
-            exprs.push(Expr {
-                node: ExprNode::Produce(res),
+
+            ExprSeq {
+                exprs,
+                branch: Branch {
+                    node: BranchNode::Return(res),
+                    span,
+                    ty,
+                },
                 span,
                 ty,
-            });
-
-            exprs
+            }
         }
     }
 
-    fn make_irr(&mut self, within: &mut ExprSeq, value: Irreducible) -> Value {
+    fn make_irr(&mut self, within: &mut Vec<Expr>, value: Irreducible) -> Value {
         let node = match value.node {
             IrreducibleNode::Invalid => ValueNode::Invalid,
             IrreducibleNode::Integer(i) => {
@@ -64,8 +68,7 @@ impl<D: Driver> Lowerer<'_, D> {
             }
 
             IrreducibleNode::Quote(exprs) => {
-                let last = exprs.exprs.last().unwrap();
-                if let ExprNode::Produce(ref value) = last.node {
+                if let BranchNode::Return(ref value) = exprs.branch.node {
                     let value = value.clone();
                     within.extend(exprs.exprs);
                     return value;

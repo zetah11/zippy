@@ -17,29 +17,33 @@ pub struct ValueDef {
 #[derive(Clone, Debug)]
 pub struct ExprSeq {
     pub exprs: Vec<Expr>,
+    pub branch: Branch,
     pub span: Span,
     pub ty: TypeId,
 }
 
 impl ExprSeq {
-    pub fn new(span: Span, ty: TypeId) -> Self {
+    pub fn new(span: Span, ty: TypeId, exprs: Vec<Expr>, branch: Branch) -> Self {
         Self {
-            exprs: Vec::new(),
+            exprs,
+            branch,
             span,
             ty,
         }
     }
+}
 
-    pub(crate) fn push(&mut self, ex: Expr) {
-        self.exprs.push(ex);
-    }
+#[derive(Clone, Debug)]
+pub struct Branch {
+    pub node: BranchNode,
+    pub span: Span,
+    pub ty: TypeId,
+}
 
-    pub(crate) fn extend<I>(&mut self, it: I)
-    where
-        I: IntoIterator<Item = Expr>,
-    {
-        self.exprs.extend(it);
-    }
+#[derive(Clone, Debug)]
+pub enum BranchNode {
+    Return(Value),
+    Jump(Name, Value),
 }
 
 #[derive(Clone, Debug)]
@@ -51,8 +55,6 @@ pub struct Expr {
 
 #[derive(Clone, Debug)]
 pub enum ExprNode {
-    Produce(Value),
-    Jump(Name, Value),
     Join {
         name: Name,
         param: Name,

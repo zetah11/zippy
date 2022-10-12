@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::message::{Messages, Span};
 use crate::mir::pretty::Prettier;
 use crate::mir::{
-    Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueDef, ValueNode,
+    Branch, BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value,
+    ValueDef, ValueNode,
 };
 use crate::resolve::names::{Name, Names};
 use crate::tyck::{self, UniVar};
@@ -129,26 +130,24 @@ impl<'a> Lowerer<'a> {
                         bind: ExprSeq {
                             span,
                             ty,
-                            exprs: vec![
-                                Expr {
-                                    node: ExprNode::Proj {
-                                        name: inner,
-                                        of,
-                                        at,
-                                    },
+                            exprs: vec![Expr {
+                                node: ExprNode::Proj {
+                                    name: inner,
+                                    of,
+                                    at,
+                                },
+                                span,
+                                ty,
+                            }],
+                            branch: Branch {
+                                node: BranchNode::Return(Value {
+                                    node: ValueNode::Name(inner),
                                     span,
                                     ty,
-                                },
-                                Expr {
-                                    node: ExprNode::Produce(Value {
-                                        node: ValueNode::Name(inner),
-                                        span,
-                                        ty,
-                                    }),
-                                    span,
-                                    ty,
-                                },
-                            ],
+                                }),
+                                span,
+                                ty,
+                            },
                         },
                     })
                 };
@@ -160,7 +159,7 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn destruct_expr(&mut self, within: &mut ExprSeq, pat: HiPat) -> Name {
+    fn destruct_expr(&mut self, within: &mut Vec<Expr>, pat: HiPat) -> Name {
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => self.names.fresh(pat.span, None),
             HiPatNode::Name(name) => name,
@@ -215,30 +214,35 @@ impl<'a> Lowerer<'a> {
 
     fn lower_expr(&mut self, ex: HiExpr) -> ExprSeq {
         let ty = self.lower_type(ex.data.clone());
-        let mut seq = ExprSeq::new(ex.span, ty);
+        let mut seq = Vec::new();
         let value = self.make_expr(&mut seq, ex);
         let span = value.span;
-        seq.push(Expr {
-            node: ExprNode::Produce(value),
+        ExprSeq::new(
             span,
             ty,
-        });
-        seq
+            seq,
+            Branch {
+                node: BranchNode::Return(value),
+                span,
+                ty,
+            },
+        )
     }
 
-    fn make_expr(&mut self, within: &mut ExprSeq, ex: HiExpr) -> Value {
+    fn make_expr(&mut self, within: &mut Vec<Expr>, ex: HiExpr) -> Value {
         let ty = self.lower_type(ex.data);
         let node = match ex.node {
             HiExprNode::Int(i) => ValueNode::Int(i),
             HiExprNode::Name(name) => ValueNode::Name(name),
             HiExprNode::Lam(param, body) => {
-                let body_ty = self.lower_type(body.data.clone());
-                let mut bodys = ExprSeq::new(body.span, body_ty);
+                let mut bodys = Vec::new();
 
                 let param = self.destruct_expr(&mut bodys, param);
-                bodys.extend(self.lower_expr(*body).exprs);
+                let body = self.lower_expr(*body);
 
-                let body = bodys;
+                bodys.extend(body.exprs);
+
+                let body = ExprSeq::new(body.span, body.ty, bodys, body.branch);
 
                 let name = self.names.fresh(ex.span, None);
                 self.context.add(name, ty);

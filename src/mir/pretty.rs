@@ -1,5 +1,6 @@
 use crate::resolve::names::{Actual, Names};
 
+use super::tree::{Branch, BranchNode};
 use super::{
     Decls, Expr, ExprNode, ExprSeq, Name, Type, TypeId, Types, Value, ValueDef, ValueNode,
 };
@@ -91,26 +92,33 @@ impl<'a> Prettier<'a> {
     fn doc_expr_seq(&'a self, exprs: &ExprSeq) -> DocBuilder<Arena<'a>> {
         self.allocator
             .intersperse(
-                exprs.exprs.iter().map(|expr| self.doc_expr(expr).nest(2)),
+                exprs
+                    .exprs
+                    .iter()
+                    .map(|expr| self.doc_expr(expr).nest(2))
+                    .chain(std::iter::once(self.doc_branch(&exprs.branch).nest(2))),
                 self.allocator.line_().flat_alt("; "),
             )
             .group()
     }
 
-    fn doc_expr(&'a self, expr: &Expr) -> DocBuilder<Arena<'a>> {
-        match &expr.node {
-            ExprNode::Produce(value) => self
+    fn doc_branch(&'a self, branch: &Branch) -> DocBuilder<Arena<'a>> {
+        match &branch.node {
+            BranchNode::Return(value) => self
                 .allocator
                 .text("return")
                 .append(self.allocator.space())
                 .append(self.doc_value(value)),
-            ExprNode::Jump(to, arg) => self
+            BranchNode::Jump(to, arg) => self
                 .allocator
                 .text("jump")
-                .append(self.allocator.space())
                 .append(self.doc_name(to))
-                .append(self.doc_value(arg).parens())
-                .group(),
+                .append(self.doc_value(arg).parens()),
+        }
+    }
+
+    fn doc_expr(&'a self, expr: &Expr) -> DocBuilder<Arena<'a>> {
+        match &expr.node {
             ExprNode::Join { name, param, body } => self
                 .doc_fun("join", name, param)
                 .append(self.doc_expr_seq(body))

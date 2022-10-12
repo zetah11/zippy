@@ -2,7 +2,7 @@ pub mod pretty;
 
 use std::collections::HashMap;
 
-pub use tree::{Decls, Expr, ExprNode, ExprSeq, Value, ValueDef, ValueNode};
+pub use tree::{Branch, BranchNode, Decls, Expr, ExprNode, ExprSeq, Value, ValueDef, ValueNode};
 pub use types::Types;
 
 mod tree;

@@ -1,6 +1,6 @@
 use im::HashSet;
 
-use crate::mir::{ExprNode, ExprSeq, ValueNode};
+use crate::mir::{BranchNode, ExprNode, ExprSeq, ValueNode};
 use crate::resolve::names::Name;
 
 pub fn free_in_function(bound: &HashSet<Name>, param: &Name, body: &ExprSeq) -> HashSet<Name> {
@@ -9,24 +9,6 @@ pub fn free_in_function(bound: &HashSet<Name>, param: &Name, body: &ExprSeq) -> 
 
     for expr in body.exprs.iter() {
         match &expr.node {
-            ExprNode::Produce(value) => {
-                if let ValueNode::Name(name) = &value.node {
-                    if !bound.contains(name) {
-                        res.insert(*name);
-                    }
-                }
-            }
-
-            ExprNode::Jump(target, value) => {
-                assert!(bound.contains(target));
-
-                if let ValueNode::Name(name) = &value.node {
-                    if !bound.contains(name) {
-                        res.insert(*name);
-                    }
-                }
-            }
-
             ExprNode::Join { name, param, body } => {
                 bound.insert(*name);
 
@@ -73,6 +55,26 @@ pub fn free_in_function(bound: &HashSet<Name>, param: &Name, body: &ExprSeq) -> 
                 }
 
                 bound.insert(*name);
+            }
+        }
+    }
+
+    match &body.branch.node {
+        BranchNode::Return(value) => {
+            if let ValueNode::Name(name) = &value.node {
+                if !bound.contains(name) {
+                    res.insert(*name);
+                }
+            }
+        }
+
+        BranchNode::Jump(target, value) => {
+            assert!(bound.contains(target));
+
+            if let ValueNode::Name(name) = &value.node {
+                if !bound.contains(name) {
+                    res.insert(*name);
+                }
             }
         }
     }
