@@ -6,13 +6,13 @@ also modular implicits, potentially.
 
 currently, the following
 
-    let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
-        (f, x) => f x
-    
+    let main: 0 upto 1 -> ? =
+      ? => apply (id, 5)
+
     let id = x => apply ((y => y), x)
 
-    let main: 0 upto 1 -> ? =
-        ? => apply (id, 5)
+    let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
+      (f, x) => f x
 
 generates the following ir
 

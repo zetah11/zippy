@@ -14,13 +14,13 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
-            (f, x) => f x
-        
-        let id = x => apply ((y => y), x)
-
         let main: 0 upto 1 -> ? =
             ? => apply (id, 5)
+
+        let id = x => apply ((y => y), x)
+
+        let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
+            (f, x) => f x
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
@@ -32,11 +32,11 @@ fn main() {
     let ResolveRes {
         decls,
         mut names,
-        entry: _entry,
+        entry,
     } = resolve(&mut driver, decls);
 
     let tyckres = typeck(&mut driver, decls);
-    let (types, decls) = elaborate(&mut driver, &mut names, tyckres);
+    let (types, decls) = elaborate(&mut driver, &mut names, tyckres, entry);
 
     let prettier = Prettier::new(&names, &types).with_width(20);
     println!("{}", prettier.pretty_decls(&decls));

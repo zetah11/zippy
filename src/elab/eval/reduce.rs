@@ -31,7 +31,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     if let Some(Irreducible {
                         node: IrreducibleNode::Lambda(param, body),
                         ..
-                    }) = env.lookup(&fun)
+                    }) = self.lookup(&env, &fun)
                     {
                         let arg = self.reduce_value(&env, arg.clone());
                         let result = self.reduce_irr(env.with(*param, arg), *body.clone());
@@ -64,7 +64,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     if let Some(Irreducible {
                         node: IrreducibleNode::Tuple(values),
                         ..
-                    }) = env.lookup(&of)
+                    }) = self.lookup(&env, &of)
                     {
                         env.set(name, values[at].clone());
                     }
@@ -106,7 +106,7 @@ impl<D: Driver> Lowerer<'_, D> {
                 span,
                 ty,
             }) => {
-                if let Some(value) = env.lookup(&name) {
+                if let Some(value) = self.lookup(&env, &name) {
                     return value.clone();
                 } else {
                     BranchNode::Return(Value {
@@ -135,7 +135,7 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
+    pub fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
         let node = match irr.node {
             IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, exprs),
             IrreducibleNode::Lambda(param, body) => {
@@ -173,7 +173,17 @@ impl<D: Driver> Lowerer<'_, D> {
                 let body = self.reduce_irr(closed, *body);
                 IrreducibleNode::Lambda(new_name, Box::new(body))
             }
-            irr => irr,
+
+            IrreducibleNode::Tuple(irrs) => {
+                let irrs = irrs
+                    .into_iter()
+                    .map(|irr| self.reduce_irr(env.clone(), irr))
+                    .collect();
+                IrreducibleNode::Tuple(irrs)
+            }
+
+            IrreducibleNode::Integer(i) => IrreducibleNode::Integer(i),
+            IrreducibleNode::Invalid => IrreducibleNode::Invalid,
         };
 
         Irreducible {
@@ -188,7 +198,7 @@ impl<D: Driver> Lowerer<'_, D> {
             ValueNode::Invalid => IrreducibleNode::Invalid,
             ValueNode::Int(i) => IrreducibleNode::Integer(i),
             ValueNode::Name(name) => {
-                if let Some(value) = env.lookup(&name) {
+                if let Some(value) = self.lookup(env, &name) {
                     return value.clone();
                 } else {
                     IrreducibleNode::Quote(ExprSeq {

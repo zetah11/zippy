@@ -3,6 +3,8 @@ mod irreducible;
 mod promote;
 mod reduce;
 
+use std::collections::HashSet;
+
 use im::HashMap;
 
 use crate::message::Messages;
@@ -19,12 +21,18 @@ pub fn evaluate(
     names: &mut Names,
     types: &Types,
     decls: Decls,
+    entry: Option<Name>,
 ) -> Decls {
-    let (res, messages) = {
+    let (res, messages) = if let Some(entry) = entry {
         let mut lowerer = Lowerer::new(driver, context, names, types);
-        let res = lowerer.reduce_decls(decls);
+        lowerer.discover(decls, entry);
+        let res = lowerer.reduce_from();
+
+        //let res = lowerer.reduce_decls(decls);
 
         (res, lowerer.messages)
+    } else {
+        (Decls { values: Vec::new() }, Messages::new())
     };
 
     driver.report(messages);
@@ -72,6 +80,12 @@ impl Env {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Behaviour {
+    Discover,
+    FullEval,
+}
+
 #[derive(Debug)]
 struct Lowerer<'a, Driver> {
     env: Env,
@@ -79,8 +93,12 @@ struct Lowerer<'a, Driver> {
     types: &'a Types,
     context: &'a mut Context,
 
+    behaviour: Behaviour,
+
     driver: &'a mut Driver,
     messages: Messages,
+
+    worklist: Vec<Name>,
 }
 
 impl<'a, D: Driver> Lowerer<'a, D> {
@@ -96,31 +114,82 @@ impl<'a, D: Driver> Lowerer<'a, D> {
             types,
             context,
 
+            behaviour: Behaviour::FullEval,
+
             driver,
             messages: Messages::new(),
+
+            worklist: Vec::new(),
         }
     }
 
-    fn reduce_decls(&mut self, decls: Decls) -> Decls {
-        let mut values = Vec::with_capacity(decls.values.len());
+    fn discover(&mut self, decls: Decls, entry: Name) {
+        let old_behaviour = self.behaviour;
+        self.behaviour = Behaviour::Discover;
 
-        for def in decls.values {
-            self.driver.report_eval({
-                let prettier = Prettier::new(self.names, self.types);
-                prettier.pretty_name(&def.name)
-            });
+        let mut value_defs: std::collections::HashMap<_, _> = decls
+            .values
+            .into_iter()
+            .map(|def| (def.name, def))
+            .collect();
 
-            let bind = self.reduce_exprs(self.env.clone(), def.bind);
-            self.env.set(def.name, bind.clone());
-            values.push(ValueDef {
-                name: def.name,
-                span: def.span,
-                bind: self.promote(bind),
-            });
+        self.worklist.push(entry);
+        let mut index = 0;
+
+        while index < self.worklist.len() {
+            let name = self.worklist[index];
+            index += 1;
+
+            if let Some(def) = value_defs.remove(&name) {
+                let bind = self.reduce_exprs(self.env.clone(), def.bind);
+                self.env.set(def.name, bind);
+            }
+        }
+
+        self.behaviour = old_behaviour;
+    }
+
+    fn reduce_from(&mut self) -> Decls {
+        let mut values = Vec::new();
+        let mut value_names = HashSet::new();
+
+        while let Some(name) = self.worklist.pop() {
+            if !value_names.contains(&name) && self.env.lookup(&name).is_some() {
+                self.driver.report_eval({
+                    let prettier = Prettier::new(self.names, self.types);
+                    prettier.pretty_name(&name)
+                });
+
+                let bind = self.env.lookup(&name).unwrap().clone();
+                let bind = self.reduce_irr(self.env.clone(), bind);
+
+                // overwrite with new and improved
+                self.env.set(name, bind.clone());
+
+                values.push(ValueDef {
+                    name,
+                    span: bind.span,
+                    bind: self.promote(bind),
+                });
+
+                value_names.insert(name);
+            }
         }
 
         self.driver.done_eval();
 
         Decls { values }
+    }
+
+    fn lookup<'b, 'c, 'd>(&'b mut self, env: &'c Env, name: &'d Name) -> Option<&'c Irreducible> {
+        match self.behaviour {
+            Behaviour::FullEval => env.lookup(name),
+            Behaviour::Discover => {
+                if !self.worklist.contains(name) {
+                    self.worklist.push(*name);
+                }
+                None
+            }
+        }
     }
 }
