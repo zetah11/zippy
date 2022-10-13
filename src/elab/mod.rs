@@ -4,7 +4,7 @@ mod lower;
 
 use log::{info, trace};
 
-use crate::mir;
+use crate::mir::{self, check};
 use crate::resolve::names::{Name, Names};
 use crate::tyck::TypeckResult;
 use crate::Driver;
@@ -14,7 +14,7 @@ pub fn elaborate(
     names: &mut Names,
     tyckres: TypeckResult,
     entry: Option<Name>,
-) -> (mir::Types, mir::Decls) {
+) -> (mir::Types, mir::Context, mir::Decls) {
     info!("beginning elaboration");
 
     let (types, mut context, res) = lower::lower(
@@ -24,10 +24,37 @@ pub fn elaborate(
         tyckres.context,
         tyckres.decls,
     );
+
+    let mut error = check(names, &types, &context, &res);
+    if error {
+        eprintln!("error during lowering");
+    } else {
+        trace!("lowering is type-correct");
+    }
+
     let res = eval::evaluate(driver, &mut context, names, &types, res, entry);
+
+    if !error {
+        error = check(names, &types, &context, &res);
+        if error {
+            eprintln!("error during evaluation");
+        } else {
+            trace!("evaluation is type-correct");
+        }
+    }
+
     let res = hoist::hoist(driver, names, &mut context, res);
+
+    if !error {
+        error = check(names, &types, &context, &res);
+        if error {
+            eprintln!("error duringg hoisting");
+        } else {
+            trace!("hoisting is type-correct");
+        }
+    }
 
     trace!("done elaborating");
 
-    (types, res)
+    (types, context, res)
 }

@@ -28,14 +28,14 @@ impl<D: Driver> Lowerer<'_, D> {
                 }
 
                 ExprNode::Apply { name, fun, arg } => {
+                    let reduced_arg = self.reduce_value(&env, arg.clone());
+
                     if let Some(Irreducible {
                         node: IrreducibleNode::Lambda(param, body),
                         ..
                     }) = self.lookup(&env, &fun)
                     {
-                        let arg = self.reduce_value(&env, arg.clone());
-                        let result = self.reduce_irr(env.with(*param, arg), *body.clone());
-
+                        let result = self.reduce_irr(env.with(*param, reduced_arg), *body.clone());
                         env.set(name, result);
                     }
 

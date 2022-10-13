@@ -6,6 +6,7 @@ mod reduce;
 use std::collections::HashSet;
 
 use im::HashMap;
+use log::{debug, trace};
 
 use crate::message::Messages;
 use crate::mir::pretty::Prettier;
@@ -23,6 +24,8 @@ pub fn evaluate(
     decls: Decls,
     entry: Option<Name>,
 ) -> Decls {
+    debug!("beginning evaluation");
+
     let (res, messages) = if let Some(entry) = entry {
         let mut lowerer = Lowerer::new(driver, context, names, types);
         lowerer.discover(decls, entry);
@@ -36,6 +39,8 @@ pub fn evaluate(
     };
 
     driver.report(messages);
+
+    trace!("done evaluating");
 
     res
 }
@@ -124,6 +129,8 @@ impl<'a, D: Driver> Lowerer<'a, D> {
     }
 
     fn discover(&mut self, decls: Decls, entry: Name) {
+        trace!("name discovery");
+
         let old_behaviour = self.behaviour;
         self.behaviour = Behaviour::Discover;
 
@@ -137,6 +144,8 @@ impl<'a, D: Driver> Lowerer<'a, D> {
         let mut index = 0;
 
         while index < self.worklist.len() {
+            trace!("{} names left", self.worklist.len() - index);
+
             let name = self.worklist[index];
             index += 1;
 
@@ -150,10 +159,14 @@ impl<'a, D: Driver> Lowerer<'a, D> {
     }
 
     fn reduce_from(&mut self) -> Decls {
+        trace!("reduction");
+
         let mut values = Vec::new();
         let mut value_names = HashSet::new();
 
         while let Some(name) = self.worklist.pop() {
+            trace!("{} names left", self.worklist.len() + 1);
+
             if !value_names.contains(&name) && self.env.lookup(&name).is_some() {
                 self.driver.report_eval({
                     let prettier = Prettier::new(self.names, self.types);

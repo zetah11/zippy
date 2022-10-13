@@ -2,9 +2,11 @@ pub mod pretty;
 
 use std::collections::HashMap;
 
+pub use check::check;
 pub use tree::{Branch, BranchNode, Decls, Expr, ExprNode, ExprSeq, Value, ValueDef, ValueNode};
 pub use types::Types;
 
+mod check;
 mod tree;
 mod types;
 
@@ -39,5 +41,9 @@ impl Context {
 
     pub fn get(&self, name: &Name) -> TypeId {
         *self.names.get(name).unwrap()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, &TypeId)> {
+        self.names.iter()
     }
 }

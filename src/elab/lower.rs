@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{debug, trace};
+
 use crate::message::{Messages, Span};
 use crate::mir::pretty::Prettier;
 use crate::mir::{
@@ -25,12 +27,15 @@ pub fn lower(
     context: HiCtx,
     decls: HiDecls,
 ) -> (Types, Context, Decls) {
+    debug!("beginning lowering");
     let mut lowerer = Lowerer::new(names, subst);
 
     lowerer.lower_context(context);
     let decls = lowerer.lower_decls(decls);
 
     driver.report(lowerer.messages);
+
+    trace!("done lowering");
 
     (lowerer.types, lowerer.context, decls)
 }
@@ -161,7 +166,12 @@ impl<'a> Lowerer<'a> {
 
     fn destruct_expr(&mut self, within: &mut Vec<Expr>, pat: HiPat) -> Name {
         match pat.node {
-            HiPatNode::Invalid | HiPatNode::Wildcard => self.names.fresh(pat.span, None),
+            HiPatNode::Invalid | HiPatNode::Wildcard => {
+                let ty = self.lower_type(pat.data);
+                let target = self.names.fresh(pat.span, None);
+                self.context.add(target, ty);
+                target
+            }
             HiPatNode::Name(name) => name,
             HiPatNode::Tuple(a, b) => {
                 let ty = self.lower_type(pat.data);

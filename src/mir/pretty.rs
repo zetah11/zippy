@@ -27,6 +27,7 @@ impl<'a> Prettier<'a> {
         Self { width, ..self }
     }
 
+    #[must_use]
     pub fn pretty_decls(&'a self, decls: &Decls) -> String {
         let doc = self.doc_decls(decls);
         let mut res = Vec::new();
@@ -34,6 +35,7 @@ impl<'a> Prettier<'a> {
         String::from_utf8(res).unwrap()
     }
 
+    #[must_use]
     pub fn pretty_exprs(&'a self, expr: &ExprSeq) -> String {
         let doc = self.doc_expr_seq(expr);
         let mut res = Vec::new();
@@ -41,6 +43,7 @@ impl<'a> Prettier<'a> {
         String::from_utf8(res).unwrap()
     }
 
+    #[must_use]
     pub fn pretty_name(&'a self, name: &Name) -> String {
         let doc = self.doc_name(name);
         let mut res = Vec::new();
@@ -48,6 +51,7 @@ impl<'a> Prettier<'a> {
         String::from_utf8(res).unwrap()
     }
 
+    #[must_use]
     pub fn pretty_type(&'a self, ty: &TypeId) -> String {
         let doc = self.doc_type(ty);
         let mut res = Vec::new();

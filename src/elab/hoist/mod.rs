@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{debug, trace};
+
 use crate::message::{Messages, Span};
 use crate::mir::{
     Branch, BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Value, ValueDef, ValueNode,
@@ -17,12 +19,19 @@ pub fn hoist(
     context: &mut Context,
     decls: Decls,
 ) -> Decls {
+    debug!("beginning hoisting");
+
     let mut hoister = Hoist {
         driver,
         names,
         context,
     };
-    hoister.hoist_decls(decls)
+
+    let res = hoister.hoist_decls(decls);
+
+    trace!("done hoisting");
+
+    res
 }
 
 pub struct Hoist<'a, D> {
