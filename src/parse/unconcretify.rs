@@ -198,6 +198,8 @@ impl Unconcretifier {
                 }
             }
 
+            cst::ExprNode::Int(v) => hir::TypeNode::Range(0, v as i64),
+
             cst::ExprNode::Fun(_, t, u) => {
                 let t = Box::new(self.unconc_type(*t));
                 let u = Box::new(self.unconc_type(*u));
