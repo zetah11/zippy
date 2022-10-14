@@ -3,15 +3,17 @@ use std::collections::{HashMap, HashSet};
 use super::info::{info, ProcInfo};
 use crate::lir::{BlockId, Proc, Register};
 
-pub fn liveness(proc: &Proc) -> LivenessFacts {
+pub fn liveness(proc: &Proc) -> (LivenessFacts, ProcInfo) {
     let info = info(proc);
     let mut analyzer = LivenessAnalyzer::new(proc, &info);
     analyzer.iterate();
 
-    LivenessFacts {
+    let res = LivenessFacts {
         live_in: analyzer.in_facts,
         live_out: analyzer.out_facts,
-    }
+    };
+
+    (res, info)
 }
 
 #[derive(Debug)]
@@ -81,7 +83,7 @@ impl<'a> LivenessAnalyzer<'a> {
     fn compute_in(&self, out: &HashSet<Register>, block: &BlockId) -> HashSet<Register> {
         let without_kill = out.difference(self.info.kills(block));
 
-        let mut res = self.info.gens(block).clone();
+        let mut res = self.info.uses(block).clone();
         res.extend(without_kill);
 
         res

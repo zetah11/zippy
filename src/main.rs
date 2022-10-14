@@ -8,7 +8,7 @@ use corollary::parse::parse;
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
 
-use corollary::asm::alloc::interference;
+use corollary::asm::alloc::{regalloc, Constraints};
 use corollary::lir::{Block, Branch, Cond, Inst, ProcBuilder, Register, Target, Value};
 
 use console_driver::ConsoleDriver;
@@ -116,7 +116,6 @@ fn main() {
     });
 
     let proc = builder.build(entry, exit);
-
-    let intf = interference(&proc);
-    println!("{intf:?}");
+    let allocd = regalloc(Constraints { max_physical: 16 }, proc);
+    println!("{allocd:?}");
 }

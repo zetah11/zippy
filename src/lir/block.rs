@@ -39,6 +39,9 @@ pub enum Branch {
 
 #[derive(Debug)]
 pub enum Inst {
+    Reserve(usize),
+    Release(usize),
+
     Move(Target, Value),
 
     Push(Value),
@@ -58,6 +61,7 @@ pub enum Cond {
 pub enum Register {
     Virtual(usize),
     Physical(usize),
+    Frame(isize),
 }
 
 #[derive(Debug)]

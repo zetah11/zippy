@@ -7,7 +7,7 @@ pub struct ProcInfo {
     pub preds: HashMap<BlockId, Vec<BlockId>>,
     pub succs: HashMap<BlockId, Vec<BlockId>>,
     pub kills: HashMap<BlockId, HashSet<Register>>,
-    pub gens: HashMap<BlockId, HashSet<Register>>,
+    pub uses: HashMap<BlockId, HashSet<Register>>,
 }
 
 impl ProcInfo {
@@ -23,8 +23,8 @@ impl ProcInfo {
         self.kills.get(block).unwrap()
     }
 
-    pub fn gens(&self, block: &BlockId) -> &HashSet<Register> {
-        self.gens.get(block).unwrap()
+    pub fn uses(&self, block: &BlockId) -> &HashSet<Register> {
+        self.uses.get(block).unwrap()
     }
 }
 
@@ -86,6 +86,8 @@ pub fn info(proc: &Proc) -> ProcInfo {
 
         for inst in block.insts.iter() {
             match inst {
+                Inst::Reserve(..) | Inst::Release(..) => {}
+
                 Inst::Move(target, value) => {
                     gens.extend(value_to_reg(value));
                     kills.extend(target_to_reg(target));
@@ -118,6 +120,6 @@ pub fn info(proc: &Proc) -> ProcInfo {
         preds,
         succs,
         kills,
-        gens,
+        uses: gens,
     }
 }
