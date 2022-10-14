@@ -103,7 +103,8 @@ impl<'a> Lowerer<'a> {
                 }
             }
 
-            HiType::Invalid | HiType::Number => unreachable!(),
+            HiType::Invalid => self.types.add(Type::Invalid),
+            HiType::Number => unreachable!(),
         }
     }
 

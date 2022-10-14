@@ -163,7 +163,8 @@ where
         expr
     }
 
-    /// Tokens that may start a `base_expr`.
+    /// Tokens that may start a `base_expr`. Does not contain [`Token::Invalid`]
+    /// in order to prevent `app_expr` from consuming too many invalid tokens.
     const BASE_EXPR_STARTS: &'static [Token] = &[
         Token::Name(String::new()),
         Token::Number(0),
@@ -204,6 +205,8 @@ where
                         span: span + close_span,
                     };
                 }
+
+                Token::Invalid => ExprNode::Invalid,
 
                 _ => {
                     self.msgs.at(span).parse_expected_base_expr();

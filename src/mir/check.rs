@@ -142,15 +142,20 @@ impl<'a> MirChecker<'a> {
     }
 
     fn check_type(&mut self, at: Span, expected: TypeId, actual: TypeId) {
-        if actual != expected {
-            self.error = true;
-            let prettier = Prettier::new(self.names, self.types);
-            eprintln!("type mismatch at {:?}", at);
-            eprintln!(
-                "expected {}, got {}",
-                prettier.pretty_type(&expected),
-                prettier.pretty_type(&actual)
-            );
+        match (self.types.get(&expected), self.types.get(&actual)) {
+            (Type::Invalid, _) | (_, Type::Invalid) => {}
+            _ => {
+                if actual != expected {
+                    self.error = true;
+                    let prettier = Prettier::new(self.names, self.types);
+                    eprintln!("type mismatch at {:?}", at);
+                    eprintln!(
+                        "expected {}, got {}",
+                        prettier.pretty_type(&expected),
+                        prettier.pretty_type(&actual)
+                    );
+                }
+            }
         }
     }
 }

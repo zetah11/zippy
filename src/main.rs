@@ -15,12 +15,7 @@ fn main() {
 
     let src = r#"
         let main: 0 upto 1 -> 0 upto 10 =
-            ? => (f (f (f (f id)))) 5
-        
-        let id = f (x => x)
-
-        let f: (0 upto 10 -> 0 upto 10) -> (0 upto 10 -> 0 upto 10) =
-            g => g
+            ? => x
     "#;
     let mut files = SimpleFiles::new();
     let file = files.add("main.z".into(), src.into());
