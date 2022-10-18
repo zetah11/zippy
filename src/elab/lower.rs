@@ -74,7 +74,7 @@ impl<'a> Lowerer<'a> {
             self.destruct_binding(&mut values, def.span, def.pat, def.bind);
         }
 
-        Decls { values }
+        Decls::new(values)
     }
 
     fn lower_type(&mut self, ty: HiType) -> TypeId {

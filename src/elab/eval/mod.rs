@@ -35,7 +35,7 @@ pub fn evaluate(
 
         (res, lowerer.messages)
     } else {
-        (Decls { values: Vec::new() }, Messages::new())
+        (Decls::default(), Messages::new())
     };
 
     driver.report(messages);
@@ -134,11 +134,8 @@ impl<'a, D: Driver> Lowerer<'a, D> {
         let old_behaviour = self.behaviour;
         self.behaviour = Behaviour::Discover;
 
-        let mut value_defs: std::collections::HashMap<_, _> = decls
-            .values
-            .into_iter()
-            .map(|def| (def.name, def))
-            .collect();
+        let mut value_defs: std::collections::HashMap<_, _> =
+            decls.defs.into_iter().map(|def| (def.name, def)).collect();
 
         self.worklist.push(entry);
         let mut index = 0;
@@ -161,7 +158,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
     fn reduce_from(&mut self) -> Decls {
         trace!("reduction");
 
-        let mut values = Vec::new();
+        let mut defs = Vec::new();
         let mut value_names = HashSet::new();
 
         while let Some(name) = self.worklist.pop() {
@@ -179,7 +176,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
                 // overwrite with new and improved
                 self.env.set(name, bind.clone());
 
-                values.push(ValueDef {
+                defs.push(ValueDef {
                     name,
                     span: bind.span,
                     bind: self.promote(bind),
@@ -191,7 +188,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
 
         self.driver.done_eval();
 
-        Decls { values }
+        Decls::new(defs)
     }
 
     fn lookup<'b, 'c, 'd>(&'b mut self, env: &'c Env, name: &'d Name) -> Option<&'c Irreducible> {

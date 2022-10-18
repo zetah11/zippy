@@ -1,10 +1,25 @@
+use std::collections::HashMap;
+
 use super::TypeId;
 use crate::message::Span;
 use crate::resolve::names::Name;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Decls {
-    pub values: Vec<ValueDef>,
+    pub defs: Vec<ValueDef>,
+
+    pub values: HashMap<Name, Value>,
+    pub functions: HashMap<Name, (Name, ExprSeq)>,
+}
+
+impl Decls {
+    pub fn new(defs: Vec<ValueDef>) -> Self {
+        Self {
+            defs,
+            values: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug)]

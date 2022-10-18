@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use log::{debug, trace};
 
 use crate::message::{Messages, Span};
-use crate::mir::{
-    Branch, BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Value, ValueDef, ValueNode,
-};
+use crate::mir::{BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Value, ValueNode};
 use crate::resolve::names::{Name, Names};
 use crate::Driver;
 
@@ -23,11 +21,19 @@ pub fn hoist(
 
     let mut hoister = Hoist {
         driver,
-        names,
-        context,
+        _names: names,
+        _context: context,
+
+        functions: HashMap::new(),
+        values: HashMap::new(),
     };
 
-    let res = hoister.hoist_decls(decls);
+    hoister.hoist_decls(decls);
+    let res = Decls {
+        defs: Vec::new(),
+        functions: hoister.functions,
+        values: hoister.values,
+    };
 
     trace!("done hoisting");
 
@@ -36,12 +42,15 @@ pub fn hoist(
 
 pub struct Hoist<'a, D> {
     driver: &'a mut D,
-    names: &'a mut Names,
-    context: &'a mut Context,
+    _names: &'a mut Names,
+    _context: &'a mut Context,
+
+    functions: HashMap<Name, (Name, ExprSeq)>,
+    values: HashMap<Name, Value>,
 }
 
 impl<D: Driver> Hoist<'_, D> {
-    fn hoist_decls(&mut self, decls: Decls) -> Decls {
+    fn hoist_decls(&mut self, decls: Decls) {
         let free_vars = free_vars(&decls);
         let mut messages = Messages::new();
 
@@ -51,125 +60,117 @@ impl<D: Driver> Hoist<'_, D> {
             }
         }
 
-        let mut values = Vec::with_capacity(decls.values.len());
+        for def in decls.defs {
+            let mut init = Vec::new();
+            let bind_span = def.bind.span;
+            let bind_ty = def.bind.ty;
+            self.hoist_value(def.name, &mut init, &free_vars, def.bind);
 
-        for def in decls.values {
-            let mut res = Vec::with_capacity(def.bind.exprs.len());
-
-            for expr in def.bind.exprs {
-                if let ExprNode::Function { name, param, body } = expr.node {
-                    let body = self.hoist_exprs(&free_vars, &mut values, body);
-                    res.push(Expr {
-                        node: ExprNode::Function { name, param, body },
-                        span: expr.span,
-                        ty: expr.ty,
-                    });
-
-                    continue;
-                }
-
-                res.push(expr);
+            if !init.is_empty() {
+                messages.at(bind_span).elab_requires_init();
+                self.values.insert(
+                    def.name,
+                    Value {
+                        node: ValueNode::Invalid,
+                        span: bind_span,
+                        ty: bind_ty,
+                    },
+                );
             }
-
-            let bind = ExprSeq::new(def.bind.span, def.bind.ty, res, def.bind.branch);
-            values.push(ValueDef {
-                name: def.name,
-                span: def.span,
-                bind,
-            });
         }
 
         self.driver.report(messages);
-
-        Decls { values }
     }
 
-    fn hoist_exprs(
+    fn hoist_value(
+        &mut self,
+        name_for: Name,
+        within: &mut Vec<Expr>,
+        free_vars: &HashMap<Name, Vec<(Name, Span)>>,
+        exprs: ExprSeq,
+    ) {
+        for expr in exprs.exprs {
+            match expr.node {
+                ExprNode::Function { name, param, body } => {
+                    let body = self.hoist_function(free_vars, body);
+                    self.functions.insert(name, (param, body));
+                }
+
+                ExprNode::Join { .. } => todo!(),
+
+                node => {
+                    within.push(Expr {
+                        node,
+                        span: expr.span,
+                        ty: expr.ty,
+                    });
+                }
+            }
+        }
+
+        let value = match exprs.branch.node {
+            BranchNode::Return(value) => match value.node {
+                ValueNode::Int(_) | ValueNode::Invalid => value,
+                ValueNode::Name(name) => {
+                    if let Some(function) = self.functions.get(&name) {
+                        self.functions.insert(name_for, function.clone());
+                        return;
+                    } else if let Some(value) = self.values.get(&name) {
+                        value.clone()
+                    } else {
+                        todo!()
+                    }
+                }
+            },
+
+            BranchNode::Jump(..) => todo!(),
+        };
+
+        self.values.insert(name_for, value);
+    }
+
+    fn hoist_function(
         &mut self,
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
-        values: &mut Vec<ValueDef>,
         exprs: ExprSeq,
     ) -> ExprSeq {
         let mut res = Vec::with_capacity(exprs.exprs.len());
 
         for expr in exprs.exprs {
-            if let ExprNode::Function { name, param, body } = expr.node {
-                let invalid = free_vars
-                    .get(&name)
-                    .map(|free| !free.is_empty())
-                    .unwrap_or(false);
+            match expr.node {
+                ExprNode::Function { name, param, body } => {
+                    let invalid = free_vars
+                        .get(&name)
+                        .map(|free| !free.is_empty())
+                        .unwrap_or(false);
 
-                if invalid {
-                    let bind = ExprSeq::new(
-                        expr.span,
-                        expr.ty,
-                        vec![],
-                        Branch {
-                            node: BranchNode::Return(Value {
-                                node: ValueNode::Invalid,
-                                span: expr.span,
-                                ty: expr.ty,
-                            }),
+                    if invalid {
+                        let bind = Value {
+                            node: ValueNode::Invalid,
                             span: expr.span,
                             ty: expr.ty,
-                        },
-                    );
+                        };
 
-                    values.push(ValueDef {
-                        name,
-                        bind,
-                        span: expr.span,
-                    });
+                        self.values.insert(name, bind);
+                        continue;
+                    }
 
-                    continue;
+                    let body = self.hoist_function(free_vars, body);
+                    self.functions.insert(name, (param, body));
                 }
 
-                let Expr { span, ty, .. } = expr;
+                ExprNode::Join { .. } => todo!(),
 
-                let body = self.hoist_exprs(free_vars, values, body);
-
-                let new_name = self.names.fresh(span, None);
-                self.context.add(new_name, ty);
-
-                let expr = Expr {
-                    node: ExprNode::Function {
-                        name: new_name,
-                        param,
-                        body,
-                    },
-                    span,
-                    ty,
-                };
-
-                let bind = ExprSeq {
-                    exprs: vec![expr],
-                    branch: Branch {
-                        node: BranchNode::Return(Value {
-                            node: ValueNode::Name(new_name),
-                            span,
-                            ty,
-                        }),
-                        span,
-                        ty,
-                    },
-                    span,
-                    ty,
-                };
-
-                values.push(ValueDef { name, bind, span });
-
-                continue;
+                node => res.push(Expr {
+                    node,
+                    span: expr.span,
+                    ty: expr.ty,
+                }),
             }
-
-            res.push(expr);
         }
 
         res.shrink_to_fit();
-        ExprSeq {
-            exprs: res,
-            branch: exprs.branch,
-            span: exprs.span,
-            ty: exprs.ty,
-        }
+
+        ExprSeq::new(exprs.span, exprs.ty, res, exprs.branch)
     }
 }

@@ -1,4 +1,6 @@
-pub use block::{Block, BlockId, Branch, Cond, Inst, Proc, Register, Target, Value};
+pub use block::{
+    Block, BlockId, Branch, Cond, Global, Inst, Proc, Program, Register, Target, Value,
+};
 pub use build::ProcBuilder;
 
 mod block;

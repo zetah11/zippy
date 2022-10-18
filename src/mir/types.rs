@@ -33,4 +33,8 @@ impl Types {
     pub fn get(&self, ty: &TypeId) -> &Type {
         self.types.get(ty.0).unwrap()
     }
+
+    pub fn is_function(&self, ty: &TypeId) -> bool {
+        matches!(self.get(ty), Type::Fun(..))
+    }
 }

@@ -7,7 +7,7 @@ use crate::mir::{BranchNode, Decls, ExprNode, ExprSeq, ValueNode};
 use crate::resolve::names::Name;
 
 pub fn free_vars(decls: &Decls) -> HashMap<Name, Vec<(Name, Span)>> {
-    let global = decls.values.iter().map(|def| def.name).collect();
+    let global = decls.defs.iter().map(|def| def.name).collect();
     let mut freer = Freer::new(global);
     freer.calculate_free(decls);
 
@@ -29,7 +29,7 @@ impl Freer {
     }
 
     pub fn calculate_free(&mut self, decls: &Decls) {
-        for def in decls.values.iter() {
+        for def in decls.defs.iter() {
             let res = self.free_in_function(None, &def.bind);
             if !res.is_empty() {
                 self.funs.insert(def.name, res);

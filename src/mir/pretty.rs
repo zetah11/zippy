@@ -61,7 +61,20 @@ impl<'a> Prettier<'a> {
 
     fn doc_decls(&'a self, decls: &Decls) -> DocBuilder<Arena<'a>> {
         self.allocator.intersperse(
-            decls.values.iter().map(|def| self.doc_valuedef(def)),
+            decls
+                .defs
+                .iter()
+                .map(|def| self.doc_valuedef(def))
+                .chain(
+                    decls.values.iter().map(|(name, value)| {
+                        self.doc_let(name).append(self.doc_value(value)).nest(2)
+                    }),
+                )
+                .chain(decls.functions.iter().map(|(name, (param, body))| {
+                    self.doc_fun("fun", name, param)
+                        .append(self.doc_expr_seq(body))
+                        .nest(2)
+                })),
             self.allocator.hardline(),
         )
     }

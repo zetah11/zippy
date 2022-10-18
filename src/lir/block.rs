@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use crate::resolve::names::Name;
 
 #[derive(Debug)]
+pub struct Program {
+    pub procs: HashMap<Name, Proc>,
+    pub values: HashMap<Name, Global>,
+}
+
+#[derive(Debug)]
+pub struct Global {
+    pub size: usize,
+    pub value: Vec<i64>,
+}
+
+#[derive(Debug)]
 pub struct Proc {
     pub blocks: HashMap<BlockId, Block>,
     pub entry: BlockId,
@@ -39,6 +51,8 @@ pub enum Branch {
 
 #[derive(Debug)]
 pub enum Inst {
+    Crash,
+
     Reserve(usize),
     Release(usize),
 

@@ -88,6 +88,7 @@ impl Applier {
 
     fn apply_inst(&self, inst: Inst) -> Inst {
         match inst {
+            Inst::Crash => Inst::Crash,
             Inst::Reserve(res) => Inst::Reserve(res),
             Inst::Release(res) => Inst::Release(res),
             Inst::Move(target, value) => {

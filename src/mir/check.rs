@@ -30,7 +30,7 @@ impl<'a> MirChecker<'a> {
     }
 
     pub fn check_decls(&mut self, decls: &Decls) {
-        for def in decls.values.iter() {
+        for def in decls.defs.iter() {
             let expected = self.context.get(&def.name);
             self.check_type(def.span, expected, def.bind.ty);
 

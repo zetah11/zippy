@@ -31,7 +31,11 @@ impl ProcInfo {
 pub fn info(proc: &Proc) -> ProcInfo {
     fn value_to_reg(value: &Value) -> Option<Register> {
         if let Value::Register(reg) = value {
-            Some(*reg)
+            if let Register::Frame(..) = reg {
+                None
+            } else {
+                Some(*reg)
+            }
         } else {
             None
         }
@@ -39,7 +43,11 @@ pub fn info(proc: &Proc) -> ProcInfo {
 
     fn target_to_reg(target: &Target) -> Option<Register> {
         if let Target::Register(reg) = target {
-            Some(*reg)
+            if let Register::Frame(..) = reg {
+                None
+            } else {
+                Some(*reg)
+            }
         } else {
             None
         }
@@ -86,7 +94,7 @@ pub fn info(proc: &Proc) -> ProcInfo {
 
         for inst in block.insts.iter() {
             match inst {
-                Inst::Reserve(..) | Inst::Release(..) => {}
+                Inst::Crash | Inst::Reserve(..) | Inst::Release(..) => {}
 
                 Inst::Move(target, value) => {
                     gens.extend(value_to_reg(value));
