@@ -11,7 +11,7 @@ mod priority;
 use crate::lir::{Block, BlockId, Branch, Inst, Proc, Target, Value};
 use allocation::{allocate, Allocation};
 
-pub fn regalloc(constraints: Constraints, proc: Proc) -> Proc {
+pub fn regalloc(constraints: &Constraints, proc: Proc) -> Proc {
     let allocation = allocate(&proc, constraints);
     let applier = Applier::new(allocation);
     applier.apply(proc)
@@ -49,9 +49,12 @@ impl Applier {
         }
 
         blocks.entry(proc.entry).and_modify(|block| {
-            block
-                .insts
-                .insert(0, Inst::Reserve(self.allocation.frame_space))
+            if self.allocation.frame_space > 0 {
+                block
+                    .insts
+                    .insert(0, Inst::Reserve(self.allocation.frame_space));
+                block.insts.push(Inst::Release(self.allocation.frame_space));
+            }
         });
 
         Proc {

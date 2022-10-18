@@ -15,7 +15,7 @@ pub struct Constraints {
     pub max_physical: usize,
 }
 
-pub fn allocate(proc: &Proc, constraints: Constraints) -> Allocation {
+pub fn allocate(proc: &Proc, constraints: &Constraints) -> Allocation {
     let (intf, info) = interference(proc);
 
     // Mapping from register to frame offset

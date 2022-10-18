@@ -8,8 +8,7 @@ use corollary::parse::parse;
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
 
-use corollary::asm::alloc::{regalloc, Constraints};
-use corollary::lir::{Block, Branch, Cond, Inst, ProcBuilder, Register, Target, Value};
+use corollary::asm::{asm, Constraints};
 
 use console_driver::ConsoleDriver;
 
@@ -54,68 +53,9 @@ fn main() {
     }
 
     println!();
-
     println!("{}", prettier.pretty_decls(&decls));
+    println!();
 
-    // ------------------
-    /*
-    start:
-        a = 1
-        b = 2
-        jmp ifso if a < b else otherwise
-
-    ifso:
-        push a
-        pop c
-        jmp end
-
-    otherwise:
-        c = 3
-        jmp end
-
-    end:
-        return c
-    */
-
-    let mut builder = ProcBuilder::new();
-
-    let a = Register::Virtual(0);
-    let b = Register::Virtual(1);
-    let c = Register::Virtual(2);
-
-    let exit = builder.add(Block {
-        insts: vec![],
-        branch: Branch::Return(Value::Register(c)),
-    });
-
-    let consequence = builder.add(Block {
-        insts: vec![
-            Inst::Push(Value::Register(a)),
-            Inst::Pop(Target::Register(c)),
-        ],
-        branch: Branch::Jump(exit),
-    });
-
-    let alternative = builder.add(Block {
-        insts: vec![Inst::Move(Target::Register(c), Value::Register(b))],
-        branch: Branch::Jump(exit),
-    });
-
-    let entry = builder.add(Block {
-        insts: vec![
-            Inst::Move(Target::Register(a), Value::Integer(1)),
-            Inst::Move(Target::Register(b), Value::Integer(2)),
-        ],
-        branch: Branch::JumpIf {
-            conditional: Cond::Less,
-            left: Value::Register(a),
-            right: Value::Register(b),
-            consequence,
-            alternative,
-        },
-    });
-
-    let proc = builder.build(entry, exit);
-    let allocd = regalloc(Constraints { max_physical: 16 }, proc);
-    println!("{allocd:?}");
+    let program = asm(Constraints { max_physical: 16 }, entry, decls);
+    println!("{program:?}");
 }
