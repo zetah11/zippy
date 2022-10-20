@@ -20,4 +20,4 @@ generates the following ir
       return k(5)
 
 note that everything but main has been optimized away, and that the lowest-level
-ir is in continuation-passing style (because so is most assembly languages)
+ir is in continuation-passing style (because so are most assembly languages)
