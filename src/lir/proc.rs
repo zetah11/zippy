@@ -15,6 +15,24 @@ pub struct Procedure {
     pub exits: Vec<BlockId>,
 }
 
+impl Procedure {
+    pub fn get(&self, id: &BlockId) -> &Block {
+        self.blocks.get(id).unwrap()
+    }
+
+    pub fn get_branch(&self, id: usize) -> &Branch {
+        &self.branches[id]
+    }
+
+    pub fn get_instruction(&self, id: usize) -> &Instruction {
+        &self.instructions[id]
+    }
+
+    pub fn has_block(&self, id: &BlockId) -> bool {
+        self.blocks.contains_key(id)
+    }
+}
+
 #[derive(Debug)]
 pub struct ProcBuilder {
     param: Register,
@@ -27,7 +45,18 @@ pub struct ProcBuilder {
 }
 
 impl ProcBuilder {
-    pub fn new(param: Register) -> Self {
+    pub fn new(param: Register, continuations: impl IntoIterator<Item = BlockId>) -> Self {
+        Self {
+            param,
+            continuations: continuations.into_iter().collect(),
+            blocks: HashMap::new(),
+            instructions: Vec::new(),
+            branches: Vec::new(),
+            id: 0,
+        }
+    }
+
+    pub fn new_without_continuations(param: Register) -> Self {
         Self {
             param,
             continuations: Vec::new(),

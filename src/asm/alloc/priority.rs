@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 
-use crate::lir_old::Register;
+use crate::lir::{Register, Virtual};
 
 use super::info::ProcInfo;
 use super::interfere::Interference;
 
-pub fn prioritize(info: &ProcInfo, intf: &Interference) -> Vec<Register> {
+pub fn prioritize(info: &ProcInfo, intf: &Interference) -> Vec<Virtual> {
     // prio = # uses - # interferences
 
-    let mut uses: HashMap<Register, usize> = HashMap::new();
+    let mut uses: HashMap<Virtual, usize> = HashMap::new();
     for (_, used) in info.uses.iter() {
         for reg in used.iter() {
-            *uses.entry(*reg).or_insert(0) += 1;
+            if let Register::Virtual { reg, ndx: _ndx } = reg {
+                *uses.entry(*reg).or_insert(0) += 1;
+            }
         }
     }
 

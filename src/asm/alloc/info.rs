@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::lir_old::{BlockId, Branch, Inst, Proc, Register, Target, Value};
+use crate::lir::{BlockId, Branch, Instruction, Procedure, Register, Target, Value};
 
 #[derive(Debug)]
 pub struct ProcInfo {
@@ -28,13 +28,13 @@ impl ProcInfo {
     }
 }
 
-pub fn info(proc: &Proc) -> ProcInfo {
+pub fn info(proc: &Procedure) -> ProcInfo {
     fn value_to_reg(value: &Value) -> Option<Register> {
         if let Value::Register(reg) = value {
-            if let Register::Frame(..) = reg {
-                None
-            } else {
+            if matches!(reg, Register::Virtual { .. }) {
                 Some(*reg)
+            } else {
+                unreachable!()
             }
         } else {
             None
@@ -43,10 +43,10 @@ pub fn info(proc: &Proc) -> ProcInfo {
 
     fn target_to_reg(target: &Target) -> Option<Register> {
         if let Target::Register(reg) = target {
-            if let Register::Frame(..) = reg {
-                None
-            } else {
+            if matches!(reg, Register::Virtual { .. }) {
                 Some(*reg)
+            } else {
+                unreachable!()
             }
         } else {
             None
@@ -56,6 +56,8 @@ pub fn info(proc: &Proc) -> ProcInfo {
     let mut kills: HashMap<BlockId, HashSet<Register>> = HashMap::new();
     let mut gens: HashMap<BlockId, HashSet<Register>> = HashMap::new();
 
+    gens.entry(proc.entry).or_default().insert(proc.param);
+
     let mut worklist = vec![proc.entry];
     let mut edges = Vec::new();
 
@@ -64,53 +66,61 @@ pub fn info(proc: &Proc) -> ProcInfo {
         let gens = gens.entry(from).or_default();
         let kills = kills.entry(from).or_default();
 
-        match &block.branch {
-            Branch::Jump(to) => {
+        block.param.map(|reg| gens.insert(reg));
+
+        match proc.get_branch(block.branch) {
+            Branch::Jump(to, param) => {
+                gens.extend(param.as_ref().and_then(value_to_reg));
+
                 edges.push((from, *to));
                 worklist.push(*to);
             }
 
             Branch::JumpIf {
                 left,
+                cond: _,
                 right,
-                consequence,
-                alternative,
-                conditional: _,
+                then,
+                elze,
             } => {
-                edges.push((from, *consequence));
-                edges.push((from, *alternative));
+                edges.push((from, then.0));
+                edges.push((from, elze.0));
 
-                worklist.push(*consequence);
-                worklist.push(*alternative);
+                worklist.push(then.0);
+                worklist.push(elze.0);
 
                 gens.extend(value_to_reg(left));
                 gens.extend(value_to_reg(right));
+
+                gens.extend(then.1.as_ref().and_then(value_to_reg));
+                gens.extend(elze.1.as_ref().and_then(value_to_reg));
             }
 
-            Branch::Return(value) => {
+            Branch::Return(_, value) => {
                 gens.extend(value_to_reg(value));
+            }
+
+            Branch::Call(fun, arg, conts) => {
+                gens.extend(value_to_reg(fun));
+                gens.extend(value_to_reg(arg));
+
+                // skip any tail calls
+                worklist.extend(conts.iter().filter(|block| proc.has_block(block)));
             }
         }
 
-        for inst in block.insts.iter() {
-            match inst {
-                Inst::Crash | Inst::Reserve(..) | Inst::Release(..) => {}
+        for inst in block.insts.clone() {
+            match proc.get_instruction(inst) {
+                Instruction::Crash | Instruction::Reserve(_) => {}
 
-                Inst::Move(target, value) => {
+                Instruction::Copy(target, value) => {
                     gens.extend(value_to_reg(value));
                     kills.extend(target_to_reg(target));
                 }
 
-                Inst::Push(value) => {
-                    gens.extend(value_to_reg(value));
-                }
-
-                Inst::Pop(target) => {
+                Instruction::Tuple(target, values) => {
+                    gens.extend(values.iter().flat_map(value_to_reg));
                     kills.extend(target_to_reg(target));
-                }
-
-                Inst::Call(value) => {
-                    gens.extend(value_to_reg(value));
                 }
             }
         }

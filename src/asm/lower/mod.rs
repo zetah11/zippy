@@ -78,7 +78,7 @@ impl<'a> Lowerer<'a> {
 
     fn lower_function(&mut self, param: Name, body: mir::ExprSeq) -> lir::Procedure {
         let param = self.name_to_reg(param);
-        let mut builder = lir::ProcBuilder::new(param);
+        let mut builder = lir::ProcBuilder::new_without_continuations(param);
 
         let ret = builder.fresh_id();
         builder.add_continuations(vec![ret]);

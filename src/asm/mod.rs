@@ -3,11 +3,11 @@ pub use alloc::Constraints;
 mod alloc;
 mod lower;
 
-//use std::collections::HashMap;
+use std::collections::HashMap;
 
 use crate::resolve::names::Name;
 use crate::{lir, mir};
-//use alloc::regalloc;
+use alloc::regalloc;
 use lower::lower;
 
 pub fn asm(
@@ -19,18 +19,15 @@ pub fn asm(
 ) -> lir::Program {
     let lowered = lower(entry, types, context, decls);
 
-    /*
     let mut procs = HashMap::with_capacity(lowered.procs.len());
     for (name, proc) in lowered.procs {
-        let proc = regalloc(&constraints, proc);
+        let proc = regalloc(&constraints, &lowered.types, proc);
         procs.insert(name, proc);
     }
 
-    lir_old::Program {
+    lir::Program {
         procs,
         values: lowered.values,
+        types: lowered.types,
     }
-    */
-
-    lowered
 }

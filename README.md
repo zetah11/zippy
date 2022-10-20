@@ -16,23 +16,8 @@ currently, the following
 
 generates the following ir
 
-    let apply =
-      fun _t11 _t0 =
-        let f = _t0.0
-        let x = _t0.1
-        let _t1 = f x
-        return _t1
-      return _t11
+    fun main(r0) to k:
+      return k(5)
 
-    let id =
-      fun _t12 x =
-        return x
-      return _t12
-
-    let main =
-      fun _t13 _t7 =
-        return 5
-      return _t13
-
-note that `id` has been optimized to a standard `id`, and that `main` references
-neither
+note that everything but main has been optimized away, and that the lowest-level
+ir is in continuation-passing style (because so is most assembly languages)

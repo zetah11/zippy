@@ -13,6 +13,6 @@ pub enum Register {
         ndx: Option<(usize, TypeId)>,
     },
 
-    Frame(usize, TypeId),
+    Frame(isize, TypeId),
     Physical(usize),
 }

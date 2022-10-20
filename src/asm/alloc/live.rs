@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use super::info::{info, ProcInfo};
-use crate::lir_old::{BlockId, Proc, Register};
+use crate::lir::{BlockId, Procedure, Register};
 
-pub fn liveness(proc: &Proc) -> (LivenessFacts, ProcInfo) {
+pub fn liveness(proc: &Procedure) -> (LivenessFacts, ProcInfo) {
     let info = info(proc);
     let mut analyzer = LivenessAnalyzer::new(proc, &info);
     analyzer.iterate();
@@ -25,14 +25,14 @@ pub struct LivenessFacts {
 struct LivenessAnalyzer<'a> {
     in_facts: HashMap<BlockId, HashSet<Register>>,
     out_facts: HashMap<BlockId, HashSet<Register>>,
-    proc: &'a Proc,
+    proc: &'a Procedure,
     info: &'a ProcInfo,
 
     worklist: Vec<BlockId>,
 }
 
 impl<'a> LivenessAnalyzer<'a> {
-    pub fn new(proc: &'a Proc, info: &'a ProcInfo) -> Self {
+    pub fn new(proc: &'a Procedure, info: &'a ProcInfo) -> Self {
         let mut res = Self {
             in_facts: HashMap::new(),
             out_facts: HashMap::new(),
@@ -65,7 +65,11 @@ impl<'a> LivenessAnalyzer<'a> {
     }
 
     fn init_worklist(&mut self) {
-        let mut worklist = vec![self.proc.exit];
+        let mut worklist = self.proc.exits.clone();
+
+        if worklist.is_empty() {
+            worklist.extend(self.proc.blocks.keys());
+        }
 
         while let Some(block) = worklist.pop() {
             if self.worklist.contains(&block) {
