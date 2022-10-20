@@ -2,17 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use super::interfere::interference;
 use super::priority::prioritize;
-use crate::lir::{Proc, Register};
+use crate::lir_old::{Proc, Register};
 
 #[derive(Debug)]
 pub struct Allocation {
     pub map: HashMap<Register, Register>,
     pub frame_space: usize,
-}
-
-#[derive(Debug)]
-pub struct Constraints {
-    pub max_physical: usize,
 }
 
 pub fn allocate(proc: &Proc, constraints: &Constraints) -> Allocation {

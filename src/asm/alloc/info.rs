@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::lir::{BlockId, Branch, Inst, Proc, Register, Target, Value};
+use crate::lir_old::{BlockId, Branch, Inst, Proc, Register, Target, Value};
 
 #[derive(Debug)]
 pub struct ProcInfo {

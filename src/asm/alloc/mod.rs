@@ -1,3 +1,9 @@
+#[derive(Debug)]
+pub struct Constraints {
+    pub max_physical: usize,
+}
+
+/*
 use std::collections::HashMap;
 
 pub use allocation::Constraints;
@@ -8,7 +14,7 @@ mod interfere;
 mod live;
 mod priority;
 
-use crate::lir::{Block, BlockId, Branch, Inst, Proc, Target, Value};
+use crate::lir_old::{Block, BlockId, Branch, Inst, Proc, Target, Value};
 use allocation::{allocate, Allocation};
 
 pub fn regalloc(constraints: &Constraints, proc: Proc) -> Proc {
@@ -120,3 +126,4 @@ impl Applier {
         }
     }
 }
+*/

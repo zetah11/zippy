@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lir::Register;
+use crate::lir_old::Register;
 
 use super::info::ProcInfo;
 use super::interfere::Interference;

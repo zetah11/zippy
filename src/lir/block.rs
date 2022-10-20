@@ -1,92 +1,13 @@
-use std::collections::HashMap;
+use std::ops::Range;
 
-use crate::resolve::names::Name;
-
-#[derive(Debug)]
-pub struct Program {
-    pub procs: HashMap<Name, Proc>,
-    pub values: HashMap<Name, Global>,
-}
-
-#[derive(Debug)]
-pub struct Global {
-    pub size: usize,
-    pub value: Vec<i64>,
-}
-
-#[derive(Debug)]
-pub struct Proc {
-    pub blocks: HashMap<BlockId, Block>,
-    pub entry: BlockId,
-    pub exit: BlockId,
-}
-
-impl Proc {
-    pub fn get(&self, block: &BlockId) -> &Block {
-        self.blocks.get(block).unwrap()
-    }
-}
+use super::Register;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct BlockId(pub(crate) usize);
+pub struct BlockId(pub(super) usize);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Block {
-    pub insts: Vec<Inst>,
-    pub branch: Branch,
-}
-
-#[derive(Debug)]
-pub enum Branch {
-    Return(Value),
-    Jump(BlockId),
-    JumpIf {
-        conditional: Cond,
-        left: Value,
-        right: Value,
-        consequence: BlockId,
-        alternative: BlockId,
-    },
-}
-
-#[derive(Debug)]
-pub enum Inst {
-    Crash,
-
-    Reserve(usize),
-    Release(usize),
-
-    Move(Target, Value),
-
-    Push(Value),
-    Pop(Target),
-
-    Call(Value),
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum Cond {
-    Equal,
-    Less,
-    Greater,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum Register {
-    Virtual(usize),
-    Physical(usize),
-    Frame(isize),
-}
-
-#[derive(Debug)]
-pub enum Value {
-    Register(Register),
-    Location(Name),
-    Integer(i64),
-}
-
-#[derive(Debug)]
-pub enum Target {
-    Register(Register),
-    Location(Name),
+    pub param: Option<Register>,
+    pub insts: Range<usize>,
+    pub branch: usize,
 }

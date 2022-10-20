@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::info::ProcInfo;
 use super::live::liveness;
-use crate::lir::{Proc, Register};
+use crate::lir_old::{Proc, Register};
 
 pub fn interference(proc: &Proc) -> (Interference, ProcInfo) {
     let (live, info) = liveness(proc);

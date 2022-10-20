@@ -56,6 +56,12 @@ fn main() {
     println!("{}", prettier.pretty_decls(&decls));
     println!();
 
-    let program = asm(Constraints { max_physical: 16 }, entry, decls);
+    let program = asm(
+        Constraints { max_physical: 16 },
+        &types,
+        &context,
+        entry,
+        decls,
+    );
     println!("{program:?}");
 }

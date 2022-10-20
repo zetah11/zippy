@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::info::{info, ProcInfo};
-use crate::lir::{BlockId, Proc, Register};
+use crate::lir_old::{BlockId, Proc, Register};
 
 pub fn liveness(proc: &Proc) -> (LivenessFacts, ProcInfo) {
     let info = info(proc);
