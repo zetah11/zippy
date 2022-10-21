@@ -31,8 +31,6 @@ pub fn evaluate(
         lowerer.discover(decls, entry);
         let res = lowerer.reduce_from();
 
-        //let res = lowerer.reduce_decls(decls);
-
         (res, lowerer.messages)
     } else {
         (Decls::default(), Messages::new())
@@ -129,7 +127,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
     }
 
     fn discover(&mut self, decls: Decls, entry: Name) {
-        trace!("name discovery");
+        debug!("name discovery");
 
         let old_behaviour = self.behaviour;
         self.behaviour = Behaviour::Discover;
@@ -156,7 +154,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
     }
 
     fn reduce_from(&mut self) -> Decls {
-        trace!("reduction");
+        debug!("reduction");
 
         let mut defs = Vec::new();
         let mut value_names = HashSet::new();

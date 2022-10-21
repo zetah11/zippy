@@ -2,6 +2,8 @@ mod location;
 
 use std::collections::HashMap;
 
+use log::{debug, trace};
+
 use crate::lir;
 use crate::mir;
 use crate::resolve::names::Name;
@@ -13,6 +15,7 @@ pub fn lower(
     context: &mir::Context,
     decls: mir::Decls,
 ) -> lir::Program {
+    debug!("lowering mir to lir");
     assert!(decls.defs.is_empty());
     let mut lowerer = Lowerer::new(entry, decls, types, context);
     lowerer.lower();
@@ -46,8 +49,9 @@ impl<'a> Lowerer<'a> {
         types: &'a mir::Types,
         context: &'a mir::Context,
     ) -> Self {
+        trace!("discovery");
         let worklist = mir::discover(entry, &decls);
-        Self {
+        let mut res = Self {
             worklist,
             decls,
 
@@ -60,10 +64,14 @@ impl<'a> Lowerer<'a> {
 
             names: HashMap::new(),
             virtual_id: 0,
-        }
+        };
+
+        res.find_globals();
+        res
     }
 
     pub fn lower(&mut self) {
+        trace!("{} names left to lower", self.worklist.len());
         while let Some(name) = self.worklist.pop() {
             if let Some((param, body)) = self.decls.functions.remove(&name) {
                 let proc = self.lower_function(param, body);
@@ -71,7 +79,16 @@ impl<'a> Lowerer<'a> {
             } else if let Some(value) = self.decls.values.remove(&name) {
                 let value = self.lower_global(value);
                 self.values.insert(name, value);
-                self.names.insert(name, Location::Global);
+            }
+
+            trace!("{} names left to lower", self.worklist.len());
+        }
+    }
+
+    fn find_globals(&mut self) {
+        for name in self.worklist.iter() {
+            if self.decls.functions.contains_key(name) || self.decls.values.contains_key(name) {
+                self.names.insert(*name, Location::Global);
             }
         }
     }
@@ -121,7 +138,16 @@ impl<'a> Lowerer<'a> {
                     insts.push(lir::Instruction::Tuple(name, values));
                 }
 
-                mir::ExprNode::Proj { .. } => todo!(),
+                mir::ExprNode::Proj { name, of, at } => {
+                    let ty = self.lower_type(self.context.get(&of));
+
+                    let index = self.types.offsetof(&ty, at);
+                    let of = self.name_to_value(of);
+                    let name = self.name_to_target(name);
+
+                    insts.push(lir::Instruction::Index(name, of, index));
+                }
+
                 mir::ExprNode::Join { .. } => todo!(),
 
                 mir::ExprNode::Function { .. } => unreachable!(),
@@ -161,10 +187,9 @@ impl<'a> Lowerer<'a> {
             mir::ValueNode::Int(i) => lir::Value::Integer(i),
 
             mir::ValueNode::Name(name) => match self.names.get(&name).unwrap() {
-                Location::Local(id, ty) => lir::Value::Register(lir::Register::Virtual {
-                    reg: lir::Virtual { id: *id, ty: *ty },
-                    ndx: None,
-                }),
+                Location::Local(id, ty) => {
+                    lir::Value::Register(lir::Register::Virtual(lir::Virtual { id: *id, ty: *ty }))
+                }
 
                 Location::Global => lir::Value::Name(name),
             },
@@ -193,10 +218,9 @@ impl<'a> Lowerer<'a> {
 
     fn name_to_value(&mut self, name: Name) -> lir::Value {
         match self.names.get(&name).unwrap() {
-            Location::Local(id, ty) => lir::Value::Register(lir::Register::Virtual {
-                reg: lir::Virtual { id: *id, ty: *ty },
-                ndx: None,
-            }),
+            Location::Local(id, ty) => {
+                lir::Value::Register(lir::Register::Virtual(lir::Virtual { id: *id, ty: *ty }))
+            }
 
             Location::Global => lir::Value::Name(name),
         }
@@ -205,10 +229,9 @@ impl<'a> Lowerer<'a> {
     fn name_to_target(&mut self, name: Name) -> lir::Target {
         if let Some(loc) = self.names.get(&name) {
             match loc {
-                Location::Local(id, ty) => lir::Target::Register(lir::Register::Virtual {
-                    reg: lir::Virtual { id: *id, ty: *ty },
-                    ndx: None,
-                }),
+                Location::Local(id, ty) => {
+                    lir::Target::Register(lir::Register::Virtual(lir::Virtual { id: *id, ty: *ty }))
+                }
 
                 Location::Global => lir::Target::Name(name),
             }
@@ -229,6 +252,6 @@ impl<'a> Lowerer<'a> {
 
         self.names.insert(name, Location::Local(id, ty));
 
-        lir::Register::Virtual { reg, ndx: None }
+        lir::Register::Virtual(reg)
     }
 }

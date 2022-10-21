@@ -7,6 +7,7 @@ pub enum Instruction {
     Reserve(usize),
 
     Copy(Target, Value),
+    Index(Target, Value, usize),
     Tuple(Target, Vec<Value>),
 }
 

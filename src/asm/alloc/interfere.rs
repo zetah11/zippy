@@ -12,7 +12,7 @@ pub fn interference(proc: &Procedure) -> (Interference, ProcInfo) {
         let regs: im::HashSet<_> = regs
             .into_iter()
             .flat_map(|reg| match reg {
-                Register::Virtual { reg, ndx: _ndx } => Some(reg),
+                Register::Virtual(reg) => Some(reg),
                 _ => None,
             })
             .collect();

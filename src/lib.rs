@@ -9,6 +9,6 @@ pub mod parse;
 pub mod resolve;
 pub mod tyck;
 
-pub use driver::Driver;
+pub use driver::{Driver, EvalAmount};
 
 mod driver;

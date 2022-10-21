@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::trace;
+
 use super::{BranchNode, Decls, Expr, ExprNode, ExprSeq, Value, ValueNode};
 use crate::resolve::names::Name;
 
@@ -44,6 +46,8 @@ impl MirDiscoverer {
                 self.discover_exprs(body);
             }
         }
+
+        trace!("discovered {} names reachable from entry", self.names.len());
     }
 
     fn discover_exprs(&mut self, exprs: &ExprSeq) {

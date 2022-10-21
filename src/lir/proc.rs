@@ -46,13 +46,21 @@ pub struct ProcBuilder {
 
 impl ProcBuilder {
     pub fn new(param: Register, continuations: impl IntoIterator<Item = BlockId>) -> Self {
+        let continuations: Vec<_> = continuations.into_iter().collect();
+        let id = continuations
+            .iter()
+            .map(|block_id| block_id.0)
+            .max()
+            .map(|id| id + 1)
+            .unwrap_or(0);
+
         Self {
             param,
-            continuations: continuations.into_iter().collect(),
+            continuations,
             blocks: HashMap::new(),
             instructions: Vec::new(),
             branches: Vec::new(),
-            id: 0,
+            id,
         }
     }
 

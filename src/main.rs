@@ -1,14 +1,14 @@
 mod console_driver;
 
 use codespan_reporting::files::SimpleFiles;
+use corollary::asm::{asm, Constraints, RegisterInfo};
 use corollary::elab::elaborate;
 use corollary::lex::lex;
 use corollary::mir::pretty::Prettier;
 use corollary::parse::parse;
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
-
-use corollary::asm::{asm, Constraints};
+use phf::phf_map;
 
 use console_driver::ConsoleDriver;
 
@@ -54,12 +54,26 @@ fn main() {
     println!("{}", prettier.pretty_decls(&decls));
     println!();
 
-    let program = asm(
-        Constraints { max_physical: 16 },
-        &types,
-        &context,
-        entry,
-        decls,
-    );
+    let program = asm(X64_CONSTRAITNS, &types, &context, entry, decls);
     println!("{program:?}");
 }
+
+const X64_CONSTRAITNS: Constraints = Constraints {
+    max_physical: 14,
+    registers: phf_map! {
+        "rax" => RegisterInfo { size: 64, id: 0 },
+        "rbx" => RegisterInfo { size: 64, id: 1 },
+        "rcx" => RegisterInfo { size: 64, id: 2 },
+        "rdx" => RegisterInfo { size: 64, id: 3 },
+        "rsi" => RegisterInfo { size: 64, id: 4 },
+        "rdi" => RegisterInfo { size: 64, id: 5 },
+        "r8"  => RegisterInfo { size: 64, id: 6 },
+        "r9"  => RegisterInfo { size: 64, id: 7 },
+        "r10" => RegisterInfo { size: 64, id: 8 },
+        "r11" => RegisterInfo { size: 64, id: 9 },
+        "r12" => RegisterInfo { size: 64, id: 10 },
+        "r13" => RegisterInfo { size: 64, id: 11 },
+        "r14" => RegisterInfo { size: 64, id: 12 },
+        "r15" => RegisterInfo { size: 64, id: 13 },
+    },
+};

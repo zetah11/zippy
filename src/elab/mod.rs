@@ -2,12 +2,12 @@ mod eval;
 mod hoist;
 mod lower;
 
-use log::{info, trace};
+use log::{debug, info, trace};
 
 use crate::mir::{self, check};
 use crate::resolve::names::{Name, Names};
 use crate::tyck::TypeckResult;
-use crate::Driver;
+use crate::{Driver, EvalAmount};
 
 pub fn elaborate(
     driver: &mut impl Driver,
@@ -32,16 +32,22 @@ pub fn elaborate(
         trace!("lowering is type-correct");
     }
 
-    let res = eval::evaluate(driver, &mut context, names, &types, res, entry);
+    let res = if driver.eval_amount() == EvalAmount::Full {
+        let res = eval::evaluate(driver, &mut context, names, &types, res, entry);
 
-    if !error {
-        error = check(names, &types, &context, &res);
-        if error {
-            eprintln!("error during evaluation");
-        } else {
-            trace!("evaluation is type-correct");
+        if !error {
+            error = check(names, &types, &context, &res);
+            if error {
+                eprintln!("error during evaluation");
+            } else {
+                trace!("evaluation is type-correct");
+            }
         }
-    }
+        res
+    } else {
+        debug!("skipped evaluation");
+        res
+    };
 
     let res = hoist::hoist(driver, names, &mut context, res);
 

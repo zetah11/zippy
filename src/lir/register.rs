@@ -8,11 +8,7 @@ pub struct Virtual {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Register {
-    Virtual {
-        reg: Virtual,
-        ndx: Option<(usize, TypeId)>,
-    },
-
+    Virtual(Virtual),
     Frame(isize, TypeId),
     Physical(usize),
 }

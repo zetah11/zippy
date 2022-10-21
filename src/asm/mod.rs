@@ -1,9 +1,11 @@
-pub use alloc::Constraints;
+pub use alloc::{Constraints, RegisterInfo};
 
 mod alloc;
 mod lower;
 
 use std::collections::HashMap;
+
+use log::{info, trace};
 
 use crate::resolve::names::Name;
 use crate::{lir, mir};
@@ -17,6 +19,8 @@ pub fn asm(
     entry: Option<Name>,
     decls: mir::Decls,
 ) -> lir::Program {
+    info!("beginning lir generation");
+
     let lowered = lower(entry, types, context, decls);
 
     let mut procs = HashMap::with_capacity(lowered.procs.len());
@@ -24,6 +28,8 @@ pub fn asm(
         let proc = regalloc(&constraints, &lowered.types, proc);
         procs.insert(name, proc);
     }
+
+    trace!("done lir generation");
 
     lir::Program {
         procs,

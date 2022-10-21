@@ -8,6 +8,8 @@ pub struct ProcInfo {
     pub succs: HashMap<BlockId, Vec<BlockId>>,
     pub kills: HashMap<BlockId, HashSet<Register>>,
     pub uses: HashMap<BlockId, HashSet<Register>>,
+
+    pub args: HashSet<Register>,
 }
 
 impl ProcInfo {
@@ -55,8 +57,10 @@ pub fn info(proc: &Procedure) -> ProcInfo {
 
     let mut kills: HashMap<BlockId, HashSet<Register>> = HashMap::new();
     let mut gens: HashMap<BlockId, HashSet<Register>> = HashMap::new();
+    let mut args: HashSet<Register> = HashSet::new();
 
     gens.entry(proc.entry).or_default().insert(proc.param);
+    args.insert(proc.param);
 
     let mut worklist = vec![proc.entry];
     let mut edges = Vec::new();
@@ -67,6 +71,7 @@ pub fn info(proc: &Procedure) -> ProcInfo {
         let kills = kills.entry(from).or_default();
 
         block.param.map(|reg| gens.insert(reg));
+        args.extend(block.param);
 
         match proc.get_branch(block.branch) {
             Branch::Jump(to, param) => {
@@ -97,14 +102,26 @@ pub fn info(proc: &Procedure) -> ProcInfo {
             }
 
             Branch::Return(_, value) => {
-                gens.extend(value_to_reg(value));
+                let value = value_to_reg(value);
+                gens.extend(value);
+                args.extend(value);
             }
 
             Branch::Call(fun, arg, conts) => {
+                let arg = value_to_reg(arg);
+
                 gens.extend(value_to_reg(fun));
-                gens.extend(value_to_reg(arg));
+                gens.extend(arg);
+
+                args.extend(arg);
 
                 // skip any tail calls
+                edges.extend(
+                    conts
+                        .iter()
+                        .filter(|block| proc.has_block(block))
+                        .map(|block| (from, *block)),
+                );
                 worklist.extend(conts.iter().filter(|block| proc.has_block(block)));
             }
         }
@@ -114,6 +131,11 @@ pub fn info(proc: &Procedure) -> ProcInfo {
                 Instruction::Crash | Instruction::Reserve(_) => {}
 
                 Instruction::Copy(target, value) => {
+                    gens.extend(value_to_reg(value));
+                    kills.extend(target_to_reg(target));
+                }
+
+                Instruction::Index(target, value, _) => {
                     gens.extend(value_to_reg(value));
                     kills.extend(target_to_reg(target));
                 }
@@ -139,5 +161,6 @@ pub fn info(proc: &Procedure) -> ProcInfo {
         succs,
         kills,
         uses: gens,
+        args,
     }
 }
