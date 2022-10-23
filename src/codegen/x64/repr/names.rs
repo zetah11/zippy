@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::resolve::names as resolve;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct Name(usize);
+pub struct Name(pub(in super::super) usize);
 
 #[derive(Debug, Default)]
 pub struct Names {

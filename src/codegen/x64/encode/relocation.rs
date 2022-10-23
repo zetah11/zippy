@@ -1,4 +1,3 @@
-use super::super::repr::Name;
 use super::Encoder;
 
 #[derive(Clone, Debug)]
