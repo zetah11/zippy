@@ -1,4 +1,7 @@
+pub use constraint::{Constraints, RegisterInfo};
+
 mod allocation;
+mod constraint;
 mod info;
 mod interfere;
 mod live;
@@ -12,18 +15,6 @@ use crate::lir::{
     BlockId, Branch, Instruction, ProcBuilder, Procedure, Register, Target, Types, Value,
 };
 use allocation::{allocate, Allocation};
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct RegisterInfo {
-    pub size: usize,
-    pub id: usize,
-}
-
-#[derive(Debug)]
-pub struct Constraints {
-    pub max_physical: usize,
-    pub registers: phf::Map<&'static str, RegisterInfo>,
-}
 
 pub fn regalloc(constraints: &Constraints, types: &Types, proc: Procedure) -> Procedure {
     debug!("allocating registers for procedure");

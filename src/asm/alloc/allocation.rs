@@ -21,14 +21,11 @@ pub fn allocate(types: &Types, proc: &Procedure, constraints: &Constraints) -> A
 
     // Mapping from register to physical register
     let mut mapping: HashMap<VirtualId, usize> = HashMap::new();
-
-    let physical = (0..constraints.max_physical)
-        .into_iter()
-        .collect::<Vec<_>>();
-
     let mut max_frame_offset = 0;
 
     for reg in prioritize(&info, &intf) {
+        let size = types.sizeof(&reg.ty);
+
         let interferes: Vec<_> = intf.graph.get(&reg).into_iter().flatten().collect();
         let unavailable = interferes
             .iter()
@@ -36,13 +33,14 @@ pub fn allocate(types: &Types, proc: &Procedure, constraints: &Constraints) -> A
             .copied()
             .collect::<HashSet<_>>();
 
-        let mut available = physical
+        let mut available = constraints
+            .registers
             .iter()
-            .copied()
-            .filter(|reg| !unavailable.contains(reg));
+            .enumerate()
+            .filter(|(id, reg)| reg.size >= size && !unavailable.contains(id));
 
         match available.next() {
-            Some(mapped) => assert!(mapping.insert(reg.id, mapped).is_none()),
+            Some((id, _)) => assert!(mapping.insert(reg.id, id).is_none()),
             None => {
                 // todo: unterrible this algorithm
                 let mut off = 0;
@@ -57,7 +55,7 @@ pub fn allocate(types: &Types, proc: &Procedure, constraints: &Constraints) -> A
                     }
                 }
 
-                max_frame_offset = max_frame_offset.max(off + types.sizeof(&reg.ty));
+                max_frame_offset = max_frame_offset.max(off + size);
 
                 assert!(frames.insert(reg.id, (off as isize, reg.ty)).is_none());
             }

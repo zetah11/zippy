@@ -8,7 +8,6 @@ use corollary::mir::pretty::Prettier;
 use corollary::parse::parse;
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
-use phf::phf_map;
 
 use console_driver::ConsoleDriver;
 
@@ -59,21 +58,20 @@ fn main() {
 }
 
 const X64_CONSTRAITNS: Constraints = Constraints {
-    max_physical: 14,
-    registers: phf_map! {
-        "rax" => RegisterInfo { size: 64, id: 0 },
-        "rbx" => RegisterInfo { size: 64, id: 1 },
-        "rcx" => RegisterInfo { size: 64, id: 2 },
-        "rdx" => RegisterInfo { size: 64, id: 3 },
-        "rsi" => RegisterInfo { size: 64, id: 4 },
-        "rdi" => RegisterInfo { size: 64, id: 5 },
-        "r8"  => RegisterInfo { size: 64, id: 6 },
-        "r9"  => RegisterInfo { size: 64, id: 7 },
-        "r10" => RegisterInfo { size: 64, id: 8 },
-        "r11" => RegisterInfo { size: 64, id: 9 },
-        "r12" => RegisterInfo { size: 64, id: 10 },
-        "r13" => RegisterInfo { size: 64, id: 11 },
-        "r14" => RegisterInfo { size: 64, id: 12 },
-        "r15" => RegisterInfo { size: 64, id: 13 },
-    },
+    #[rustfmt::skip]
+    registers: &[
+        RegisterInfo { size: 8, name: "rdi" },
+        RegisterInfo { size: 8, name: "rsi" },
+        RegisterInfo { size: 8, name: "rdx" },
+        RegisterInfo { size: 8, name: "rcx" },
+        RegisterInfo { size: 8, name: "r8" },
+        RegisterInfo { size: 8, name: "r9" },
+        RegisterInfo { size: 8, name: "rbx" },
+        RegisterInfo { size: 8, name: "r10" },
+        RegisterInfo { size: 8, name: "r11" },
+        RegisterInfo { size: 8, name: "r12" },
+        RegisterInfo { size: 8, name: "r13" },
+        RegisterInfo { size: 8, name: "r14" },
+        RegisterInfo { size: 8, name: "r15" },
+    ],
 };

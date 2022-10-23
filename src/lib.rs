@@ -1,4 +1,5 @@
 pub mod asm;
+pub mod codegen;
 pub mod elab;
 pub mod hir;
 pub mod lex;
