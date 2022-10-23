@@ -1,30 +1,25 @@
+mod block;
 mod instruction;
+mod procedure;
+mod program;
 mod register;
+mod relocation;
 
 use std::collections::HashMap;
 
-use super::repr::Name;
+use super::repr::{Name, Program};
+use relocation::{Relocation, RelocationKind};
 
-#[derive(Clone, Debug)]
-struct Relocation {
-    pub kind: RelocationKind,
-    pub at: usize,
+pub fn encode(program: Program) -> Vec<u8> {
+    let mut encoder = Encoder::default();
+    encoder.encode_program(program);
+    encoder.perform_relocations();
+    encoder.code
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum RelocationKind {
-    /// 32-bit relocation, relative to current instruction
-    Relative,
-
-    /// 32-bit relocation, relative to next instruction
-    RelativeNext,
-
-    /// 64-bit absolute relocation.
-    Absolute,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Encoder {
+    addresses: HashMap<Name, usize>,
     relocations: HashMap<Name, Vec<Relocation>>,
     code: Vec<u8>,
 }

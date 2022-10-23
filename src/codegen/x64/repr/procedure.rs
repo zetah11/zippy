@@ -5,5 +5,6 @@ use super::names::Name;
 
 #[derive(Debug)]
 pub struct Procedure {
-    blocks: HashMap<Name, Block>,
+    pub blocks: HashMap<Name, Block>,
+    pub block_order: Vec<Name>,
 }
