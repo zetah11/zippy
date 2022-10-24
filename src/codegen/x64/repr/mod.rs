@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub use block::Block;
 pub use instruction::Instruction;
 pub use names::{Name, Names};

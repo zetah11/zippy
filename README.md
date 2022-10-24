@@ -14,10 +14,12 @@ currently, the following
     let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
       (f, x) => f x
 
-generates the following ir
+generates the following x64 machine code
 
-    fun main(r0) to k:
-      return k(5)
+    main: push rbp
+          mov rbp, rsp
+          mov rax, 5
+          leave
+          ret
 
-note that everything but main has been optimized away, and that the lowest-level
-ir is in continuation-passing style (because so are most assembly languages)
+only a simple return remains :)

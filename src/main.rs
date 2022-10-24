@@ -1,7 +1,8 @@
 mod console_driver;
 
 use codespan_reporting::files::SimpleFiles;
-use corollary::asm::{asm, Constraints, RegisterInfo};
+use corollary::asm::asm;
+use corollary::codegen::x64::{codegen, CONSTRAINTS};
 use corollary::elab::elaborate;
 use corollary::lex::lex;
 use corollary::mir::pretty::Prettier;
@@ -53,25 +54,13 @@ fn main() {
     println!("{}", prettier.pretty_decls(&decls));
     println!();
 
-    let program = asm(X64_CONSTRAITNS, &types, &context, entry, decls);
+    let program = asm(CONSTRAINTS, &types, &context, entry, decls);
     println!("{program:?}");
-}
 
-const X64_CONSTRAITNS: Constraints = Constraints {
-    #[rustfmt::skip]
-    registers: &[
-        RegisterInfo { size: 8, name: "rdi" },
-        RegisterInfo { size: 8, name: "rsi" },
-        RegisterInfo { size: 8, name: "rdx" },
-        RegisterInfo { size: 8, name: "rcx" },
-        RegisterInfo { size: 8, name: "r8" },
-        RegisterInfo { size: 8, name: "r9" },
-        RegisterInfo { size: 8, name: "rbx" },
-        RegisterInfo { size: 8, name: "r10" },
-        RegisterInfo { size: 8, name: "r11" },
-        RegisterInfo { size: 8, name: "r12" },
-        RegisterInfo { size: 8, name: "r13" },
-        RegisterInfo { size: 8, name: "r14" },
-        RegisterInfo { size: 8, name: "r15" },
-    ],
-};
+    let code = codegen(&mut names, program);
+    for byte in code {
+        print!("{byte:>2x} ");
+    }
+
+    println!();
+}
