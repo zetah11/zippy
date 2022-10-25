@@ -73,8 +73,8 @@ impl<'a> Lowerer<'a> {
     pub fn lower(&mut self) {
         trace!("{} names left to lower", self.worklist.len());
         while let Some(name) = self.worklist.pop() {
-            if let Some((param, body)) = self.decls.functions.remove(&name) {
-                let proc = self.lower_function(param, body);
+            if let Some((params, body)) = self.decls.functions.remove(&name) {
+                let proc = self.lower_function(params, body);
                 self.procs.insert(name, proc);
             } else if let Some(value) = self.decls.values.remove(&name) {
                 let value = self.lower_global(value);
@@ -93,9 +93,13 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn lower_function(&mut self, param: Name, body: mir::ExprSeq) -> lir::Procedure {
-        let param = self.name_to_reg(param);
-        let mut builder = lir::ProcBuilder::new_without_continuations(param);
+    fn lower_function(&mut self, params: Vec<Name>, body: mir::ExprSeq) -> lir::Procedure {
+        let params = params
+            .into_iter()
+            .map(|param| self.name_to_reg(param))
+            .collect();
+
+        let mut builder = lir::ProcBuilder::new_without_continuations(params);
 
         let ret = builder.fresh_id();
         builder.add_continuations(vec![ret]);
@@ -110,8 +114,11 @@ impl<'a> Lowerer<'a> {
 
         for expr in body.exprs {
             match expr.node {
-                mir::ExprNode::Apply { name, fun, arg } => {
-                    let arg = self.lower_value(&mut insts, arg);
+                mir::ExprNode::Apply { name, fun, args } => {
+                    let args = args
+                        .into_iter()
+                        .map(|arg| self.lower_value(&mut insts, arg))
+                        .collect();
                     let fun = self.name_to_value(fun);
                     let name = self.name_to_reg(name);
 
@@ -121,7 +128,7 @@ impl<'a> Lowerer<'a> {
                         id,
                         block_param,
                         insts,
-                        lir::Branch::Call(fun, arg, vec![cont]),
+                        lir::Branch::Call(fun, args, vec![cont]),
                     );
 
                     block_param = Some(name);
@@ -202,14 +209,13 @@ impl<'a> Lowerer<'a> {
 
             mir::Type::Invalid => self.types.add(lir::Type::Range(0, 0)),
 
-            mir::Type::Product(a, b) => {
-                let a = self.lower_type(*a);
-                let b = self.lower_type(*b);
-                self.types.add(lir::Type::Product(vec![a, b]))
+            mir::Type::Product(ts) => {
+                let ts = ts.iter().map(|t| self.lower_type(*t)).collect();
+                self.types.add(lir::Type::Product(ts))
             }
 
             mir::Type::Fun(t, u) => {
-                let t = self.lower_type(*t);
+                let t = t.iter().copied().map(|t| self.lower_type(t)).collect();
                 let u = self.lower_type(*u);
                 self.types.add(lir::Type::Fun(t, u))
             }

@@ -70,9 +70,9 @@ impl MirDiscoverer {
                 self.discover_exprs(body);
             }
 
-            ExprNode::Apply { fun, arg, .. } => {
+            ExprNode::Apply { fun, args, .. } => {
                 self.worklist.push(*fun);
-                self.discover_value(arg);
+                args.iter().for_each(|arg| self.discover_value(arg));
             }
 
             ExprNode::Join { .. } => todo!(),

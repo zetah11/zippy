@@ -45,7 +45,7 @@ pub struct Hoist<'a, D> {
     _names: &'a mut Names,
     _context: &'a mut Context,
 
-    functions: HashMap<Name, (Name, ExprSeq)>,
+    functions: HashMap<Name, (Vec<Name>, ExprSeq)>,
     values: HashMap<Name, Value>,
 }
 
@@ -91,9 +91,9 @@ impl<D: Driver> Hoist<'_, D> {
     ) {
         for expr in exprs.exprs {
             match expr.node {
-                ExprNode::Function { name, param, body } => {
+                ExprNode::Function { name, params, body } => {
                     let body = self.hoist_function(free_vars, body);
-                    self.functions.insert(name, (param, body));
+                    self.functions.insert(name, (params, body));
                 }
 
                 ExprNode::Join { .. } => todo!(),
@@ -138,7 +138,7 @@ impl<D: Driver> Hoist<'_, D> {
 
         for expr in exprs.exprs {
             match expr.node {
-                ExprNode::Function { name, param, body } => {
+                ExprNode::Function { name, params, body } => {
                     let invalid = free_vars
                         .get(&name)
                         .map(|free| !free.is_empty())
@@ -156,7 +156,7 @@ impl<D: Driver> Hoist<'_, D> {
                     }
 
                     let body = self.hoist_function(free_vars, body);
-                    self.functions.insert(name, (param, body));
+                    self.functions.insert(name, (params, body));
                 }
 
                 ExprNode::Join { .. } => todo!(),

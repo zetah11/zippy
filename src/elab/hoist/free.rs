@@ -30,28 +30,26 @@ impl Freer {
 
     pub fn calculate_free(&mut self, decls: &Decls) {
         for def in decls.defs.iter() {
-            let res = self.free_in_function(None, &def.bind);
+            let res = self.free_in_function(&[], &def.bind);
             if !res.is_empty() {
                 self.funs.insert(def.name, res);
             }
         }
     }
 
-    fn free_in_function(&mut self, param: Option<&Name>, body: &ExprSeq) -> Vec<(Name, Span)> {
+    fn free_in_function(&mut self, params: &[Name], body: &ExprSeq) -> Vec<(Name, Span)> {
         let mut res = Vec::new();
         let mut bound = self.global.clone();
         let mut free = HashSet::new();
 
-        if let Some(param) = param {
-            bound.insert(*param);
-        }
+        bound.extend(params.iter().copied());
 
         for expr in body.exprs.iter() {
             match &expr.node {
                 ExprNode::Join { name, param, body } => {
                     bound.insert(*name);
 
-                    let free_here = self.free_in_function(Some(param), body);
+                    let free_here = self.free_in_function(&[*param], body);
 
                     for (name, span) in free_here {
                         if !bound.contains(&name) && free.insert(name).is_none() {
@@ -60,8 +58,8 @@ impl Freer {
                     }
                 }
 
-                ExprNode::Function { name, param, body } => {
-                    let free_here = self.free_in_function(Some(param), body);
+                ExprNode::Function { name, params, body } => {
+                    let free_here = self.free_in_function(params, body);
 
                     for (name, span) in free_here.iter().copied() {
                         if !bound.contains(&name) && free.insert(name).is_none() {
@@ -76,14 +74,16 @@ impl Freer {
                     bound.insert(*name);
                 }
 
-                ExprNode::Apply { name, fun, arg } => {
+                ExprNode::Apply { name, fun, args } => {
                     if !bound.contains(fun) && free.insert(*fun).is_none() {
                         res.push((*fun, expr.span));
                     }
 
-                    if let ValueNode::Name(name) = arg.node {
-                        if !bound.contains(&name) && free.insert(name).is_none() {
-                            res.push((name, arg.span));
+                    for arg in args.iter() {
+                        if let ValueNode::Name(name) = arg.node {
+                            if !bound.contains(&name) && free.insert(name).is_none() {
+                                res.push((name, arg.span));
+                            }
                         }
                     }
 

@@ -13,7 +13,7 @@ pub enum Instruction {
 
 #[derive(Clone, Debug)]
 pub enum Branch {
-    Call(Value, Value, Vec<BlockId>),
+    Call(Value, Vec<Value>, Vec<BlockId>),
     Return(BlockId, Value),
     Jump(BlockId, Option<Value>),
     JumpIf {

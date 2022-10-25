@@ -14,7 +14,7 @@ pub(super) enum IrreducibleNode {
     Integer(i64),
     Tuple(Vec<Irreducible>),
 
-    Lambda(Name, Box<Irreducible>),
+    Lambda(Vec<Name>, Box<Irreducible>),
     Quote(ExprSeq),
 
     Invalid,

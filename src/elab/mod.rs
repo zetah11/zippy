@@ -1,4 +1,5 @@
 mod eval;
+mod flatten;
 mod hoist;
 mod lower;
 
@@ -17,7 +18,7 @@ pub fn elaborate(
 ) -> (mir::Types, mir::Context, mir::Decls) {
     info!("beginning elaboration");
 
-    let (types, mut context, res) = lower::lower(
+    let (mut types, mut context, res) = lower::lower(
         driver,
         &tyckres.subst,
         names,
@@ -30,6 +31,16 @@ pub fn elaborate(
         eprintln!("error during lowering");
     } else {
         trace!("lowering is type-correct");
+    }
+
+    let res = flatten::flatten(names, &mut types, &mut context, res);
+    if !error {
+        error = check(names, &types, &context, &res);
+        if error {
+            eprintln!("error during flattening");
+        } else {
+            trace!("flattening is type-correct");
+        }
     }
 
     let res = if driver.eval_amount() == EvalAmount::Full {
@@ -49,12 +60,17 @@ pub fn elaborate(
         res
     };
 
+    {
+        let prettier = mir::pretty::Prettier::new(names, &types);
+        println!("{}\n", prettier.pretty_decls(&res));
+    }
+
     let res = hoist::hoist(driver, names, &mut context, res);
 
     if !error {
         error = check(names, &types, &context, &res);
         if error {
-            eprintln!("error duringg hoisting");
+            eprintln!("error during hoisting");
         } else {
             trace!("hoisting is type-correct");
         }

@@ -93,15 +93,18 @@ impl<'a> Prettier<'a> {
         match self.types.get(ty) {
             Type::Range(lo, hi) => self.allocator.text(format!("{lo} upto {hi}")),
             Type::Fun(t, u) => self
-                .doc_type(t)
+                .allocator
+                .intersperse(
+                    t.iter().map(|ty| self.doc_type(ty)),
+                    self.allocator.text(", "),
+                )
                 .parens()
                 .append(self.allocator.text(" -> "))
                 .append(self.doc_type(u)),
-            Type::Product(t, u) => self
-                .doc_type(t)
-                .parens()
-                .append(self.allocator.text(" * "))
-                .append(self.doc_type(u).group()),
+            Type::Product(ts) => self.allocator.intersperse(
+                ts.iter().map(|t| self.doc_type(t).parens()),
+                self.allocator.text(" * "),
+            ),
             Type::Invalid => self.allocator.text("<error>"),
         }
     }
@@ -137,24 +140,31 @@ impl<'a> Prettier<'a> {
     fn doc_expr(&'a self, expr: &Expr) -> DocBuilder<Arena<'a>> {
         match &expr.node {
             ExprNode::Join { name, param, body } => self
-                .doc_fun("join", name, param)
+                .doc_fun("join", name, &[*param])
                 .append(self.doc_expr_seq(body))
                 .group(),
-            ExprNode::Function { name, param, body } => {
+            ExprNode::Function { name, params, body } => {
                 let fun = self
-                    .doc_fun("fun", name, param)
+                    .doc_fun("fun", name, params)
                     .append(self.doc_expr_seq(body));
 
                 fun.flat_alt(
-                    self.doc_fun("fun", name, param)
-                        .append(self.doc_expr_seq(body).parens()),
+                    self.doc_fun("fun", name, params)
+                        .append(self.doc_expr_seq(body)),
                 )
+                .parens()
             }
-            ExprNode::Apply { name, fun, arg } => self
+            ExprNode::Apply { name, fun, args } => self
                 .doc_let(name)
                 .append(self.doc_name(fun))
-                .append(self.allocator.space())
-                .append(self.doc_value(arg))
+                .append(
+                    self.allocator
+                        .intersperse(
+                            args.iter().map(|arg| self.doc_value(arg)),
+                            self.allocator.text(", "),
+                        )
+                        .parens(),
+                )
                 .group(),
             ExprNode::Tuple { name, values } => self
                 .doc_let(name)
@@ -176,14 +186,19 @@ impl<'a> Prettier<'a> {
         }
     }
 
-    fn doc_fun(&'a self, kw: &'static str, name: &Name, param: &Name) -> DocBuilder<Arena<'a>> {
+    fn doc_fun(&'a self, kw: &'static str, name: &Name, params: &[Name]) -> DocBuilder<Arena<'a>> {
         self.allocator
             .text(kw)
             .append(self.allocator.space())
             .append(
-                self.doc_name(name)
-                    .append(self.allocator.space())
-                    .append(self.doc_name(param)),
+                self.doc_name(name).append(
+                    self.allocator
+                        .intersperse(
+                            params.iter().map(|name| self.doc_name(name)),
+                            self.allocator.text(", "),
+                        )
+                        .parens(),
+                ),
             )
             .append(" =")
             .group()

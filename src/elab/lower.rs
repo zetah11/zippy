@@ -83,14 +83,14 @@ impl<'a> Lowerer<'a> {
                 let t = self.lower_type(*t);
                 let u = self.lower_type(*u);
 
-                self.types.add(Type::Fun(t, u))
+                self.types.add(Type::Fun(vec![t], u))
             }
 
             HiType::Product(t, u) => {
                 let t = self.lower_type(*t);
                 let u = self.lower_type(*u);
 
-                self.types.add(Type::Product(t, u))
+                self.types.add(Type::Product(vec![t, u]))
             }
 
             HiType::Range(lo, hi) => self.types.add(Type::Range(lo, hi)),
@@ -259,7 +259,11 @@ impl<'a> Lowerer<'a> {
                 self.context.add(name, ty);
 
                 within.push(Expr {
-                    node: ExprNode::Function { name, param, body },
+                    node: ExprNode::Function {
+                        name,
+                        params: vec![param],
+                        body,
+                    },
                     span: ex.span,
                     ty,
                 });
@@ -284,7 +288,11 @@ impl<'a> Lowerer<'a> {
                 self.context.add(name, ty);
 
                 within.push(Expr {
-                    node: ExprNode::Apply { name, fun, arg },
+                    node: ExprNode::Apply {
+                        name,
+                        fun,
+                        args: vec![arg],
+                    },
                     span: ex.span,
                     ty,
                 });

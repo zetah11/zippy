@@ -9,7 +9,7 @@ pub struct Decls {
     pub defs: Vec<ValueDef>,
 
     pub values: HashMap<Name, Value>,
-    pub functions: HashMap<Name, (Name, ExprSeq)>,
+    pub functions: HashMap<Name, (Vec<Name>, ExprSeq)>,
 }
 
 impl Decls {
@@ -77,13 +77,13 @@ pub enum ExprNode {
     },
     Function {
         name: Name,
-        param: Name,
+        params: Vec<Name>,
         body: ExprSeq,
     },
     Apply {
         name: Name,
         fun: Name,
-        arg: Value,
+        args: Vec<Value>,
     },
     Tuple {
         name: Name,

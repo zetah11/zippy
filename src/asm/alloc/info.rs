@@ -59,8 +59,10 @@ pub fn info(proc: &Procedure) -> ProcInfo {
     let mut gens: HashMap<BlockId, HashSet<Register>> = HashMap::new();
     let mut args: HashSet<Register> = HashSet::new();
 
-    gens.entry(proc.entry).or_default().insert(proc.param);
-    args.insert(proc.param);
+    gens.entry(proc.entry)
+        .or_default()
+        .extend(proc.params.iter().copied());
+    args.extend(proc.params.iter().copied());
 
     let mut worklist = vec![proc.entry];
     let mut edges = Vec::new();
@@ -107,13 +109,13 @@ pub fn info(proc: &Procedure) -> ProcInfo {
                 args.extend(value);
             }
 
-            Branch::Call(fun, arg, conts) => {
-                let arg = value_to_reg(arg);
+            Branch::Call(fun, call_args, conts) => {
+                let call_args = call_args.iter().flat_map(value_to_reg);
 
                 gens.extend(value_to_reg(fun));
-                gens.extend(arg);
+                gens.extend(call_args.clone());
 
-                args.extend(arg);
+                args.extend(call_args);
 
                 // skip any tail calls
                 edges.extend(

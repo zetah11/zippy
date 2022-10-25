@@ -13,33 +13,42 @@ impl<D: Driver> Lowerer<'_, D> {
             let node = match expr.node {
                 ExprNode::Join { .. } => todo!(),
 
-                ExprNode::Function { name, param, body } => {
+                ExprNode::Function { name, params, body } => {
                     let body_irr = self.reduce_exprs(env.clone(), body.clone());
                     env.set(
                         name,
                         Irreducible {
-                            node: IrreducibleNode::Lambda(param, Box::new(body_irr)),
+                            node: IrreducibleNode::Lambda(params.clone(), Box::new(body_irr)),
                             span: expr.span,
                             ty: expr.ty,
                         },
                     );
 
-                    ExprNode::Function { name, param, body }
+                    ExprNode::Function { name, params, body }
                 }
 
-                ExprNode::Apply { name, fun, arg } => {
-                    let reduced_arg = self.reduce_value(&env, arg.clone());
+                ExprNode::Apply { name, fun, args } => {
+                    let reduced_args: Vec<_> = args
+                        .iter()
+                        .cloned()
+                        .map(|arg| self.reduce_value(&env, arg))
+                        .collect();
 
                     if let Some(Irreducible {
-                        node: IrreducibleNode::Lambda(param, body),
+                        node: IrreducibleNode::Lambda(params, body),
                         ..
                     }) = self.lookup(&env, &fun)
                     {
-                        let result = self.reduce_irr(env.with(*param, reduced_arg), *body.clone());
+                        let mut child_env = env.clone();
+                        for (param, arg) in params.iter().zip(reduced_args) {
+                            child_env = child_env.with(*param, arg);
+                        }
+
+                        let result = self.reduce_irr(child_env, *body.clone());
                         env.set(name, result);
                     }
 
-                    ExprNode::Apply { name, fun, arg }
+                    ExprNode::Apply { name, fun, args }
                 }
 
                 ExprNode::Tuple { name, values } => {
@@ -138,40 +147,50 @@ impl<D: Driver> Lowerer<'_, D> {
     pub fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
         let node = match irr.node {
             IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, exprs),
-            IrreducibleNode::Lambda(param, body) => {
+            IrreducibleNode::Lambda(params, body) => {
                 let t = match self.types.get(&irr.ty) {
-                    Type::Fun(t, _) => *t,
-                    Type::Invalid => irr.ty,
+                    Type::Fun(t, _) => t.clone(),
+                    Type::Invalid => vec![irr.ty; params.len()],
                     _ => unreachable!(),
                 };
 
-                let new_name = self.names.fresh(irr.span, None);
-                self.context.add(new_name, t);
+                let new_names: Vec<_> = t
+                    .iter()
+                    .copied()
+                    .map(|t| {
+                        let name = self.names.fresh(irr.span, None);
+                        self.context.add(name, t);
+                        name
+                    })
+                    .collect();
 
-                let closed = env.with(
-                    param,
-                    Irreducible {
-                        node: IrreducibleNode::Quote(ExprSeq {
-                            exprs: vec![],
-                            branch: Branch {
-                                node: BranchNode::Return(Value {
-                                    node: ValueNode::Name(new_name),
-                                    span: irr.span, // todo?
-                                    ty: t,
-                                }),
+                let mut closed = env;
+                for (param, ty) in params.iter().zip(t) {
+                    closed = closed.with(
+                        *param,
+                        Irreducible {
+                            node: IrreducibleNode::Quote(ExprSeq {
+                                exprs: vec![],
+                                branch: Branch {
+                                    node: BranchNode::Return(Value {
+                                        node: ValueNode::Name(*param),
+                                        span: irr.span,
+                                        ty,
+                                    }),
+                                    span: irr.span,
+                                    ty,
+                                },
                                 span: irr.span,
-                                ty: t,
-                            },
+                                ty,
+                            }),
                             span: irr.span,
-                            ty: t,
-                        }),
-                        span: irr.span,
-                        ty: t,
-                    },
-                );
+                            ty,
+                        },
+                    );
+                }
 
                 let body = self.reduce_irr(closed, *body);
-                IrreducibleNode::Lambda(new_name, Box::new(body))
+                IrreducibleNode::Lambda(new_names, Box::new(body))
             }
 
             IrreducibleNode::Tuple(irrs) => {

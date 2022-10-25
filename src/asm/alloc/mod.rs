@@ -46,8 +46,14 @@ impl Applier {
             self.block_map.insert(*cont, *cont);
         }
 
-        let mut builder =
-            ProcBuilder::new(self.apply_reg(proc.param), proc.continuations.drain(..));
+        let mut builder = ProcBuilder::new(
+            proc.params
+                .iter()
+                .copied()
+                .map(|param| self.apply_reg(param))
+                .collect(),
+            proc.continuations.drain(..),
+        );
 
         for id in proc.blocks.keys() {
             let new_id = builder.fresh_id();
@@ -125,13 +131,13 @@ impl Applier {
 
                 (res, vec![then, elze])
             }
-            Branch::Call(fun, arg, conts) => {
+            Branch::Call(fun, args, conts) => {
                 let fun = self.apply_value(fun);
-                let arg = self.apply_value(arg);
+                let args = args.into_iter().map(|arg| self.apply_value(arg)).collect();
                 (
                     Branch::Call(
                         fun,
-                        arg,
+                        args,
                         conts
                             .iter()
                             .copied()

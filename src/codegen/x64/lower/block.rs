@@ -141,7 +141,7 @@ impl Lowerer<'_> {
                 }
             }
 
-            lir::Branch::Call(fun, arg, conts) => {
+            lir::Branch::Call(fun, args, conts) => {
                 // CONTINUATIONS!
                 // okay so a convention is that the return continuation is always the first continuation passed.
                 // additionally, here in x64 land, we can say that continuations are passed "right to left" so to speak;
@@ -199,8 +199,9 @@ impl Lowerer<'_> {
                     false
                 };
 
+                assert!(args.len() == 1);
                 let fun = self.lower_value(fun.clone());
-                let arg = self.lower_value(arg.clone());
+                let arg = self.lower_value(args[0].clone());
 
                 insts.push(x64::Instruction::Mov(
                     x64::Operand::Register(x64::Register::Rax),

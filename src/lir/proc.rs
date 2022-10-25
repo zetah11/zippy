@@ -4,7 +4,7 @@ use super::{Block, BlockId, Branch, Instruction, Register};
 
 #[derive(Debug)]
 pub struct Procedure {
-    pub param: Register,
+    pub params: Vec<Register>,
     pub continuations: Vec<BlockId>,
 
     pub blocks: HashMap<BlockId, Block>,
@@ -35,7 +35,7 @@ impl Procedure {
 
 #[derive(Debug)]
 pub struct ProcBuilder {
-    param: Register,
+    params: Vec<Register>,
     continuations: Vec<BlockId>,
 
     blocks: HashMap<BlockId, Block>,
@@ -45,7 +45,7 @@ pub struct ProcBuilder {
 }
 
 impl ProcBuilder {
-    pub fn new(param: Register, continuations: impl IntoIterator<Item = BlockId>) -> Self {
+    pub fn new(params: Vec<Register>, continuations: impl IntoIterator<Item = BlockId>) -> Self {
         let continuations: Vec<_> = continuations.into_iter().collect();
         let id = continuations
             .iter()
@@ -55,7 +55,7 @@ impl ProcBuilder {
             .unwrap_or(0);
 
         Self {
-            param,
+            params,
             continuations,
             blocks: HashMap::new(),
             instructions: Vec::new(),
@@ -64,9 +64,9 @@ impl ProcBuilder {
         }
     }
 
-    pub fn new_without_continuations(param: Register) -> Self {
+    pub fn new_without_continuations(params: Vec<Register>) -> Self {
         Self {
-            param,
+            params,
             continuations: Vec::new(),
             blocks: HashMap::new(),
             instructions: Vec::new(),
@@ -116,7 +116,7 @@ impl ProcBuilder {
 
     pub fn build(self, entry: BlockId, exits: Vec<BlockId>) -> Procedure {
         Procedure {
-            param: self.param,
+            params: self.params,
             continuations: self.continuations,
             blocks: self.blocks,
             instructions: self.instructions,

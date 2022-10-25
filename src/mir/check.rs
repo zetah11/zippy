@@ -55,13 +55,16 @@ impl<'a> MirChecker<'a> {
     fn check_expr(&mut self, expr: &Expr) {
         match &expr.node {
             ExprNode::Join { .. } => todo!(),
-            ExprNode::Function { name, param, body } => {
+            ExprNode::Function { name, params, body } => {
                 let ty = self.context.get(name);
                 match self.types.get(&ty) {
                     Type::Fun(t, u) => {
-                        let other_t = self.context.get(param);
-                        self.check_type(expr.span, *t, other_t);
-                        self.check_type(body.span, *u, body.ty);
+                        assert!(t.len() == params.len());
+                        for (param, t) in params.iter().zip(t.iter()) {
+                            let other_t = self.context.get(param);
+                            self.check_type(expr.span, *t, other_t);
+                            self.check_type(body.span, *u, body.ty);
+                        }
                     }
 
                     Type::Invalid => {}
@@ -72,13 +75,17 @@ impl<'a> MirChecker<'a> {
                 self.check_exprs(body);
             }
 
-            ExprNode::Apply { name, fun, arg } => {
+            ExprNode::Apply { name, fun, args } => {
                 let ty = self.context.get(fun);
                 match self.types.get(&ty) {
                     Type::Fun(t, u) => {
-                        let other_u = self.context.get(name);
-                        self.check_value(*t, arg);
-                        self.check_type(expr.span, *u, other_u);
+                        assert!(t.len() == args.len());
+
+                        for (arg, t) in args.iter().zip(t.iter()) {
+                            let other_u = self.context.get(name);
+                            self.check_value(*t, arg);
+                            self.check_type(expr.span, *u, other_u);
+                        }
                     }
 
                     Type::Invalid => {}
@@ -90,10 +97,11 @@ impl<'a> MirChecker<'a> {
             ExprNode::Tuple { name, values } => {
                 let ty = self.context.get(name);
                 match self.types.get(&ty) {
-                    Type::Product(t, u) => {
-                        assert!(values.len() == 2);
-                        self.check_value(*t, &values[0]);
-                        self.check_value(*u, &values[1]);
+                    Type::Product(ts) => {
+                        assert!(values.len() == ts.len());
+                        for (value, t) in values.iter().zip(ts.iter()) {
+                            self.check_value(*t, value);
+                        }
                     }
 
                     Type::Invalid => {}
@@ -105,12 +113,11 @@ impl<'a> MirChecker<'a> {
             ExprNode::Proj { name, of, at } => {
                 let ty = self.context.get(of);
                 match self.types.get(&ty) {
-                    Type::Product(t, u) => {
+                    Type::Product(ts) => {
                         let other_ty = self.context.get(name);
-                        match at {
-                            0 => self.check_type(expr.span, other_ty, *t),
-                            1 => self.check_type(expr.span, other_ty, *u),
-                            _ => panic!("projection too big"),
+                        match ts.get(*at) {
+                            Some(t) => self.check_type(expr.span, other_ty, *t),
+                            None => panic!("index out of range"),
                         }
                     }
 

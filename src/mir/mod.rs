@@ -20,8 +20,8 @@ pub struct TypeId(usize);
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
     Range(i64, i64),
-    Fun(TypeId, TypeId),
-    Product(TypeId, TypeId),
+    Fun(Vec<TypeId>, TypeId),
+    Product(Vec<TypeId>),
     Invalid,
 }
 
@@ -39,6 +39,10 @@ impl Context {
 
     pub fn add(&mut self, name: Name, ty: TypeId) {
         assert!(self.names.insert(name, ty).is_none());
+    }
+
+    pub fn replace(&mut self, name: Name, ty: TypeId) {
+        assert!(self.names.insert(name, ty).is_some());
     }
 
     pub fn get(&self, name: &Name) -> TypeId {
