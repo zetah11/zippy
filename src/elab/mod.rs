@@ -60,13 +60,7 @@ pub fn elaborate(
         res
     };
 
-    {
-        let prettier = mir::pretty::Prettier::new(names, &types);
-        println!("{}\n", prettier.pretty_decls(&res));
-    }
-
     let res = hoist::hoist(driver, names, &mut context, res);
-
     if !error {
         error = check(names, &types, &context, &res);
         if error {
