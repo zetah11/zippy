@@ -1,80 +1,144 @@
 use std::collections::{HashMap, HashSet};
 
+use super::constraint::Constraints;
 use super::interfere::interference;
-use super::priority::prioritize;
-use super::Constraints;
+use super::live::liveness;
+use super::priority::priority;
 use crate::lir::{Procedure, Register, TypeId, Types};
 
 type VirtualId = usize;
 
 #[derive(Debug)]
 pub struct Allocation {
-    pub map: HashMap<VirtualId, Register>,
+    pub mapping: HashMap<VirtualId, Register>,
     pub frame_space: usize,
 }
 
-pub fn allocate(types: &Types, proc: &Procedure, constraints: &Constraints) -> Allocation {
-    let (intf, info) = interference(proc);
+pub fn allocate(types: &Types, constraints: &Constraints, procedure: &Procedure) -> Allocation {
+    let (liveness, info) = liveness(constraints, procedure);
+    let interference = interference(&liveness);
 
-    // Mapping from register to frame offset
-    let mut frames: HashMap<VirtualId, (isize, TypeId)> = HashMap::new();
+    let priority = priority(&info, &liveness, &interference);
 
-    // Mapping from register to physical register
-    let mut mapping: HashMap<VirtualId, usize> = HashMap::new();
-    let mut max_frame_offset = 0;
+    let mut mapping = HashMap::with_capacity(priority.len());
+    let mut frame_space = 0;
 
-    for reg in prioritize(&info, &intf) {
-        let size = types.sizeof(&reg.ty);
+    for reg in priority {
+        let unavailable = unavailable_physical(&mapping, &interference, &reg);
 
-        let interferes: Vec<_> = intf.graph.get(&reg).into_iter().flatten().collect();
-        let unavailable = interferes
-            .iter()
-            .flat_map(|reg| mapping.get(&reg.id))
-            .copied()
-            .collect::<HashSet<_>>();
+        let reg = match reg {
+            Register::Virtual(reg) => reg,
+            Register::Frame(..) | Register::Physical(_) => continue,
+        };
 
-        let mut available = constraints
-            .registers
-            .iter()
-            .enumerate()
-            .filter(|(id, reg)| reg.size >= size && !unavailable.contains(id));
-
-        match available.next() {
-            Some((id, _)) => assert!(mapping.insert(reg.id, id).is_none()),
-            None => {
-                // todo: unterrible this algorithm
-                let mut off = 0;
-
-                for reg in interferes.iter() {
-                    if let Some((other_off, other_ty)) = frames.get(&reg.id) {
-                        if *other_off < 0 {
-                            continue;
-                        }
-
-                        off = off.max(*other_off as usize + types.sizeof(other_ty));
-                    }
-                }
-
-                max_frame_offset = max_frame_offset.max(off + size);
-
-                assert!(frames.insert(reg.id, (off as isize, reg.ty)).is_none());
-            }
+        if let Some(physical) = first_fitting_reg(constraints, unavailable) {
+            assert!(mapping
+                .insert(reg.id, Register::Physical(physical))
+                .is_none());
+        } else {
+            let unavailable = unavailable_frame(&mapping, &interference, &Register::Virtual(reg));
+            let offset = first_fitting_frame(types, unavailable, reg.ty);
+            assert!(mapping
+                .insert(reg.id, Register::Frame(offset, reg.ty))
+                .is_none());
+            frame_space = frame_space.max(offset.max(0) as usize);
         }
     }
 
-    let mut map = HashMap::new();
-
-    for (reg, (frame_offset, ty)) in frames {
-        assert!(frame_offset >= 0);
-        assert!(map.insert(reg, Register::Frame(frame_offset, ty)).is_none());
-    }
-
-    for (reg, physical) in mapping {
-        assert!(map.insert(reg, Register::Physical(physical)).is_none());
-    }
+    mapping.shrink_to_fit();
 
     Allocation {
-        map,
-        frame_space: max_frame_offset as usize,
+        mapping,
+        frame_space,
     }
+}
+
+fn first_fitting_frame(types: &Types, mut unavailable: Vec<(isize, TypeId)>, ty: TypeId) -> isize {
+    unavailable.sort_by(|(off1, _), (off2, _)| off1.cmp(off2));
+    let size = isize::try_from(types.sizeof(&ty)).unwrap();
+
+    let mut off = match unavailable.get(0) {
+        Some((off, ty)) => {
+            if *off < 0 || size < *off {
+                return 0;
+            } else {
+                off + isize::try_from(types.sizeof(ty)).unwrap()
+            }
+        }
+        None => 0,
+    };
+
+    for i in 0..(unavailable.len().saturating_sub(1)) {
+        let bottom = unavailable[i].0 + isize::try_from(types.sizeof(&unavailable[i].1)).unwrap();
+        let top = unavailable[i + 1].0;
+        let gap = top - bottom;
+        assert!(gap > 0);
+
+        if gap >= size {
+            off = bottom;
+            break;
+        } else {
+            off = top + isize::try_from(types.sizeof(&unavailable[i + 1].1)).unwrap();
+        }
+    }
+
+    off
+}
+
+fn first_fitting_reg(constraints: &Constraints, unavailable: Vec<usize>) -> Option<usize> {
+    for i in 0..constraints.registers.len() {
+        if !unavailable.contains(&i) {
+            return Some(i);
+        }
+    }
+
+    None
+}
+
+fn unavailable_frame(
+    mapping: &HashMap<usize, Register>,
+    interference: &HashMap<Register, HashSet<Register>>,
+    reg: &Register,
+) -> Vec<(isize, TypeId)> {
+    let interferes = match interference.get(reg) {
+        Some(interferes) => interferes,
+        None => return vec![],
+    };
+
+    interferes
+        .iter()
+        .copied()
+        .filter_map(|reg| match reg {
+            Register::Virtual(id) => match mapping.get(&id.id) {
+                Some(Register::Frame(size, ty)) => Some((*size, *ty)),
+                _ => None,
+            },
+            Register::Frame(size, ty) => Some((size, ty)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn unavailable_physical(
+    mapping: &HashMap<usize, Register>,
+    interference: &HashMap<Register, HashSet<Register>>,
+    reg: &Register,
+) -> Vec<usize> {
+    let interferes = match interference.get(reg) {
+        Some(interferes) => interferes,
+        None => return vec![],
+    };
+
+    interferes
+        .iter()
+        .copied()
+        .filter_map(|reg| match reg {
+            Register::Virtual(id) => match mapping.get(&id.id) {
+                Some(Register::Physical(id)) => Some(*id),
+                _ => None,
+            },
+            Register::Physical(id) => Some(id),
+            _ => None,
+        })
+        .collect()
 }

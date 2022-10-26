@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use super::info::{info, ProcInfo};
+use super::super::info::{info, ProcInfo};
 use crate::lir::{BlockId, Procedure, Register};
 
-pub fn liveness(proc: &Procedure) -> (LivenessFacts, ProcInfo) {
+/// Compute the liveness at the start and end of each block.
+pub fn approximate_liveness(proc: &Procedure) -> (LivenessFacts, ProcInfo) {
     let info = info(proc);
     let mut analyzer = LivenessAnalyzer::new(proc, &info);
     analyzer.iterate();

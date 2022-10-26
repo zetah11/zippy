@@ -1,32 +1,23 @@
 use std::collections::{HashMap, HashSet};
 
-use super::info::ProcInfo;
-use super::live::liveness;
-use crate::lir::{Procedure, Register, Virtual};
+use super::live::Liveness;
+use crate::lir::Register;
 
-pub fn interference(proc: &Procedure) -> (Interference, ProcInfo) {
-    let (live, info) = liveness(proc);
-    let mut graph: HashMap<Virtual, HashSet<Virtual>> = HashMap::new();
+pub fn interference(liveness: &Liveness) -> HashMap<Register, HashSet<Register>> {
+    let mut res: HashMap<Register, HashSet<Register>> = HashMap::new();
 
-    for (_, regs) in live.live_in.into_iter().chain(live.live_out) {
-        let regs: im::HashSet<_> = regs
-            .into_iter()
-            .flat_map(|reg| match reg {
-                Register::Virtual(reg) => Some(reg),
-                _ => None,
-            })
-            .collect();
+    for (reg, range) in liveness.regs.iter() {
+        for (other, other_range) in liveness.regs.iter() {
+            if other == reg {
+                continue;
+            }
 
-        for reg in regs.iter().copied() {
-            let interfere = regs.without(&reg);
-            graph.entry(reg).or_default().extend(interfere);
+            let intersection = range.clone().intersect(other_range.clone());
+            if !intersection.is_empty() {
+                res.entry(*reg).or_default().insert(*other);
+            }
         }
     }
 
-    (Interference { graph }, info)
-}
-
-#[derive(Debug)]
-pub struct Interference {
-    pub graph: HashMap<Virtual, HashSet<Virtual>>,
+    res
 }

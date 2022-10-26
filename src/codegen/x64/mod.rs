@@ -18,19 +18,20 @@ use crate::asm::{Constraints, RegisterInfo};
 pub const CONSTRAINTS: Constraints = Constraints {
     #[rustfmt::skip]
     registers: &[
-        RegisterInfo { size: 8, name: "rdi" },
-        RegisterInfo { size: 8, name: "rsi" },
-        RegisterInfo { size: 8, name: "rdx" },
-        RegisterInfo { size: 8, name: "rcx" },
-        RegisterInfo { size: 8, name: "r8" },
-        RegisterInfo { size: 8, name: "r9" },
-        RegisterInfo { size: 8, name: "r10" },
-        RegisterInfo { size: 8, name: "r11" },
-        RegisterInfo { size: 8, name: "r12" },
-        RegisterInfo { size: 8, name: "r13" },
-        RegisterInfo { size: 8, name: "r14" },
-        RegisterInfo { size: 8, name: "r15" },
+        RegisterInfo { size: 8, name: "rdi", aliases: &[] },
+        RegisterInfo { size: 8, name: "rsi", aliases: &[] },
+        RegisterInfo { size: 8, name: "rdx", aliases: &[] },
+        RegisterInfo { size: 8, name: "rcx", aliases: &[] },
+        RegisterInfo { size: 8, name: "r8", aliases: &[] },
+        RegisterInfo { size: 8, name: "r9", aliases: &[] },
+        RegisterInfo { size: 8, name: "r10", aliases: &[] },
+        RegisterInfo { size: 8, name: "r11", aliases: &[] },
+        RegisterInfo { size: 8, name: "r12", aliases: &[] },
+        RegisterInfo { size: 8, name: "r13", aliases: &[] },
+        RegisterInfo { size: 8, name: "r14", aliases: &[] },
+        RegisterInfo { size: 8, name: "r15", aliases: &[] },
     ],
+    call_clobbers: &[0, 1, 2, 3, 4, 5],
 };
 
 fn regid_to_reg(id: usize) -> repr::Register {
