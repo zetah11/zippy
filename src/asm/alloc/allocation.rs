@@ -21,8 +21,6 @@ pub fn allocate(types: &Types, constraints: &Constraints, procedure: &Procedure)
     let liveness = liveness(&info, procedure);
     let interference = interference(&liveness);
 
-    println!("{liveness:?}\n{interference:?}");
-
     let priority = priority(&info, &liveness, &interference);
 
     let mut mapping = HashMap::with_capacity(priority.len());

@@ -8,13 +8,16 @@ use super::repr as x64;
 use crate::lir;
 use crate::resolve::names::{Name, Names};
 
-pub fn lower(names: &mut Names, program: lir::Program) -> x64::Program {
+pub fn lower(names: &mut Names, program: lir::Program) -> (x64::Program, x64::Names) {
     let mut lowerer = Lowerer::new(names, program);
     lowerer.lower_program();
 
-    x64::Program {
-        procedures: lowerer.procedures,
-    }
+    (
+        x64::Program {
+            procedures: lowerer.procedures,
+        },
+        lowerer.names,
+    )
 }
 
 #[derive(Debug)]

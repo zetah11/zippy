@@ -9,8 +9,8 @@ use crate::lir;
 use crate::resolve::names::Names;
 
 pub fn codegen(names: &mut Names, program: lir::Program) -> Vec<u8> {
-    let program = lower::lower(names, program);
-    println!("{program:#?}");
+    let (program, names) = lower::lower(names, program);
+    println!("{program:?}\n{names:?}");
 
     encode::encode(program)
 }
