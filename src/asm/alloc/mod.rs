@@ -3,7 +3,7 @@ mod apply;
 mod constraint;
 mod info;
 mod interfere;
-mod live;
+mod liveness;
 mod priority;
 
 pub use constraint::{Constraints, RegisterInfo};

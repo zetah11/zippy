@@ -1,23 +1,28 @@
 use std::collections::{HashMap, HashSet};
 
-use super::live::Liveness;
+use super::liveness::Position;
 use crate::lir::Register;
 
-pub fn interference(liveness: &Liveness) -> HashMap<Register, HashSet<Register>> {
+pub fn interference(
+    liveness: &HashMap<Register, HashSet<Position>>,
+) -> HashMap<Register, HashSet<Register>> {
     let mut res: HashMap<Register, HashSet<Register>> = HashMap::new();
 
-    for (reg, range) in liveness.regs.iter() {
-        for (other, other_range) in liveness.regs.iter() {
+    for (reg, positions) in liveness.iter() {
+        for (other, other_positions) in liveness.iter() {
             if other == reg {
                 continue;
             }
 
-            let intersection = range.clone().intersect(other_range.clone());
-            if !intersection.is_empty() {
+            if overlapping(positions, other_positions) {
                 res.entry(*reg).or_default().insert(*other);
             }
         }
     }
 
     res
+}
+
+fn overlapping(a: &HashSet<Position>, b: &HashSet<Position>) -> bool {
+    a.iter().any(|pos| b.contains(pos))
 }

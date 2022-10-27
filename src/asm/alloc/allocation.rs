@@ -1,9 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use super::constraint::Constraints;
+use super::info::info;
 use super::interfere::interference;
-use super::live::liveness;
+use super::liveness::liveness;
 use super::priority::priority;
+use super::RegisterInfo;
 use crate::lir::{Procedure, Register, TypeId, Types};
 
 type VirtualId = usize;
@@ -15,23 +17,49 @@ pub struct Allocation {
 }
 
 pub fn allocate(types: &Types, constraints: &Constraints, procedure: &Procedure) -> Allocation {
-    let (liveness, info) = liveness(constraints, procedure);
+    let info = info(procedure);
+    let liveness = liveness(&info, procedure);
     let interference = interference(&liveness);
+
+    println!("{liveness:?}\n{interference:?}");
 
     let priority = priority(&info, &liveness, &interference);
 
     let mut mapping = HashMap::with_capacity(priority.len());
     let mut frame_space = 0;
 
+    let parameters: Vec<_> = constraints
+        .parameters
+        .iter()
+        .map(|id| constraints.registers[*id])
+        .collect();
+
+    for arg in procedure.params.iter() {
+        let unavailable = unavailable_physical(&mapping, &interference, arg);
+        let reg = match arg {
+            Register::Virtual(reg) => reg,
+            _ => continue,
+        };
+
+        if let Some(physical) = first_fitting_reg(types, &parameters, unavailable, reg.ty) {
+            assert!(mapping
+                .insert(reg.id, Register::Physical(physical))
+                .is_none());
+        } else {
+            todo!()
+        }
+    }
+
     for reg in priority {
         let unavailable = unavailable_physical(&mapping, &interference, &reg);
 
         let reg = match reg {
-            Register::Virtual(reg) => reg,
-            Register::Frame(..) | Register::Physical(_) => continue,
+            Register::Virtual(reg) if !mapping.contains_key(&reg.id) => reg,
+            _ => continue,
         };
 
-        if let Some(physical) = first_fitting_reg(constraints, unavailable) {
+        if let Some(physical) = first_fitting_reg(types, constraints.registers, unavailable, reg.ty)
+        {
             assert!(mapping
                 .insert(reg.id, Register::Physical(physical))
                 .is_none());
@@ -77,7 +105,7 @@ fn first_fitting_frame(types: &Types, mut unavailable: Vec<(isize, TypeId)>, ty:
         if gap >= size {
             off = bottom;
             break;
-        } else {
+        } else if top >= 0 {
             off = top + isize::try_from(types.sizeof(&unavailable[i + 1].1)).unwrap();
         }
     }
@@ -85,10 +113,16 @@ fn first_fitting_frame(types: &Types, mut unavailable: Vec<(isize, TypeId)>, ty:
     off
 }
 
-fn first_fitting_reg(constraints: &Constraints, unavailable: Vec<usize>) -> Option<usize> {
-    for i in 0..constraints.registers.len() {
-        if !unavailable.contains(&i) {
-            return Some(i);
+fn first_fitting_reg(
+    types: &Types,
+    possible: &[RegisterInfo],
+    unavailable: Vec<usize>,
+    ty: TypeId,
+) -> Option<usize> {
+    let size = types.sizeof(&ty);
+    for reg in possible.iter() {
+        if reg.size >= size && !unavailable.contains(&reg.id) {
+            return Some(reg.id);
         }
     }
 

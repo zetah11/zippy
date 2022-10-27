@@ -22,8 +22,6 @@ impl Applier {
     }
 
     pub fn apply(&mut self, mut proc: Procedure) -> Procedure {
-        println!("{:?}", self.allocation);
-
         for cont in proc.continuations.iter() {
             self.block_map.insert(*cont, *cont);
         }
@@ -115,7 +113,7 @@ impl Applier {
             }
             Branch::Call(fun, args, conts) => {
                 let fun = self.apply_value(fun);
-                let args = args.into_iter().map(|arg| self.apply_value(arg)).collect();
+                let args = args.into_iter().map(|arg| self.apply_reg(arg)).collect();
                 (
                     Branch::Call(
                         fun,
@@ -158,7 +156,6 @@ impl Applier {
     }
 
     fn apply_reg(&self, reg: Register) -> Register {
-        println!("applying reg {reg:?}");
         match reg {
             Register::Virtual(reg) => self.allocation.mapping.get(&reg.id).copied().unwrap(),
             _ => reg,

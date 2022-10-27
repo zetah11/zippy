@@ -22,6 +22,18 @@ impl Lowerer<'_> {
             ]);
         }
 
+        if let Some(param) = block.param {
+            let param = match param {
+                lir::Register::Physical(id) => regid_to_reg(id),
+                _ => todo!(),
+            };
+
+            insts.push(x64::Instruction::Mov(
+                x64::Operand::Register(param),
+                x64::Operand::Register(x64::Register::Rax),
+            ));
+        }
+
         for inst in block.insts {
             let inst = proc.get_instruction(inst);
             match inst.clone() {
@@ -129,19 +141,19 @@ impl Lowerer<'_> {
                     // todo: horrid!
                     for _ in 0..index {
                         insts.push(x64::Instruction::Pop(x64::Operand::Register(
-                            x64::Register::Rbx,
+                            x64::Register::Rax,
                         )));
                     }
 
                     insts.extend([
                         x64::Instruction::Leave,
                         x64::Instruction::Mov(x64::Operand::Register(x64::Register::Rax), value),
-                        x64::Instruction::Jump(x64::Operand::Register(x64::Register::Rbx)),
+                        x64::Instruction::Ret,
                     ]);
                 }
             }
 
-            lir::Branch::Call(fun, args, conts) => {
+            lir::Branch::Call(fun, _args, conts) => {
                 // CONTINUATIONS!
                 // okay so a convention is that the return continuation is always the first continuation passed.
                 // additionally, here in x64 land, we can say that continuations are passed "right to left" so to speak;
@@ -188,7 +200,6 @@ impl Lowerer<'_> {
                                         x64::Register::Rax,
                                     )),
                                 ]);
-
                                 false
                             }
                         }
@@ -199,14 +210,7 @@ impl Lowerer<'_> {
                     false
                 };
 
-                assert!(args.len() == 1);
                 let fun = self.lower_value(fun.clone());
-                let arg = self.lower_value(args[0].clone());
-
-                insts.push(x64::Instruction::Mov(
-                    x64::Operand::Register(x64::Register::Rax),
-                    arg,
-                ));
 
                 if call {
                     insts.push(x64::Instruction::Call(fun));
