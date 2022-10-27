@@ -186,7 +186,7 @@ impl Lowerer<'_> {
 
                     match this_block {
                         Some(pos) if pos + 1 < order.len() => {
-                            let next = self.blocks.get(&order[pos]).unwrap();
+                            let next = self.blocks.get(&order[pos + 1]).unwrap();
                             let call = next == &retc;
                             if call {
                                 true
