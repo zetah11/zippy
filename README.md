@@ -16,10 +16,51 @@ currently, the following
 
 generates the following x64 machine code
 
-    main: push rbp
-          mov rbp, rsp
-          mov rax, 5
-          leave
-          ret
+```asm
+main:
+.b20:   push rbp
+        mov rbp, rsp
+        mov rax, 5
+        leave
+        ret
+```
 
 only a simple return remains :)
+
+with partial evaluation disabled (`COR_NO_EVAL`), the following is instead
+generated:
+
+```asm
+f4:
+.b17:   push rbp
+        mov rbp, rsp
+        leave
+        ret
+
+id:
+.b18:   push rbp
+        mov rbp, rsp
+        mov rsi, rdi
+        mov rdi, .b4
+        call apply
+.b19:   leave
+        ret
+
+main:
+.b20:   push rbp
+        mov rbp, rsp
+        mov rsi, id
+        mov rdi, 5
+        call apply
+.b21:   leave
+        ret
+
+apply:
+.b22:   push rbp
+        mov rbp, rsp
+        mov rdx, rdi
+        mov rdi, rsi
+        call rdx
+.b23:   leave
+        ret
+```

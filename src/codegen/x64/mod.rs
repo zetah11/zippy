@@ -1,5 +1,6 @@
 mod encode;
 mod lower;
+mod pretty;
 mod repr;
 
 #[cfg(test)]
@@ -9,8 +10,8 @@ use crate::lir;
 use crate::resolve::names::Names;
 
 pub fn codegen(names: &mut Names, program: lir::Program) -> Vec<u8> {
-    let (program, names) = lower::lower(names, program);
-    println!("{program:?}\n{names:?}");
+    let program = lower::lower(names, program);
+    println!("{}", pretty::pretty_program(names, &program));
 
     encode::encode(program)
 }

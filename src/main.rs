@@ -16,9 +16,13 @@ fn main() {
     env_logger::init();
 
     let src = r#"
-        let main: 1 -> 10 = ? => choose (numbers 1)
-        let choose: 10 * 10 -> 10 = (x, y) => x
-        let numbers: 10 -> 10 * 10 = x => (2, x)
+        let main: 0 upto 1 -> ? =
+          ? => apply (id, 5)
+        
+        let id = x => apply ((y => y), x)
+
+        let apply: (10 -> 10) * 10 -> 10 =
+          (f, x) => f x
     "#;
 
     let mut files = SimpleFiles::new();

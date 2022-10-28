@@ -1,4 +1,4 @@
-use super::{lir, x64, Lowerer};
+use super::{instruction::insert_move, lir, x64, Lowerer};
 use crate::codegen::x64::regid_to_reg;
 
 impl Lowerer<'_> {
@@ -29,7 +29,7 @@ impl Lowerer<'_> {
                 lir::Instruction::Copy(target, value) => {
                     let dest = self.lower_target(target);
                     let src = self.lower_value(value);
-                    insts.push(x64::Instruction::Mov(dest, src));
+                    insert_move(&mut insts, dest, src);
                 }
 
                 lir::Instruction::Index(name, lir::Value::Name(of), at) => {
@@ -83,7 +83,7 @@ impl Lowerer<'_> {
                             x64::Operand::Register(x64::Register::Rax),
                         ))
                     } else {
-                        insts.push(x64::Instruction::Mov(name, value))
+                        insert_move(&mut insts, name, value);
                     }
                 }
 

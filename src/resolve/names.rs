@@ -8,6 +8,12 @@ use crate::message::Span;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct GeneratedName(usize);
 
+impl GeneratedName {
+    pub fn to_string(&self, prefix: impl AsRef<str>) -> String {
+        format!("{}{}", prefix.as_ref(), self.0)
+    }
+}
+
 impl From<GeneratedName> for String {
     fn from(name: GeneratedName) -> Self {
         format!("_t{}", name.0)

@@ -47,7 +47,7 @@ impl Unifier {
             (Type::Var(v), u) => {
                 if let Some(t) = self.subst.get(&v).cloned() {
                     self.unify(span, t, u);
-                } else if self.occurs(&v, &u) {
+                } else if Self::occurs(&v, &u) {
                     self.messages
                         .at(span)
                         .tyck_recursive_inference(format!("{v:?}"), format!("{u:?}"));
@@ -61,7 +61,7 @@ impl Unifier {
             (t, Type::Var(w)) => {
                 if let Some(u) = self.subst.get(&w).cloned() {
                     self.unify(span, t, u);
-                } else if self.occurs(&w, &t) {
+                } else if Self::occurs(&w, &t) {
                     self.messages
                         .at(span)
                         .tyck_recursive_inference(format!("{w:?}"), format!("{t:?}"));
@@ -82,12 +82,12 @@ impl Unifier {
         }
     }
 
-    fn occurs(&self, var: &UniVar, ty: &Type) -> bool {
+    fn occurs(var: &UniVar, ty: &Type) -> bool {
         match ty {
             Type::Invalid | Type::Number => false,
             Type::Range(_, _) => false,
-            Type::Fun(t, u) => self.occurs(var, t) || self.occurs(var, u),
-            Type::Product(t, u) => self.occurs(var, t) || self.occurs(var, u),
+            Type::Fun(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
+            Type::Product(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
             Type::Var(war) => var == war,
         }
     }

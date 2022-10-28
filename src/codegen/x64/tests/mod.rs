@@ -31,6 +31,7 @@ fn encode_call_ret() {
 
     let program = Program {
         procedures: vec![(main, main_proc), (next, next_proc)],
+        names: Default::default(),
     };
 
     #[rustfmt::skip]
@@ -73,6 +74,7 @@ fn encode_prologue_epilogue() {
 
     let program = Program {
         procedures: vec![(main, main_proc)],
+        names: Default::default(),
     };
 
     #[rustfmt::skip]
@@ -117,6 +119,7 @@ fn encode_two_way_jump() {
 
     let program = Program {
         procedures: vec![(main, main_proc)],
+        names: Default::default(),
     };
 
     #[rustfmt::skip]

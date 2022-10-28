@@ -1,4 +1,5 @@
 mod block;
+mod instruction;
 mod procedure;
 mod value;
 
@@ -8,16 +9,14 @@ use super::repr as x64;
 use crate::lir;
 use crate::resolve::names::{Name, Names};
 
-pub fn lower(names: &mut Names, program: lir::Program) -> (x64::Program, x64::Names) {
+pub fn lower(names: &mut Names, program: lir::Program) -> x64::Program {
     let mut lowerer = Lowerer::new(names, program);
     lowerer.lower_program();
 
-    (
-        x64::Program {
-            procedures: lowerer.procedures,
-        },
-        lowerer.names,
-    )
+    x64::Program {
+        procedures: lowerer.procedures,
+        names: lowerer.names,
+    }
 }
 
 #[derive(Debug)]

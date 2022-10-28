@@ -18,7 +18,7 @@ impl Typer {
     }
 
     fn lower_value_def(&mut self, def: hir::ValueDef<Name>) -> tree::ValueDef {
-        let pat = self.lower_pat(def.pat);
+        let pat = Self::lower_pat(def.pat);
         let _ = def.id;
         let anno = self.lower_type(def.anno);
         let bind = self.lower_expr(def.bind);
@@ -36,7 +36,7 @@ impl Typer {
             hir::ExprNode::Name(name) => tree::ExprNode::Name(name),
             hir::ExprNode::Int(v) => tree::ExprNode::Int(v),
             hir::ExprNode::Lam(_, param, body) => {
-                let param = self.lower_pat(param);
+                let param = Self::lower_pat(param);
                 let body = Box::new(self.lower_expr(*body));
                 tree::ExprNode::Lam(param, body)
             }
@@ -67,12 +67,12 @@ impl Typer {
         }
     }
 
-    fn lower_pat(&self, pat: hir::Pat<Name>) -> tree::Pat {
+    fn lower_pat(pat: hir::Pat<Name>) -> tree::Pat {
         let node = match pat.node {
             hir::PatNode::Name(name) => tree::PatNode::Name(name),
             hir::PatNode::Tuple(x, y) => {
-                let x = Box::new(self.lower_pat(*x));
-                let y = Box::new(self.lower_pat(*y));
+                let x = Box::new(Self::lower_pat(*x));
+                let y = Box::new(Self::lower_pat(*y));
                 tree::PatNode::Tuple(x, y)
             }
             hir::PatNode::Wildcard => tree::PatNode::Wildcard,
