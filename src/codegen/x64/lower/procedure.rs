@@ -22,6 +22,7 @@ impl Lowerer<'_> {
         }
 
         x64::Procedure {
+            prelude: vec![],
             block_order,
             blocks,
         }

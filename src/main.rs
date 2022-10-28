@@ -2,10 +2,9 @@ mod console_driver;
 
 use codespan_reporting::files::SimpleFiles;
 use corollary::asm::asm;
-use corollary::codegen::x64::{codegen, CONSTRAINTS};
+use corollary::codegen::x64::{self, codegen, CONSTRAINTS};
 use corollary::elab::elaborate;
 use corollary::lex::lex;
-use corollary::mir::pretty::Prettier;
 use corollary::parse::parse;
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
@@ -41,24 +40,12 @@ fn main() {
     let tyckres = typeck(&mut driver, decls);
     let (types, context, decls) = elaborate(&mut driver, &mut names, tyckres, entry);
 
-    let prettier = Prettier::new(&names, &types).with_width(20);
-
-    for (name, ty) in context.iter() {
-        println!(
-            "{}: {}",
-            prettier.pretty_name(name),
-            prettier.pretty_type(ty)
-        );
-    }
-
-    println!();
-    println!("{}", prettier.pretty_decls(&decls));
-    println!();
-
     let program = asm(CONSTRAINTS, &types, &context, entry, decls);
-    println!("{program:?}");
 
-    let code = codegen(&mut names, program);
+    let code = codegen(&mut names, entry, program);
+    println!("{}", x64::pretty_program(&names, &code));
+
+    let code = x64::encode(code);
     for byte in code {
         print!("{byte:>2x} ");
     }

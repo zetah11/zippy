@@ -1,4 +1,5 @@
 mod block;
+mod entry;
 mod instruction;
 mod procedure;
 mod value;
@@ -9,13 +10,20 @@ use super::repr as x64;
 use crate::lir;
 use crate::resolve::names::{Name, Names};
 
-pub fn lower(names: &mut Names, program: lir::Program) -> x64::Program {
-    let mut lowerer = Lowerer::new(names, program);
-    lowerer.lower_program();
+pub fn lower(names: &mut Names, entry: Option<Name>, program: lir::Program) -> x64::Program {
+    if let Some(entry) = entry {
+        let mut lowerer = Lowerer::new(names, entry, program);
+        lowerer.lower_program();
 
-    x64::Program {
-        procedures: lowerer.procedures,
-        names: lowerer.names,
+        x64::Program {
+            procedures: lowerer.procedures,
+            names: lowerer.names,
+        }
+    } else {
+        x64::Program {
+            procedures: Vec::new(),
+            names: x64::Names::new(),
+        }
     }
 }
 
@@ -24,17 +32,19 @@ struct Lowerer<'a> {
     procedures: Vec<(x64::Name, x64::Procedure)>,
     names: x64::Names,
     blocks: HashMap<lir::BlockId, x64::Name>,
+    entry: Name,
 
     old_names: &'a mut Names,
     program: lir::Program,
 }
 
 impl<'a> Lowerer<'a> {
-    pub fn new(names: &'a mut Names, program: lir::Program) -> Self {
+    pub fn new(names: &'a mut Names, entry: Name, program: lir::Program) -> Self {
         Self {
             procedures: Vec::new(),
             names: x64::Names::new(),
             blocks: HashMap::new(),
+            entry,
 
             old_names: names,
             program,
@@ -42,6 +52,7 @@ impl<'a> Lowerer<'a> {
     }
 
     pub fn lower_program(&mut self) {
+        self.lower_entry();
         let procs: Vec<_> = self.program.procs.drain().collect();
         for (name, proc) in procs {
             let name = self.lower_name(name);

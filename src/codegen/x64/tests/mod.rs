@@ -10,6 +10,7 @@ fn encode_call_ret() {
     let (b1, b2) = (Name(2), Name(3));
 
     let main_proc = Procedure {
+        prelude: vec![],
         block_order: vec![b1],
         blocks: HashMap::from([(
             b1,
@@ -20,6 +21,7 @@ fn encode_call_ret() {
     };
 
     let next_proc = Procedure {
+        prelude: vec![],
         block_order: vec![b2],
         blocks: HashMap::from([(
             b2,
@@ -51,6 +53,7 @@ fn encode_prologue_epilogue() {
     let b1 = Name(1);
 
     let main_proc = Procedure {
+        prelude: vec![],
         block_order: vec![b1],
         blocks: HashMap::from([(
             b1,
@@ -97,6 +100,7 @@ fn encode_two_way_jump() {
     let (b1, b2) = (Name(1), Name(2));
 
     let main_proc = Procedure {
+        prelude: vec![],
         block_order: vec![b1, b2],
         blocks: HashMap::from([
             (

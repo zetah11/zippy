@@ -27,7 +27,15 @@ impl Prettier<'_> {
 
     fn pretty_procedure(&self, within: &mut Result, name: &Name, procedure: &Procedure) {
         self.pretty_name(within, "f", name);
-        within.push_str(":\n");
+        within.push_str(":");
+
+        if procedure.prelude.is_empty() {
+            within.push('\n');
+        }
+
+        for instruction in procedure.prelude.iter() {
+            self.pretty_instruction(within, instruction);
+        }
 
         for name in procedure.block_order.iter() {
             let block = procedure.blocks.get(name).unwrap();
@@ -205,7 +213,7 @@ impl Result {
         if split.len() > 1 {
             self.offset = split.last().unwrap().len()
         } else {
-            self.offset = string.len();
+            self.offset += string.len();
         }
 
         self.data.push_str(string);

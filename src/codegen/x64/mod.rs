@@ -6,14 +6,14 @@ mod repr;
 #[cfg(test)]
 mod tests;
 
+pub use self::pretty::pretty_program;
+pub use encode::encode;
+
 use crate::lir;
-use crate::resolve::names::Names;
+use crate::resolve::names::{Name, Names};
 
-pub fn codegen(names: &mut Names, program: lir::Program) -> Vec<u8> {
-    let program = lower::lower(names, program);
-    println!("{}", pretty::pretty_program(names, &program));
-
-    encode::encode(program)
+pub fn codegen(names: &mut Names, entry: Option<Name>, program: lir::Program) -> repr::Program {
+    lower::lower(names, entry, program)
 }
 
 use crate::asm::{Constraints, RegisterInfo};
