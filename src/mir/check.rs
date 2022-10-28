@@ -46,7 +46,27 @@ impl<'a> MirChecker<'a> {
         }
 
         match &exprs.branch.node {
-            BranchNode::Return(value) => self.check_value(retty, value),
+            BranchNode::Return(values) => {
+                if values.len() == 1 {
+                    self.check_value(retty, &values[0]);
+                } else {
+                    match self.types.get(&retty) {
+                        Type::Product(ts) => {
+                            assert!(values.len() == ts.len());
+                            for (value, ty) in values.iter().zip(ts.iter()) {
+                                self.check_value(*ty, value);
+                            }
+                        }
+
+                        Type::Invalid => {}
+
+                        _ => {
+                            assert!(values.len() == 1);
+                            self.check_value(retty, &values[0]);
+                        }
+                    }
+                }
+            }
 
             BranchNode::Jump(..) => todo!(),
         }
@@ -63,7 +83,26 @@ impl<'a> MirChecker<'a> {
                         for (param, t) in params.iter().zip(t.iter()) {
                             let other_t = self.context.get(param);
                             self.check_type(expr.span, *t, other_t);
-                            self.check_type(body.span, *u, body.ty);
+                        }
+
+                        if u.len() == 1 {
+                            self.check_type(body.span, u[0], body.ty);
+                        } else {
+                            match self.types.get(&body.ty) {
+                                Type::Product(ts) => {
+                                    assert!(u.len() == ts.len());
+                                    for (u, t) in u.iter().zip(ts.iter()) {
+                                        self.check_type(body.span, *u, *t);
+                                    }
+                                }
+
+                                Type::Invalid => {}
+
+                                _ => {
+                                    assert!(u.len() == 1);
+                                    self.check_type(body.span, u[0], body.ty);
+                                }
+                            }
                         }
                     }
 
@@ -75,15 +114,18 @@ impl<'a> MirChecker<'a> {
                 self.check_exprs(body);
             }
 
-            ExprNode::Apply { name, fun, args } => {
+            ExprNode::Apply { names, fun, args } => {
                 let ty = self.context.get(fun);
                 match self.types.get(&ty) {
                     Type::Fun(t, u) => {
                         assert!(t.len() == args.len());
-
                         for (arg, t) in args.iter().zip(t.iter()) {
-                            let other_u = self.context.get(name);
                             self.check_value(*t, arg);
+                        }
+
+                        assert!(u.len() == names.len());
+                        for (name, u) in names.iter().zip(u.iter()) {
+                            let other_u = self.context.get(name);
                             self.check_type(expr.span, *u, other_u);
                         }
                     }

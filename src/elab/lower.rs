@@ -83,7 +83,7 @@ impl<'a> Lowerer<'a> {
                 let t = self.lower_type(*t);
                 let u = self.lower_type(*u);
 
-                self.types.add(Type::Fun(vec![t], u))
+                self.types.add(Type::Fun(vec![t], vec![u]))
             }
 
             HiType::Product(t, u) => {
@@ -146,11 +146,11 @@ impl<'a> Lowerer<'a> {
                                 ty,
                             }],
                             branch: Branch {
-                                node: BranchNode::Return(Value {
+                                node: BranchNode::Return(vec![Value {
                                     node: ValueNode::Name(inner),
                                     span,
                                     ty,
-                                }),
+                                }]),
                                 span,
                                 ty,
                             },
@@ -233,7 +233,7 @@ impl<'a> Lowerer<'a> {
             ty,
             seq,
             Branch {
-                node: BranchNode::Return(value),
+                node: BranchNode::Return(vec![value]),
                 span,
                 ty,
             },
@@ -289,7 +289,7 @@ impl<'a> Lowerer<'a> {
 
                 within.push(Expr {
                     node: ExprNode::Apply {
-                        name,
+                        names: vec![name],
                         fun,
                         args: vec![arg],
                     },

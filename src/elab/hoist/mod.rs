@@ -109,19 +109,25 @@ impl<D: Driver> Hoist<'_, D> {
         }
 
         let value = match exprs.branch.node {
-            BranchNode::Return(value) => match value.node {
-                ValueNode::Int(_) | ValueNode::Invalid => value,
-                ValueNode::Name(name) => {
-                    if let Some(function) = self.functions.get(&name) {
-                        self.functions.insert(name_for, function.clone());
-                        return;
-                    } else if let Some(value) = self.values.get(&name) {
-                        value.clone()
-                    } else {
-                        todo!()
+            BranchNode::Return(values) => {
+                if values.len() == 1 {
+                    match values[0].node {
+                        ValueNode::Int(_) | ValueNode::Invalid => values[0].clone(),
+                        ValueNode::Name(name) => {
+                            if let Some(function) = self.functions.get(&name) {
+                                self.functions.insert(name_for, function.clone());
+                                return;
+                            } else if let Some(value) = self.values.get(&name) {
+                                value.clone()
+                            } else {
+                                todo!()
+                            }
+                        }
                     }
+                } else {
+                    todo!()
                 }
-            },
+            }
 
             BranchNode::Jump(..) => todo!(),
         };

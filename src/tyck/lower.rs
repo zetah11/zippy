@@ -67,7 +67,7 @@ impl Typer {
         }
     }
 
-    fn lower_pat(&mut self, pat: hir::Pat<Name>) -> tree::Pat {
+    fn lower_pat(&self, pat: hir::Pat<Name>) -> tree::Pat {
         let node = match pat.node {
             hir::PatNode::Name(name) => tree::PatNode::Name(name),
             hir::PatNode::Tuple(x, y) => {

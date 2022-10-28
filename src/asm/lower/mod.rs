@@ -115,7 +115,7 @@ impl<'a> Lowerer<'a> {
 
         let mut exits = vec![];
 
-        let mut block_param = None;
+        let mut block_param = vec![];
         let mut insts = vec![];
         let mut id = builder.fresh_id();
 
@@ -130,7 +130,7 @@ impl<'a> Lowerer<'a> {
 
         for expr in body.exprs {
             match expr.node {
-                mir::ExprNode::Apply { name, fun, args } => {
+                mir::ExprNode::Apply { names, fun, args } => {
                     let new_args: Vec<_> = args
                         .iter()
                         .map(|arg| {
@@ -149,9 +149,6 @@ impl<'a> Lowerer<'a> {
                     }
 
                     let fun = self.name_to_value(fun);
-                    let name_ty = self.context.get(&name);
-                    let name_ty = self.lower_type(name_ty);
-                    let name = self.name_to_reg(name);
 
                     let cont = builder.fresh_id();
 
@@ -163,7 +160,16 @@ impl<'a> Lowerer<'a> {
                         lir::Branch::Call(fun, new_args, vec![cont]),
                     );
 
-                    block_param = Some((name, name_ty));
+                    block_param = names
+                        .into_iter()
+                        .map(|name| {
+                            let ty = self.context.get(&name);
+                            let ty = self.lower_type(ty);
+                            let name = self.name_to_reg(name);
+                            (name, ty)
+                        })
+                        .collect();
+
                     insts = Vec::new();
                     id = cont;
                 }
@@ -194,9 +200,25 @@ impl<'a> Lowerer<'a> {
         }
 
         match body.branch.node {
-            mir::BranchNode::Return(value) => {
-                let value = self.lower_value(&mut insts, value);
-                let branch = lir::Branch::Return(ret, value);
+            mir::BranchNode::Return(values) => {
+                let new_args: Vec<_> = values
+                    .iter()
+                    .map(|value| {
+                        let ty = self.lower_type(value.ty);
+                        self.fresh_reg(ty)
+                    })
+                    .collect();
+
+                let values: Vec<_> = values
+                    .into_iter()
+                    .map(|value| self.lower_value(&mut insts, value))
+                    .collect();
+
+                for (arg, value) in new_args.iter().copied().zip(values) {
+                    insts.push(lir::Instruction::Copy(lir::Target::Register(arg), value));
+                }
+
+                let branch = lir::Branch::Return(ret, new_args);
 
                 self.add_block(&mut builder, id, block_param, insts, branch);
 
@@ -213,25 +235,26 @@ impl<'a> Lowerer<'a> {
         &mut self,
         builder: &mut lir::ProcBuilder,
         id: lir::BlockId,
-        param: Option<(lir::Register, lir::TypeId)>,
+        params: Vec<(lir::Register, lir::TypeId)>,
         mut instructions: Vec<lir::Instruction>,
         branch: lir::Branch,
     ) {
-        let param = if let Some((param, ty)) = param {
-            let new_param = self.fresh_reg(ty);
-            instructions.insert(
-                0,
-                lir::Instruction::Copy(
-                    lir::Target::Register(param),
-                    lir::Value::Register(new_param),
-                ),
-            );
-            Some(new_param)
-        } else {
-            None
-        };
+        let params = params
+            .into_iter()
+            .map(|(reg, ty)| {
+                let new_param = self.fresh_reg(ty);
+                instructions.insert(
+                    0,
+                    lir::Instruction::Copy(
+                        lir::Target::Register(reg),
+                        lir::Value::Register(new_param),
+                    ),
+                );
+                new_param
+            })
+            .collect();
 
-        builder.add(id, param, instructions, branch);
+        builder.add(id, params, instructions, branch);
     }
 
     fn lower_global(&mut self, value: mir::Value) -> lir::Global {
@@ -273,7 +296,7 @@ impl<'a> Lowerer<'a> {
 
             mir::Type::Fun(t, u) => {
                 let t = t.iter().copied().map(|t| self.lower_type(t)).collect();
-                let u = self.lower_type(*u);
+                let u = u.iter().copied().map(|u| self.lower_type(u)).collect();
                 self.types.add(lir::Type::Fun(t, u))
             }
         }

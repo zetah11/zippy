@@ -100,7 +100,14 @@ impl<'a> Prettier<'a> {
                 )
                 .parens()
                 .append(self.allocator.text(" -> "))
-                .append(self.doc_type(u)),
+                .append(
+                    self.allocator
+                        .intersperse(
+                            u.iter().map(|ty| self.doc_type(ty)),
+                            self.allocator.text(", "),
+                        )
+                        .parens(),
+                ),
             Type::Product(ts) => self.allocator.intersperse(
                 ts.iter().map(|t| self.doc_type(t).parens()),
                 self.allocator.text(" * "),
@@ -124,11 +131,14 @@ impl<'a> Prettier<'a> {
 
     fn doc_branch(&'a self, branch: &Branch) -> DocBuilder<Arena<'a>> {
         match &branch.node {
-            BranchNode::Return(value) => self
+            BranchNode::Return(values) => self
                 .allocator
                 .text("return")
                 .append(self.allocator.space())
-                .append(self.doc_value(value)),
+                .append(self.allocator.intersperse(
+                    values.iter().map(|value| self.doc_value(value)),
+                    self.allocator.text(", "),
+                )),
             BranchNode::Jump(to, arg) => self
                 .allocator
                 .text("jump")
@@ -154,8 +164,17 @@ impl<'a> Prettier<'a> {
                 )
                 .parens()
             }
-            ExprNode::Apply { name, fun, args } => self
-                .doc_let(name)
+            ExprNode::Apply { names, fun, args } => self
+                .allocator
+                .text("let")
+                .append(self.allocator.space())
+                .append(self.allocator.intersperse(
+                    names.iter().map(|name| self.doc_name(name)),
+                    self.allocator.text(", "),
+                ))
+                .append(self.allocator.text(" = "))
+                .group()
+                .append(self.allocator.softline())
                 .append(self.doc_name(fun))
                 .append(
                     self.allocator

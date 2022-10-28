@@ -64,7 +64,12 @@ impl Applier {
             let new_id = self.map_block(id);
             builder.add(
                 new_id,
-                block.param.map(|reg| self.apply_reg(reg)),
+                block
+                    .param
+                    .iter()
+                    .copied()
+                    .map(|reg| self.apply_reg(reg))
+                    .collect(),
                 insts,
                 branch,
             );
@@ -79,14 +84,19 @@ impl Applier {
 
     fn apply_branch(&self, branch: Branch) -> (Branch, Vec<BlockId>) {
         match branch {
-            Branch::Return(cont, value) => (
-                Branch::Return(self.map_block(cont), self.apply_value(value)),
+            Branch::Return(cont, values) => (
+                Branch::Return(
+                    self.map_block(cont),
+                    values.into_iter().map(|reg| self.apply_reg(reg)).collect(),
+                ),
                 vec![],
             ),
-            Branch::Jump(succ, arg) => (
+            Branch::Jump(succ, args) => (
                 Branch::Jump(
                     self.map_block(succ),
-                    arg.map(|value| self.apply_value(value)),
+                    args.into_iter()
+                        .map(|value| self.apply_value(value))
+                        .collect(),
                 ),
                 vec![succ],
             ),
@@ -94,13 +104,19 @@ impl Applier {
                 left,
                 cond,
                 right,
-                then: (then, then_arg),
-                elze: (elze, elze_arg),
+                then: (then, then_args),
+                elze: (elze, elze_args),
             } => {
                 let left = self.apply_value(left);
                 let right = self.apply_value(right);
-                let then_arg = then_arg.map(|value| self.apply_value(value));
-                let elze_arg = elze_arg.map(|value| self.apply_value(value));
+                let then_arg = then_args
+                    .into_iter()
+                    .map(|value| self.apply_value(value))
+                    .collect();
+                let elze_arg = elze_args
+                    .into_iter()
+                    .map(|value| self.apply_value(value))
+                    .collect();
                 let res = Branch::JumpIf {
                     left,
                     cond,

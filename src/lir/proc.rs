@@ -78,7 +78,7 @@ impl ProcBuilder {
     pub fn add(
         &mut self,
         id: BlockId,
-        param: Option<Register>,
+        param: Vec<Register>,
         instructions: impl IntoIterator<Item = Instruction>,
         branch: Branch,
     ) {

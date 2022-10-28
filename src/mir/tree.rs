@@ -57,7 +57,7 @@ pub struct Branch {
 
 #[derive(Clone, Debug)]
 pub enum BranchNode {
-    Return(Value),
+    Return(Vec<Value>),
     Jump(Name, Value),
 }
 
@@ -81,7 +81,7 @@ pub enum ExprNode {
         body: ExprSeq,
     },
     Apply {
-        name: Name,
+        names: Vec<Name>,
         fun: Name,
         args: Vec<Value>,
     },

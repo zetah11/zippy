@@ -5,7 +5,7 @@ pub struct TypeId(usize);
 pub enum Type {
     Range(i64, i64),
     Product(Vec<TypeId>),
-    Fun(Vec<TypeId>, TypeId),
+    Fun(Vec<TypeId>, Vec<TypeId>),
 }
 
 #[derive(Debug, Default)]

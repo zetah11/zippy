@@ -74,7 +74,7 @@ impl Freer {
                     bound.insert(*name);
                 }
 
-                ExprNode::Apply { name, fun, args } => {
+                ExprNode::Apply { names, fun, args } => {
                     if !bound.contains(fun) && free.insert(*fun).is_none() {
                         res.push((*fun, expr.span));
                     }
@@ -87,7 +87,7 @@ impl Freer {
                         }
                     }
 
-                    bound.insert(*name);
+                    bound.extend(names.iter().copied());
                 }
 
                 ExprNode::Tuple { name, values } => {
@@ -113,10 +113,12 @@ impl Freer {
         }
 
         match &body.branch.node {
-            BranchNode::Return(value) => {
-                if let ValueNode::Name(name) = value.node {
-                    if !bound.contains(&name) && free.insert(name).is_none() {
-                        res.push((name, value.span));
+            BranchNode::Return(values) => {
+                for value in values.iter() {
+                    if let ValueNode::Name(name) = value.node {
+                        if !bound.contains(&name) && free.insert(name).is_none() {
+                            res.push((name, value.span));
+                        }
                     }
                 }
             }

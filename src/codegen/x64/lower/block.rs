@@ -22,18 +22,6 @@ impl Lowerer<'_> {
             ]);
         }
 
-        if let Some(param) = block.param {
-            let param = match param {
-                lir::Register::Physical(id) => regid_to_reg(id),
-                _ => todo!(),
-            };
-
-            insts.push(x64::Instruction::Mov(
-                x64::Operand::Register(param),
-                x64::Operand::Register(x64::Register::Rax),
-            ));
-        }
-
         for inst in block.insts {
             let inst = proc.get_instruction(inst);
             match inst.clone() {
@@ -113,8 +101,8 @@ impl Lowerer<'_> {
         }
 
         match proc.get_branch(block.branch) {
-            lir::Branch::Jump(to, value) => {
-                if let Some(value) = value {
+            lir::Branch::Jump(to, values) => {
+                for value in values {
                     let value = self.lower_value(value.clone());
                     insts.push(x64::Instruction::Mov(
                         x64::Operand::Register(x64::Register::Rax),
@@ -126,31 +114,19 @@ impl Lowerer<'_> {
                 insts.push(x64::Instruction::Jump(x64::Operand::Location(*to)));
             }
 
-            lir::Branch::Return(cont, value) => {
-                let value = self.lower_value(value.clone());
-
+            lir::Branch::Return(cont, _values) => {
                 let index = proc.continuations.iter().position(|id| id == cont).unwrap();
 
-                if index == 0 {
-                    insts.extend([
-                        x64::Instruction::Mov(x64::Operand::Register(x64::Register::Rax), value),
-                        x64::Instruction::Leave,
-                        x64::Instruction::Ret,
-                    ]);
-                } else {
+                if index != 0 {
                     // todo: horrid!
                     for _ in 0..index {
                         insts.push(x64::Instruction::Pop(x64::Operand::Register(
                             x64::Register::Rax,
                         )));
                     }
-
-                    insts.extend([
-                        x64::Instruction::Leave,
-                        x64::Instruction::Mov(x64::Operand::Register(x64::Register::Rax), value),
-                        x64::Instruction::Ret,
-                    ]);
                 }
+
+                insts.extend([x64::Instruction::Leave, x64::Instruction::Ret]);
             }
 
             lir::Branch::Call(fun, _args, conts) => {

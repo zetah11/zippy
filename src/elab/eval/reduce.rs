@@ -27,7 +27,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     ExprNode::Function { name, params, body }
                 }
 
-                ExprNode::Apply { name, fun, args } => {
+                ExprNode::Apply { names, fun, args } => {
                     let reduced_args: Vec<_> = args
                         .iter()
                         .cloned()
@@ -45,10 +45,28 @@ impl<D: Driver> Lowerer<'_, D> {
                         }
 
                         let result = self.reduce_irr(child_env, *body.clone());
-                        env.set(name, result);
+                        match result.node {
+                            IrreducibleNode::Tuple(values) => {
+                                assert!(names.len() == values.len());
+                                for (name, value) in names.iter().zip(values) {
+                                    env.set(*name, value);
+                                }
+                            }
+
+                            IrreducibleNode::Invalid => {
+                                for name in names.iter() {
+                                    env.set(*name, result.clone());
+                                }
+                            }
+
+                            _ => {
+                                assert!(names.len() == 1);
+                                env.set(names[0], result);
+                            }
+                        }
                     }
 
-                    ExprNode::Apply { name, fun, args }
+                    ExprNode::Apply { names, fun, args }
                 }
 
                 ExprNode::Tuple { name, values } => {
@@ -90,41 +108,44 @@ impl<D: Driver> Lowerer<'_, D> {
         }
 
         let branch = match exprs.branch.node {
-            BranchNode::Return(Value {
-                node: ValueNode::Int(i),
-                ..
-            }) => {
-                return Irreducible {
-                    node: IrreducibleNode::Integer(i),
-                    span: exprs.branch.span,
-                    ty: exprs.branch.ty,
-                };
-            }
-            BranchNode::Return(Value {
-                node: ValueNode::Invalid,
-                ..
-            }) => {
-                return Irreducible {
-                    node: IrreducibleNode::Invalid,
-                    span: exprs.branch.span,
-                    ty: exprs.branch.ty,
-                };
-            }
-            BranchNode::Return(Value {
-                node: ValueNode::Name(name),
-                span,
-                ty,
-            }) => {
-                if let Some(value) = self.lookup(&env, &name) {
-                    return value.clone();
+            // 1.65 plz
+            BranchNode::Return(values) => 'branch: {
+                let mut tup = Vec::with_capacity(values.len());
+                for value in values.iter() {
+                    match &value.node {
+                        ValueNode::Int(i) => tup.push(Irreducible {
+                            node: IrreducibleNode::Integer(*i),
+                            span: value.span,
+                            ty: value.ty,
+                        }),
+
+                        ValueNode::Invalid => tup.push(Irreducible {
+                            node: IrreducibleNode::Invalid,
+                            span: value.span,
+                            ty: value.ty,
+                        }),
+
+                        ValueNode::Name(name) => {
+                            if let Some(value) = self.lookup(&env, name) {
+                                tup.push(value.clone());
+                            } else {
+                                break 'branch BranchNode::Return(values);
+                            }
+                        }
+                    }
+                }
+
+                if tup.len() == 1 {
+                    return tup.remove(0);
                 } else {
-                    BranchNode::Return(Value {
-                        node: ValueNode::Name(name),
-                        span,
-                        ty,
-                    })
+                    return Irreducible {
+                        node: IrreducibleNode::Tuple(tup),
+                        span: exprs.branch.span,
+                        ty: exprs.branch.ty,
+                    };
                 }
             }
+
             BranchNode::Jump(to, arg) => BranchNode::Jump(to, arg),
         };
 
@@ -172,11 +193,11 @@ impl<D: Driver> Lowerer<'_, D> {
                             node: IrreducibleNode::Quote(ExprSeq {
                                 exprs: vec![],
                                 branch: Branch {
-                                    node: BranchNode::Return(Value {
+                                    node: BranchNode::Return(vec![Value {
                                         node: ValueNode::Name(*param),
                                         span: irr.span,
                                         ty,
-                                    }),
+                                    }]),
                                     span: irr.span,
                                     ty,
                                 },
@@ -225,11 +246,11 @@ impl<D: Driver> Lowerer<'_, D> {
                         span: value.span,
                         ty: value.ty,
                         branch: Branch {
-                            node: BranchNode::Return(Value {
+                            node: BranchNode::Return(vec![Value {
                                 node: ValueNode::Name(name),
                                 span: value.span,
                                 ty: value.ty,
-                            }),
+                            }]),
                             span: value.span,
                             ty: value.ty,
                         },

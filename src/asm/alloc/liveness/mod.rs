@@ -90,9 +90,9 @@ impl<'a> Analyzer<'a> {
             self.register(&live, Position::Instruction(id, inst, Time::Load));
         }
 
-        if let Some(param) = block.param {
-            live.insert(param);
-            self.register(&live, Position::Parameter(id));
+        live.extend(block.param.iter().copied());
+        self.register(&live, Position::Parameter(id));
+        for param in block.param {
             live.remove(&param);
         }
 
@@ -115,11 +115,7 @@ impl<'a> Analyzer<'a> {
                 .chain(args.iter().copied())
                 .collect(),
 
-            Branch::Jump(_, arg) => arg
-                .as_ref()
-                .and_then(|arg| self.reg_in_value(arg))
-                .into_iter()
-                .collect(),
+            Branch::Jump(_, arg) => arg.iter().flat_map(|arg| self.reg_in_value(arg)).collect(),
 
             Branch::JumpIf {
                 left,
@@ -131,11 +127,11 @@ impl<'a> Analyzer<'a> {
                 .reg_in_value(left)
                 .into_iter()
                 .chain(self.reg_in_value(right))
-                .chain(then.as_ref().and_then(|arg| self.reg_in_value(arg)))
-                .chain(elze.as_ref().and_then(|arg| self.reg_in_value(arg)))
+                .chain(then.iter().flat_map(|arg| self.reg_in_value(arg)))
+                .chain(elze.iter().flat_map(|arg| self.reg_in_value(arg)))
                 .collect(),
 
-            Branch::Return(_, arg) => self.reg_in_value(arg).into_iter().collect(),
+            Branch::Return(_, args) => args.iter().copied().collect(),
         }
     }
 

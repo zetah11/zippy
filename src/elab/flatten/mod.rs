@@ -117,14 +117,19 @@ impl<'a> Flattener<'a> {
                     }
                 }
 
-                ExprNode::Apply { name, fun, args } => {
+                ExprNode::Apply { names, fun, args } => {
                     let args = args
                         .into_iter()
                         .flat_map(|arg| self.flatten_value(arg))
                         .collect();
-                    let fun = self.flatten_name(fun);
 
-                    ExprNode::Apply { name, fun, args }
+                    let fun = self.flatten_name(fun);
+                    let names = names
+                        .into_iter()
+                        .flat_map(|name| self.flatten_param(expr.span, name))
+                        .collect();
+
+                    ExprNode::Apply { names, fun, args }
                 }
 
                 ExprNode::Join { name, param, body } => {
@@ -149,13 +154,12 @@ impl<'a> Flattener<'a> {
                     BranchNode::Jump(to, arg)
                 }
 
-                BranchNode::Return(value) => {
-                    let value = {
-                        let mut res = self.flatten_value(value);
-                        assert!(res.len() == 1);
-                        res.remove(0)
-                    };
-                    BranchNode::Return(value)
+                BranchNode::Return(values) => {
+                    let res = values
+                        .into_iter()
+                        .flat_map(|value| self.flatten_value(value))
+                        .collect();
+                    BranchNode::Return(res)
                 }
             };
 
@@ -274,15 +278,15 @@ impl<'a> Flattener<'a> {
                 .iter()
                 .flat_map(|t| self.flatten_types(t))
                 .collect(),
-            Type::Fun(ts, u) => {
-                let u = *u;
+            Type::Fun(ts, us) => {
+                let us = us.clone();
                 let ts = ts
                     .clone()
                     .iter()
                     .flat_map(|t| self.flatten_types(t))
                     .collect();
-                let u = self.flatten_type(&u);
-                vec![self.types.add(Type::Fun(ts, u))]
+                let us = us.iter().flat_map(|u| self.flatten_types(u)).collect();
+                vec![self.types.add(Type::Fun(ts, us))]
             }
             Type::Invalid => vec![*ty],
         }

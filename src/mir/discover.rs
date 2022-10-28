@@ -56,7 +56,9 @@ impl MirDiscoverer {
         }
 
         match &exprs.branch.node {
-            BranchNode::Return(value) => self.discover_value(value),
+            BranchNode::Return(values) => {
+                values.iter().for_each(|value| self.discover_value(value));
+            }
             BranchNode::Jump(target, value) => {
                 self.worklist.push(*target);
                 self.discover_value(value);

@@ -14,14 +14,14 @@ pub enum Instruction {
 #[derive(Clone, Debug)]
 pub enum Branch {
     Call(Value, Vec<Register>, Vec<BlockId>),
-    Return(BlockId, Value),
-    Jump(BlockId, Option<Value>),
+    Return(BlockId, Vec<Register>),
+    Jump(BlockId, Vec<Value>),
     JumpIf {
         left: Value,
         cond: Condition,
         right: Value,
-        then: (BlockId, Option<Value>),
-        elze: (BlockId, Option<Value>),
+        then: (BlockId, Vec<Value>),
+        elze: (BlockId, Vec<Value>),
     },
 }
 

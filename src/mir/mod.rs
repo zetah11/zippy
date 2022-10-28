@@ -20,7 +20,7 @@ pub struct TypeId(usize);
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
     Range(i64, i64),
-    Fun(Vec<TypeId>, TypeId),
+    Fun(Vec<TypeId>, Vec<TypeId>),
     Product(Vec<TypeId>),
     Invalid,
 }

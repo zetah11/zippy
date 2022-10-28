@@ -27,7 +27,7 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    fn make_irr(&mut self, within: &mut Vec<Expr>, value: Irreducible) -> Value {
+    fn make_irr(&mut self, within: &mut Vec<Expr>, value: Irreducible) -> Vec<Value> {
         let node = match value.node {
             IrreducibleNode::Invalid => ValueNode::Invalid,
             IrreducibleNode::Integer(i) => {
@@ -51,38 +51,27 @@ impl<D: Driver> Lowerer<'_, D> {
             }
 
             IrreducibleNode::Tuple(values) => {
-                let values = values
+                return values
                     .into_iter()
-                    .map(|value| self.make_irr(within, value))
+                    .flat_map(|value| self.make_irr(within, value))
                     .collect();
-
-                let name = self.names.fresh(value.span, None);
-                self.context.add(name, value.ty);
-
-                within.push(Expr {
-                    node: ExprNode::Tuple { name, values },
-                    span: value.span,
-                    ty: value.ty,
-                });
-
-                ValueNode::Name(name)
             }
 
             IrreducibleNode::Quote(exprs) => {
-                if let BranchNode::Return(ref value) = exprs.branch.node {
-                    let value = value.clone();
+                if let BranchNode::Return(ref values) = exprs.branch.node {
+                    let values = values.clone();
                     within.extend(exprs.exprs);
-                    return value;
+                    return values;
                 } else {
                     unreachable!()
                 }
             }
         };
 
-        Value {
+        vec![Value {
             node,
             span: value.span,
             ty: value.ty,
-        }
+        }]
     }
 }
