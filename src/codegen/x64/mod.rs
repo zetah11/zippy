@@ -12,11 +12,22 @@ pub use encode::{encode, Encoded, Relocation, RelocationKind};
 use crate::lir;
 use crate::resolve::names::{Name, Names};
 
-pub fn codegen(names: &mut Names, entry: Option<Name>, program: lir::Program) -> repr::Program {
-    lower::lower(names, entry, program)
+pub fn codegen(
+    names: &mut Names,
+    target: Target,
+    entry: Option<Name>,
+    program: lir::Program,
+) -> repr::Program {
+    lower::lower(names, &target, entry, program)
 }
 
 use crate::asm::{Constraints, RegisterInfo};
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum Target {
+    Linux64,
+    Windows64,
+}
 
 pub const CONSTRAINTS: Constraints = Constraints {
     #[rustfmt::skip]

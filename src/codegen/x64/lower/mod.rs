@@ -7,12 +7,18 @@ mod value;
 use std::collections::HashMap;
 
 use super::repr as x64;
+use super::Target;
 use crate::lir;
 use crate::resolve::names::{Name, Names};
 
-pub fn lower(names: &mut Names, entry: Option<Name>, program: lir::Program) -> x64::Program {
+pub fn lower(
+    names: &mut Names,
+    target: &Target,
+    entry: Option<Name>,
+    program: lir::Program,
+) -> x64::Program {
     if let Some(entry) = entry {
-        let mut lowerer = Lowerer::new(names, entry, program);
+        let mut lowerer = Lowerer::new(names, target, entry, program);
         lowerer.lower_program();
 
         x64::Program {
@@ -34,18 +40,25 @@ struct Lowerer<'a> {
     blocks: HashMap<lir::BlockId, x64::Name>,
     entry: Name,
 
+    target: &'a Target,
     old_names: &'a mut Names,
     program: lir::Program,
 }
 
 impl<'a> Lowerer<'a> {
-    pub fn new(names: &'a mut Names, entry: Name, program: lir::Program) -> Self {
+    pub fn new(
+        names: &'a mut Names,
+        target: &'a Target,
+        entry: Name,
+        program: lir::Program,
+    ) -> Self {
         Self {
             procedures: Vec::new(),
             names: x64::Names::new(),
             blocks: HashMap::new(),
             entry,
 
+            target,
             old_names: names,
             program,
         }
