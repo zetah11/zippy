@@ -1,5 +1,3 @@
-use super::Encoder;
-
 #[derive(Clone, Debug)]
 pub struct Relocation {
     pub kind: RelocationKind,
@@ -18,6 +16,7 @@ pub enum RelocationKind {
     Absolute,
 }
 
+/*
 impl Encoder {
     pub fn perform_relocations(&mut self) {
         for (name, relocations) in self.relocations.drain() {
@@ -48,3 +47,4 @@ impl Encoder {
         }
     }
 }
+*/

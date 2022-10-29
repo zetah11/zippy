@@ -4,63 +4,40 @@ a smol functional/imperative programming language. currently, the big selling
 points are statically typed effects (& effect handlers) with partial evaluation.
 also modular implicits, potentially.
 
-currently, the following
+as of now, a very basic core works. lexing through typing through code
+generating is working more or less as it should for range types, higher-order functions (though not closures just yet :]), and tuples.
 
+on a linux machine (or wsl):
+
+    $ cat test.z
+    -- in test.z
     let main: 0 upto 1 -> ? =
-      ? => apply (id, 5)
+      ? => f (f (f (f id))) 5
 
-    let id = x => apply ((y => y), x)
+    let f: (0 upto 10 -> 0 upto 10) -> ? =
+      f => f
 
-    let apply: (0 upto 10 -> 0 upto 10) * (0 upto 10) -> 0 upto 10 =
-      (f, x) => f x
+    let id = f (x => x)
+    $ cargo run -q -- test.z
+    <snip>
+    $ ld artifacts/main.o -o artifacts/main
+    $ ./artifacts/main
+    [5] $ objdump -M intel -d artifacts/main
 
-generates the following x64 machine code
+    artifacts/main:     file format elf64-x86-64
 
-```asm
-main:
-.b20:   push rbp
-        mov rbp, rsp
-        mov rax, 5
-        leave
-        ret
-```
 
-only a simple return remains :)
+    Disassembly of section .text:
 
-with partial evaluation disabled (`COR_NO_EVAL`), the following is instead
-generated:
+    0000000000401000 <_start>:
+    401000:       e8 07 00 00 00          call   40100c <main>
+    401005:       b8 3c 00 00 00          mov    eax,0x3c
+    40100a:       0f 05                   syscall
 
-```asm
-f4:
-.b17:   push rbp
-        mov rbp, rsp
-        leave
-        ret
-
-id:
-.b18:   push rbp
-        mov rbp, rsp
-        mov rsi, rdi
-        mov rdi, .b4
-        call apply
-.b19:   leave
-        ret
-
-main:
-.b20:   push rbp
-        mov rbp, rsp
-        mov rsi, id
-        mov rdi, 5
-        call apply
-.b21:   leave
-        ret
-
-apply:
-.b22:   push rbp
-        mov rbp, rsp
-        mov rdx, rdi
-        mov rdi, rsi
-        call rdx
-.b23:   leave
-        ret
-```
+    000000000040100c <main>:
+    40100c:       55                      push   rbp
+    40100d:       48 89 e5                mov    rbp,rsp
+    401010:       48 bf 05 00 00 00 00    movabs rdi,0x5
+    401017:       00 00 00
+    40101a:       c9                      leave
+    40101b:       c3                      ret

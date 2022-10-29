@@ -1,8 +1,10 @@
 mod console_driver;
 
 use std::collections::HashMap;
+use std::env;
 use std::fs::{DirBuilder, File};
-use std::io::Write;
+use std::io::{Read, Write};
+use std::path::Path;
 
 use codespan_reporting::files::SimpleFiles;
 use corollary::asm::asm;
@@ -14,25 +16,26 @@ use corollary::resolve::names::{Actual, Names};
 use corollary::resolve::{resolve, ResolveRes};
 use corollary::tyck::typeck;
 
+use anyhow::anyhow;
 use object::write;
 
 use console_driver::ConsoleDriver;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let src = r#"
-        let main: 0 upto 1 -> ? =
-          ? => apply (id, 5)
-        
-        let id = x => apply ((y => y), x)
+    let mut args = env::args();
+    let invoke = args.next().unwrap();
 
-        let apply: (10 -> 10) * 10 -> 10 =
-          (f, x) => f x
-    "#;
+    let path = match args.next() {
+        Some(path) => path,
+        None => return Err(anyhow!("usage: {invoke} <path>")),
+    };
+
+    let src = read_file(Path::new(&path))?;
 
     let mut files = SimpleFiles::new();
-    let file = files.add("main.z".into(), src.into());
+    let file = files.add(path, src.clone());
 
     let mut driver = ConsoleDriver::new(files);
 
@@ -59,13 +62,18 @@ fn main() {
 
     println!();
 
-    DirBuilder::new()
-        .recursive(true)
-        .create("artifacts")
-        .unwrap();
+    DirBuilder::new().recursive(true).create("artifacts")?;
     let elf = write_elf(&names, code);
-    let mut main = File::create("artifacts/main.o").unwrap();
-    main.write_all(&elf).unwrap();
+    let mut main = File::create("artifacts/main.o")?;
+    main.write_all(&elf)?;
+
+    Ok(())
+}
+
+fn read_file(path: &Path) -> anyhow::Result<String> {
+    let mut buf = Vec::new();
+    File::open(path)?.read_to_end(&mut buf)?;
+    Ok(String::from_utf8(buf)?)
 }
 
 fn write_elf(names: &Names, code: Encoded) -> Vec<u8> {

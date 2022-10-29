@@ -1,0 +1,8 @@
+-- in test.z
+let main: 0 upto 1 -> ? =
+  ? => f (f (f (f id))) 5
+
+let f: (0 upto 10 -> 0 upto 10) -> ? =
+  f => f
+
+let id = f (x => x)
