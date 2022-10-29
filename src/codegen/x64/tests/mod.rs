@@ -42,7 +42,7 @@ fn encode_call_ret() {
         0xc3,
     ];
 
-    let actual = encode(program);
+    let actual = encode(program).code;
 
     assert_eq!(expected, actual);
 }
@@ -89,7 +89,7 @@ fn encode_prologue_epilogue() {
         0xc3,
     ];
 
-    let actual = encode(program);
+    let actual = encode(program).code;
 
     assert_eq!(expected, actual);
 }
@@ -133,7 +133,7 @@ fn encode_two_way_jump() {
         0xe9, 0xfa, 0xff, 0xff, 0xff,
     ];
 
-    let actual = encode(program);
+    let actual = encode(program).code;
 
     assert_eq!(expected, actual);
 }

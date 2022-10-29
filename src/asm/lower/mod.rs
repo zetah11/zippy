@@ -24,6 +24,7 @@ pub fn lower(
         procs: lowerer.procs,
         values: lowerer.values,
         types: lowerer.types,
+        context: lowerer.context,
     }
 }
 
@@ -34,9 +35,10 @@ struct Lowerer<'a> {
     procs: HashMap<Name, lir::Procedure>,
     values: HashMap<Name, lir::Global>,
     types: lir::Types,
+    context: lir::Context,
 
     old_types: &'a mir::Types,
-    context: &'a mir::Context,
+    old_context: &'a mir::Context,
 
     names: HashMap<Name, Location>,
     virtual_id: usize,
@@ -58,9 +60,10 @@ impl<'a> Lowerer<'a> {
             procs: HashMap::new(),
             values: HashMap::new(),
             types: lir::Types::new(),
+            context: lir::Context::new(),
 
             old_types: types,
-            context,
+            old_context: context,
 
             names: HashMap::new(),
             virtual_id: 0,
@@ -71,6 +74,9 @@ impl<'a> Lowerer<'a> {
     }
 
     pub fn lower(&mut self) {
+        trace!("lowering context");
+        self.lower_context();
+
         trace!("{} names left to lower", self.worklist.len());
         while let Some(name) = self.worklist.pop() {
             if let Some((params, body)) = self.decls.functions.remove(&name) {
@@ -82,6 +88,13 @@ impl<'a> Lowerer<'a> {
             }
 
             trace!("{} names left to lower", self.worklist.len());
+        }
+    }
+
+    fn lower_context(&mut self) {
+        for (name, ty) in self.old_context.iter() {
+            let ty = self.lower_type(*ty);
+            self.context.add(*name, ty);
         }
     }
 
@@ -98,7 +111,6 @@ impl<'a> Lowerer<'a> {
             .iter()
             .map(|name| {
                 let ty = self.context.get(name);
-                let ty = self.lower_type(ty);
                 self.fresh_reg(ty)
             })
             .collect();
@@ -164,7 +176,6 @@ impl<'a> Lowerer<'a> {
                         .into_iter()
                         .map(|name| {
                             let ty = self.context.get(&name);
-                            let ty = self.lower_type(ty);
                             let name = self.name_to_reg(name);
                             (name, ty)
                         })
@@ -184,7 +195,7 @@ impl<'a> Lowerer<'a> {
                 }
 
                 mir::ExprNode::Proj { name, of, at } => {
-                    let ty = self.lower_type(self.context.get(&of));
+                    let ty = self.context.get(&name);
 
                     let index = self.types.offsetof(&ty, at);
                     let of = self.name_to_value(of);
@@ -338,7 +349,6 @@ impl<'a> Lowerer<'a> {
 
     fn name_to_reg(&mut self, name: Name) -> lir::Register {
         let ty = self.context.get(&name);
-        let ty = self.lower_type(ty);
 
         let id = self.virtual_id;
         let reg = lir::Virtual { id, ty };

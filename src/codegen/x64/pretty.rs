@@ -63,6 +63,7 @@ impl Prettier<'_> {
             Instruction::Push(a) => ("push", vec![a]),
             Instruction::Ret => ("ret", vec![]),
             Instruction::Sub(a, b) => ("sub", vec![a, b]),
+            Instruction::Syscall => ("syscall", vec![]),
         };
 
         within.push_at(8, name);

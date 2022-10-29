@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::resolve::names::Name;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct TypeId(usize);
 
@@ -6,6 +10,27 @@ pub enum Type {
     Range(i64, i64),
     Product(Vec<TypeId>),
     Fun(Vec<TypeId>, Vec<TypeId>),
+}
+
+#[derive(Debug, Default)]
+pub struct Context {
+    names: HashMap<Name, TypeId>,
+}
+
+impl Context {
+    pub fn new() -> Self {
+        Self {
+            names: HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, name: Name, ty: TypeId) {
+        assert!(self.names.insert(name, ty).is_none());
+    }
+
+    pub fn get(&self, name: &Name) -> TypeId {
+        *self.names.get(name).unwrap()
+    }
 }
 
 #[derive(Debug, Default)]

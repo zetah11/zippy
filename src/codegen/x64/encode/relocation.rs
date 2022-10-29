@@ -21,7 +21,7 @@ pub enum RelocationKind {
 impl Encoder {
     pub fn perform_relocations(&mut self) {
         for (name, relocations) in self.relocations.drain() {
-            let address = self.addresses.get(&name).copied().unwrap();
+            let (address, _) = self.addresses.get(&name).copied().unwrap();
             for Relocation { kind, at } in relocations.iter() {
                 match kind {
                     RelocationKind::Absolute => {

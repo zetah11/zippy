@@ -1,28 +1,22 @@
 use std::collections::{HashMap, HashSet};
 
-use super::info::ProcInfo;
 use super::liveness::Position;
 use crate::lir::Register;
 
 type Interference = HashMap<Register, HashSet<Register>>;
 
 pub fn priority(
-    info: &ProcInfo,
     liveness: &HashMap<Register, HashSet<Position>>,
     interfere: &Interference,
 ) -> Vec<Register> {
     let mut scores: Vec<(Register, usize)> = Vec::new();
 
     for (reg, interferes) in interfere.iter() {
-        let score = if info.args.contains(reg) {
-            usize::MAX
-        } else {
-            liveness
-                .get(reg)
-                .map(|positions| positions.len())
-                .unwrap_or(0)
-                .saturating_sub(interferes.len())
-        };
+        let score = liveness
+            .get(reg)
+            .map(|positions| positions.len())
+            .unwrap_or(0)
+            .saturating_sub(interferes.len());
 
         insert_scored(&mut scores, *reg, score);
     }

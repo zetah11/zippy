@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::super::repr::{Instruction, Operand, Procedure, Register};
+use super::super::repr::{Immediate, Instruction, Operand, Procedure, Register};
 use super::Lowerer;
 use crate::resolve::names::{Actual, Path};
 
@@ -17,9 +17,9 @@ impl Lowerer<'_> {
             Instruction::Call(Operand::Location(entry)),
             Instruction::Mov(
                 Operand::Register(Register::Rax),
-                Operand::Register(Register::Rdi),
+                Operand::Immediate(Immediate::Imm32(60)),
             ),
-            Instruction::Ret,
+            Instruction::Syscall,
         ];
 
         self.procedures.insert(

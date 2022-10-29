@@ -5,7 +5,7 @@ pub use clobber::clobbered;
 pub use instruction::{Branch, Condition, Instruction};
 pub use proc::{ProcBuilder, Procedure};
 pub use register::{Register, Virtual};
-pub use types::{Type, TypeId, Types};
+pub use types::{Context, Type, TypeId, Types};
 pub use value::{Target, Value};
 
 mod block;
@@ -23,6 +23,7 @@ pub struct Program {
     pub procs: HashMap<Name, Procedure>,
     pub values: HashMap<Name, Global>,
     pub types: Types,
+    pub context: Context,
 }
 
 #[derive(Debug)]

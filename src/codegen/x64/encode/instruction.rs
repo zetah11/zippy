@@ -14,6 +14,7 @@ impl Encoder {
             Instruction::Pop(operand) => self.inst_pop(operand),
             Instruction::Ret => self.inst_ret(),
             Instruction::Sub(dest, src) => self.inst_sub(dest, src),
+            Instruction::Syscall => self.inst_syscall(),
         }
     }
 
@@ -286,5 +287,9 @@ impl Encoder {
 
             _ => unimplemented!(),
         }
+    }
+
+    fn inst_syscall(&mut self) {
+        self.code.extend([0x0f, 0x05]);
     }
 }

@@ -7,7 +7,7 @@ mod repr;
 mod tests;
 
 pub use self::pretty::pretty_program;
-pub use encode::encode;
+pub use encode::{encode, Encoded, Relocation, RelocationKind};
 
 use crate::lir;
 use crate::resolve::names::{Name, Names};

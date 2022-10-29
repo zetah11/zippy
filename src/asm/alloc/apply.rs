@@ -65,7 +65,7 @@ impl Applier {
             builder.add(
                 new_id,
                 block
-                    .param
+                    .params
                     .iter()
                     .copied()
                     .map(|reg| self.apply_reg(reg))

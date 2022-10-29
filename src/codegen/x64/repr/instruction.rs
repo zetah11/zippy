@@ -11,4 +11,5 @@ pub enum Instruction {
     Pop(Operand),
     Ret,
     Sub(Operand, Operand),
+    Syscall,
 }

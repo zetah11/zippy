@@ -1,13 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use crate::lir::{BlockId, Branch, Procedure, Register};
+use crate::lir::{BlockId, Branch, Procedure};
 
 #[derive(Debug)]
 pub struct ProcInfo {
     pub preds: HashMap<BlockId, Vec<BlockId>>,
     pub succs: HashMap<BlockId, Vec<BlockId>>,
-
-    pub args: HashSet<Register>,
 }
 
 impl ProcInfo {
@@ -21,16 +19,11 @@ impl ProcInfo {
 }
 
 pub fn info(proc: &Procedure) -> ProcInfo {
-    let mut args: HashSet<Register> = HashSet::new();
-    args.extend(proc.params.iter().copied());
-
     let mut worklist = vec![proc.entry];
     let mut edges = Vec::new();
 
     while let Some(from) = worklist.pop() {
         let block = proc.get(&from);
-
-        args.extend(block.param.iter().copied());
 
         match proc.get_branch(block.branch) {
             Branch::Jump(to, ..) => {
@@ -50,17 +43,9 @@ pub fn info(proc: &Procedure) -> ProcInfo {
                 worklist.push(*elze);
             }
 
-            Branch::Return(_, regs) => {
-                args.extend(regs.iter().copied());
-            }
+            Branch::Return(..) => {}
 
-            Branch::Call(_, call_args, conts) => {
-                let call_args = call_args
-                    .iter()
-                    .filter(|reg| matches!(reg, Register::Virtual(..)));
-
-                args.extend(call_args);
-
+            Branch::Call(.., conts) => {
                 // skip any tail calls
                 edges.extend(
                     conts
@@ -81,5 +66,5 @@ pub fn info(proc: &Procedure) -> ProcInfo {
         succs.entry(from).or_default().push(to);
     }
 
-    ProcInfo { preds, succs, args }
+    ProcInfo { preds, succs }
 }

@@ -90,9 +90,9 @@ impl<'a> Analyzer<'a> {
             self.register(&live, Position::Instruction(id, inst, Time::Load));
         }
 
-        live.extend(block.param.iter().copied());
+        live.extend(block.params.iter().copied());
         self.register(&live, Position::Parameter(id));
-        for param in block.param {
+        for param in block.params {
             live.remove(&param);
         }
 
