@@ -12,7 +12,7 @@ impl Lowerer<'_> {
         let mut insts = Vec::new();
 
         // prologue
-        if id == proc.entry {
+        if id == proc.entry && !proc.frame_space.map(|space| space == 0).unwrap_or(false) {
             insts.extend([
                 x64::Instruction::Push(x64::Operand::Register(x64::Register::Rbp)),
                 x64::Instruction::Mov(
@@ -126,7 +126,11 @@ impl Lowerer<'_> {
                     }
                 }
 
-                insts.extend([x64::Instruction::Leave, x64::Instruction::Ret]);
+                if !proc.frame_space.map(|space| space == 0).unwrap_or(false) {
+                    insts.push(x64::Instruction::Leave);
+                }
+
+                insts.push(x64::Instruction::Ret);
             }
 
             lir::Branch::Call(fun, _args, conts) => {

@@ -13,6 +13,8 @@ pub struct Procedure {
 
     pub entry: BlockId,
     pub exits: Vec<BlockId>,
+
+    pub frame_space: Option<usize>,
 }
 
 impl Procedure {
@@ -42,6 +44,8 @@ pub struct ProcBuilder {
     instructions: Vec<Instruction>,
     branches: Vec<Branch>,
     id: usize,
+
+    frame_space: Option<usize>,
 }
 
 impl ProcBuilder {
@@ -61,6 +65,7 @@ impl ProcBuilder {
             instructions: Vec::new(),
             branches: Vec::new(),
             id,
+            frame_space: None,
         }
     }
 
@@ -72,6 +77,7 @@ impl ProcBuilder {
             instructions: Vec::new(),
             branches: Vec::new(),
             id: 0,
+            frame_space: None,
         }
     }
 
@@ -108,6 +114,10 @@ impl ProcBuilder {
         self.continuations = continuations;
     }
 
+    pub fn frame_space(&mut self, space: usize) {
+        self.frame_space = Some(space);
+    }
+
     pub fn fresh_id(&mut self) -> BlockId {
         let id = BlockId(self.id);
         self.id += 1;
@@ -123,6 +133,7 @@ impl ProcBuilder {
             branches: self.branches,
             entry,
             exits,
+            frame_space: self.frame_space,
         }
     }
 }

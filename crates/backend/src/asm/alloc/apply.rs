@@ -80,6 +80,7 @@ impl Applier {
             }
         }
 
+        builder.frame_space(self.allocation.frame_space);
         builder.build(entry, exits)
     }
 
