@@ -1,8 +1,8 @@
+mod args;
 mod console_driver;
 mod emit;
 mod input;
 
-use std::env;
 use std::fs::{DirBuilder, File};
 use std::io::Write;
 use std::path::Path;
@@ -12,31 +12,26 @@ use backend::codegen::x64::{self, codegen, Target, CONSTRAINTS};
 use frontend::{parse, ParseResult};
 use midend::elaborate;
 
-use anyhow::anyhow;
+use clap::Parser;
 use codespan_reporting::files::SimpleFiles;
 
 use console_driver::ConsoleDriver;
 
+use args::Arguments;
 use emit::{write_coff, write_elf};
 use input::read_file;
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
 
-    let mut args = env::args();
-    let invoke = args.next().unwrap();
+    let args = Arguments::parse();
 
-    let path = match args.next() {
-        Some(path) => path,
-        None => return Err(anyhow!("usage: {invoke} <path>")),
-    };
-
-    let src = read_file(Path::new(&path))?;
+    let src = read_file(&args.path)?;
 
     let mut files = SimpleFiles::new();
-    let file = files.add(path.clone(), src.clone());
+    let file = files.add(args.path.to_string_lossy().into(), src.clone());
 
-    let mut driver = ConsoleDriver::new(files);
+    let mut driver = ConsoleDriver::new(&args, files);
 
     let ParseResult {
         checked,
@@ -64,14 +59,14 @@ fn main() -> anyhow::Result<()> {
         Target::Linux64 => {
             let elf = write_elf(&names, code);
             let mut main =
-                File::create(Path::new("artifacts").join(Path::new(&path).with_extension("o")))?;
+                File::create(Path::new("artifacts").join(args.path.with_extension("o")))?;
             main.write_all(&elf)?;
         }
 
         Target::Windows64 => {
             let coff = write_coff(&names, code);
             let mut main =
-                File::create(Path::new("artifacts").join(Path::new(&path).with_extension("lib")))?;
+                File::create(Path::new("artifacts").join(args.path.with_extension("lib")))?;
             main.write_all(&coff)?;
         }
     }

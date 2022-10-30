@@ -10,6 +10,8 @@ use console::{style, Term};
 use common::message::{self, Messages};
 use common::{Driver, EvalAmount};
 
+use super::args::Arguments;
+
 pub struct ConsoleDriver {
     files: SimpleFiles<String, String>,
     writer: StandardStream,
@@ -21,7 +23,7 @@ pub struct ConsoleDriver {
 }
 
 impl ConsoleDriver {
-    pub fn new(files: SimpleFiles<String, String>) -> Self {
+    pub fn new(args: &Arguments, files: SimpleFiles<String, String>) -> Self {
         Self {
             files,
             writer: StandardStream::stderr(ColorChoice::Auto),
@@ -31,8 +33,8 @@ impl ConsoleDriver {
                 ..Default::default()
             },
 
-            preserve_output: env::var("COR_PRESERVE_OUTPUT").is_ok(),
-            partial_eval: if env::var("COR_NO_EVAL").is_ok() {
+            preserve_output: env::var("COR_PRESERVE_OUTPUT").is_ok() || args.preserve_output,
+            partial_eval: if env::var("COR_NO_EVAL").is_ok() || args.no_eval {
                 EvalAmount::None
             } else {
                 EvalAmount::Full

@@ -224,15 +224,17 @@ impl Result {
     /// Add `string` padded with at least one space such that it starts at `offset` on the line. If it cannot fit, a
     /// newline is inserted.
     pub fn push_at(&mut self, offset: usize, string: impl AsRef<str>) {
-        if self.offset >= offset {
+        let spaces = if self.offset >= offset {
             self.push('\n');
+            offset
         } else {
-            let spaces = offset - self.offset;
-            for _ in 0..spaces {
-                self.push(' ');
-            }
-            self.push_str(string);
+            offset - self.offset
+        };
+
+        for _ in 0..spaces {
+            self.push(' ');
         }
+        self.push_str(string);
     }
 }
 

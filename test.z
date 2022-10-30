@@ -5,4 +5,4 @@ let main: 0 upto 1 -> ? =
 let f: (0 upto 10 -> 0 upto 10) -> ? =
   f => f
 
-let id = f (x => x)
+let id = y => f (x => x) y
