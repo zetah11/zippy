@@ -1,17 +1,35 @@
 use std::collections::HashMap;
 
 use common::names::{Actual, Path};
+use target_lexicon::{Architecture, BinaryFormat, Environment, OperatingSystem, Triple};
 
 use super::super::repr::{Immediate, Instruction, Operand, Procedure, Register};
-use super::super::Target;
 use super::Lowerer;
+use crate::codegen::CodegenError;
 
 impl Lowerer<'_> {
-    pub fn lower_entry(&mut self) {
+    pub fn lower_entry(&mut self) -> Result<(), CodegenError> {
         match self.target {
-            Target::Linux64 => self.lower_entry_linux(),
-            Target::Windows64 => self.lower_entry_windows(),
+            Triple {
+                architecture: Architecture::X86_64,
+                operating_system: OperatingSystem::Windows,
+                binary_format: BinaryFormat::Coff | BinaryFormat::Unknown,
+                environment: Environment::Msvc | Environment::Unknown,
+                vendor: _,
+            } => self.lower_entry_windows(),
+
+            Triple {
+                architecture: Architecture::X86_64,
+                operating_system: OperatingSystem::Linux,
+                binary_format: BinaryFormat::Elf | BinaryFormat::Unknown,
+                environment: _,
+                vendor: _,
+            } => self.lower_entry_linux(),
+
+            target => return Err(CodegenError::TargetNotSupported(target.clone())),
         }
+
+        Ok(())
     }
 
     fn lower_entry_linux(&mut self) {

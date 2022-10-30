@@ -8,29 +8,31 @@ use std::collections::HashMap;
 
 use common::lir;
 use common::names::{Name, Names};
+use target_lexicon::Triple;
+
+use crate::codegen::CodegenError;
 
 use super::repr as x64;
-use super::Target;
 
 pub fn lower(
     names: &mut Names,
-    target: &Target,
+    target: &Triple,
     entry: Option<Name>,
     program: lir::Program,
-) -> x64::Program {
+) -> Result<x64::Program, CodegenError> {
     if let Some(entry) = entry {
         let mut lowerer = Lowerer::new(names, target, entry, program);
-        lowerer.lower_program();
+        lowerer.lower_program()?;
 
-        x64::Program {
+        Ok(x64::Program {
             procedures: lowerer.procedures,
             names: lowerer.names,
-        }
+        })
     } else {
-        x64::Program {
+        Ok(x64::Program {
             procedures: Vec::new(),
             names: x64::Names::new(),
-        }
+        })
     }
 }
 
@@ -41,7 +43,7 @@ struct Lowerer<'a> {
     blocks: HashMap<lir::BlockId, x64::Name>,
     entry: Name,
 
-    target: &'a Target,
+    target: &'a Triple,
     old_names: &'a mut Names,
     program: lir::Program,
 }
@@ -49,7 +51,7 @@ struct Lowerer<'a> {
 impl<'a> Lowerer<'a> {
     pub fn new(
         names: &'a mut Names,
-        target: &'a Target,
+        target: &'a Triple,
         entry: Name,
         program: lir::Program,
     ) -> Self {
@@ -65,14 +67,16 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    pub fn lower_program(&mut self) {
-        self.lower_entry();
+    pub fn lower_program(&mut self) -> Result<(), CodegenError> {
+        self.lower_entry()?;
         let procs: Vec<_> = self.program.procs.drain().collect();
         for (name, proc) in procs {
             let name = self.lower_name(name);
             let proc = self.lower_procedure(name, proc);
             self.procedures.push((name, proc));
         }
+
+        Ok(())
     }
 
     fn lower_name(&mut self, name: Name) -> x64::Name {

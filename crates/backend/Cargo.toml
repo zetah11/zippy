@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 common = { path = "../common" }
 
+target-lexicon = "0.12"
+
 log = "0.4"

@@ -11,23 +11,20 @@ pub use encode::{encode, Encoded, Relocation, RelocationKind};
 
 use common::lir;
 use common::names::{Name, Names};
+use target_lexicon::Triple;
 
 pub fn codegen(
     names: &mut Names,
-    target: Target,
+    target: &Triple,
     entry: Option<Name>,
     program: lir::Program,
-) -> repr::Program {
-    lower::lower(names, &target, entry, program)
+) -> Result<repr::Program, CodegenError> {
+    lower::lower(names, target, entry, program)
 }
 
 use crate::asm::{Constraints, RegisterInfo};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum Target {
-    Linux64,
-    Windows64,
-}
+use super::CodegenError;
 
 pub const CONSTRAINTS: Constraints = Constraints {
     #[rustfmt::skip]

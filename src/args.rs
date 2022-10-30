@@ -14,6 +14,10 @@ pub struct Arguments {
     #[arg(long, action = ArgAction::SetTrue)]
     pub preserve_output: bool,
 
+    /// The target to compile the code for.
+    #[arg(short, long)]
+    pub target: Option<String>,
+
     #[arg(required = true)]
     pub path: PathBuf,
 }
