@@ -1,13 +1,14 @@
 use std::env;
 use std::io::{self, Write};
 
+use codespan_reporting::diagnostic as cr;
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, Config, DisplayStyle};
 use console::{style, Term};
 
-use corollary::message::Messages;
-use corollary::{Driver, EvalAmount};
+use common::message::{self, Messages};
+use common::{Driver, EvalAmount};
 
 pub struct ConsoleDriver {
     files: SimpleFiles<String, String>,
@@ -51,6 +52,35 @@ impl ConsoleDriver {
 impl Driver for ConsoleDriver {
     fn report(&mut self, messages: Messages) {
         for msg in messages.msgs {
+            let severity = match msg.severity {
+                message::Severity::Bug => cr::Severity::Bug,
+                message::Severity::Error => cr::Severity::Error,
+                message::Severity::Warning => cr::Severity::Warning,
+                message::Severity::Note => cr::Severity::Note,
+                message::Severity::Help => cr::Severity::Help,
+            };
+
+            let labels = msg
+                .labels
+                .into_iter()
+                .map(|label| {
+                    let style = match label.style {
+                        message::LabelStyle::Primary => cr::LabelStyle::Primary,
+                        message::LabelStyle::Secondary => cr::LabelStyle::Secondary,
+                    };
+
+                    cr::Label::new(style, label.span.file, label.span).with_message(label.message)
+                })
+                .collect();
+
+            let msg = cr::Diagnostic {
+                severity,
+                code: msg.code,
+                message: msg.message,
+                labels,
+                notes: msg.notes,
+            };
+
             term::emit(&mut self.writer, &self.config, &self.files, &msg).unwrap();
         }
     }

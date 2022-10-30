@@ -6,17 +6,17 @@ use std::fs::{DirBuilder, File};
 use std::io::{Read, Write};
 use std::path::Path;
 
-use codespan_reporting::files::SimpleFiles;
-use corollary::asm::asm;
-use corollary::codegen::x64::{self, codegen, Encoded, Target, CONSTRAINTS};
-use corollary::elab::elaborate;
-use corollary::lex::lex;
-use corollary::parse::parse;
-use corollary::resolve::names::{Actual, Names};
-use corollary::resolve::{resolve, ResolveRes};
-use corollary::tyck::typeck;
+use backend::asm::asm;
+use backend::codegen::x64::{self, codegen, Encoded, Target, CONSTRAINTS};
+use common::names::{Actual, Names};
+use frontend::lex::lex;
+use frontend::parse::parse;
+use frontend::resolve::{resolve, ResolveRes};
+use frontend::tyck::typeck;
+use midend::elaborate;
 
 use anyhow::anyhow;
+use codespan_reporting::files::SimpleFiles;
 use object::write;
 
 use console_driver::ConsoleDriver;
