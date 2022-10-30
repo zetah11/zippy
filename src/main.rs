@@ -1,25 +1,24 @@
 mod console_driver;
+mod emit;
+mod input;
 
-use std::collections::HashMap;
 use std::env;
 use std::fs::{DirBuilder, File};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 use backend::asm::asm;
-use backend::codegen::x64::{self, codegen, Encoded, Target, CONSTRAINTS};
-use common::names::{Actual, Names};
-use frontend::lex::lex;
-use frontend::parse::parse;
-use frontend::resolve::{resolve, ResolveRes};
-use frontend::tyck::typeck;
+use backend::codegen::x64::{self, codegen, Target, CONSTRAINTS};
+use frontend::{parse, ParseResult};
 use midend::elaborate;
 
 use anyhow::anyhow;
 use codespan_reporting::files::SimpleFiles;
-use object::write;
 
 use console_driver::ConsoleDriver;
+
+use emit::{write_coff, write_elf};
+use input::read_file;
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -39,16 +38,13 @@ fn main() -> anyhow::Result<()> {
 
     let mut driver = ConsoleDriver::new(files);
 
-    let toks = lex(&mut driver, src, file);
-    let decls = parse(&mut driver, toks, file);
-    let ResolveRes {
-        decls,
+    let ParseResult {
+        checked,
         mut names,
         entry,
-    } = resolve(&mut driver, decls);
+    } = parse(&mut driver, src, file);
 
-    let tyckres = typeck(&mut driver, decls);
-    let (types, context, decls) = elaborate(&mut driver, &mut names, tyckres, entry);
+    let (types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
     let program = asm(CONSTRAINTS, &types, &context, entry, decls);
 
@@ -81,174 +77,4 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn read_file(path: &Path) -> anyhow::Result<String> {
-    let mut buf = Vec::new();
-    File::open(path)?.read_to_end(&mut buf)?;
-    Ok(String::from_utf8(buf)?)
-}
-
-fn write_elf(names: &Names, code: Encoded) -> Vec<u8> {
-    let mut writer = write::Object::new(
-        object::BinaryFormat::Elf,
-        object::Architecture::X86_64,
-        object::Endianness::Little,
-    );
-
-    let text = writer.segment_name(write::StandardSegment::Text);
-    let name = b".text";
-    let code_section = writer.add_section(text.into(), (*name).into(), object::SectionKind::Text);
-
-    let mut symbols = HashMap::new();
-
-    for (symbol, (offset, size)) in code.symbols {
-        let name = match &names.get_path(&symbol).1 {
-            Actual::Lit(name) => name.clone(),
-            Actual::Generated(gen) => gen.to_string("f"),
-            Actual::Scope(_) => unreachable!(),
-        };
-
-        println!("{name} {offset} {size}");
-
-        let id = writer.add_symbol(write::Symbol {
-            name: Vec::from(name),
-            value: offset as u64,
-            size: size as u64,
-            kind: object::SymbolKind::Text,
-            scope: object::SymbolScope::Linkage,
-            weak: false,
-            section: write::SymbolSection::Section(code_section),
-            flags: object::SymbolFlags::None,
-        });
-
-        symbols.insert(symbol, id);
-    }
-
-    writer.set_section_data(code_section, code.code, 8);
-
-    for (name, relocations) in code.relocations {
-        let symbol = *symbols.get(&name).unwrap();
-
-        for relocation in relocations {
-            let relocation = match relocation.kind {
-                x64::RelocationKind::Absolute => write::Relocation {
-                    offset: relocation.at as u64,
-                    size: 64,
-                    kind: object::RelocationKind::Absolute,
-                    encoding: object::RelocationEncoding::Generic,
-                    symbol,
-                    addend: 0,
-                },
-
-                x64::RelocationKind::RelativeNext => write::Relocation {
-                    offset: relocation.at as u64,
-                    size: 32,
-                    kind: object::RelocationKind::Relative,
-                    encoding: object::RelocationEncoding::Generic,
-                    symbol,
-                    addend: -4, // ???
-                },
-
-                x64::RelocationKind::Relative => todo!(),
-            };
-
-            writer.add_relocation(code_section, relocation).unwrap();
-        }
-    }
-
-    writer.write().unwrap()
-}
-
-fn write_coff(names: &Names, code: Encoded) -> Vec<u8> {
-    let mut writer = write::Object::new(
-        object::BinaryFormat::Coff,
-        object::Architecture::X86_64,
-        object::Endianness::Little,
-    );
-
-    let text = writer.segment_name(write::StandardSegment::Text);
-    let name = b".text";
-    let code_section = writer.add_section(text.into(), (*name).into(), object::SectionKind::Text);
-
-    let mut symbols = HashMap::new();
-
-    for (symbol, (offset, size)) in code.symbols {
-        let name = match &names.get_path(&symbol).1 {
-            Actual::Lit(name) => name.clone(),
-            Actual::Generated(gen) => gen.to_string("_f"),
-            Actual::Scope(_) => unreachable!(),
-        };
-
-        println!("{name} {offset} {size}");
-
-        let id = writer.add_symbol(write::Symbol {
-            name: Vec::from(name),
-            value: offset as u64,
-            size: size as u64,
-            kind: object::SymbolKind::Text,
-            scope: object::SymbolScope::Linkage,
-            weak: false,
-            section: write::SymbolSection::Section(code_section),
-            flags: object::SymbolFlags::None,
-        });
-
-        symbols.insert(symbol, id);
-    }
-
-    writer.set_section_data(code_section, code.code, 8);
-
-    for (name, relocations) in code.relocations {
-        let symbol = match symbols.get(&name) {
-            Some(symbol) => *symbol,
-            None => {
-                let name = match &names.get_path(&name).1 {
-                    Actual::Lit(name) => name.clone(),
-                    Actual::Generated(gen) => gen.to_string("_f"),
-                    Actual::Scope(_) => unreachable!(),
-                };
-
-                println!("extern {name}");
-
-                writer.add_symbol(write::Symbol {
-                    name: Vec::from(name),
-                    value: 0,
-                    size: 0,
-                    kind: object::SymbolKind::Text,
-                    scope: object::SymbolScope::Linkage,
-                    weak: true,
-                    section: write::SymbolSection::Undefined,
-                    flags: object::SymbolFlags::None,
-                })
-            }
-        };
-
-        for relocation in relocations {
-            let relocation = match relocation.kind {
-                x64::RelocationKind::Absolute => write::Relocation {
-                    offset: relocation.at as u64,
-                    size: 64,
-                    kind: object::RelocationKind::Absolute,
-                    encoding: object::RelocationEncoding::Generic,
-                    symbol,
-                    addend: 0,
-                },
-
-                x64::RelocationKind::RelativeNext => write::Relocation {
-                    offset: relocation.at as u64,
-                    size: 32,
-                    kind: object::RelocationKind::Relative,
-                    encoding: object::RelocationEncoding::Generic,
-                    symbol,
-                    addend: -4, // ???
-                },
-
-                x64::RelocationKind::Relative => todo!(),
-            };
-
-            writer.add_relocation(code_section, relocation).unwrap();
-        }
-    }
-
-    writer.write().unwrap()
 }
