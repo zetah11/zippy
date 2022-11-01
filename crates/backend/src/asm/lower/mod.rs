@@ -33,7 +33,7 @@ struct Lowerer<'a> {
     decls: mir::Decls,
 
     procs: HashMap<Name, lir::Procedure>,
-    values: HashMap<Name, lir::Global>,
+    values: HashMap<Name, lir::Value>,
     types: lir::Types,
     context: lir::Context,
 
@@ -83,7 +83,7 @@ impl<'a> Lowerer<'a> {
                 let proc = self.lower_function(params, body);
                 self.procs.insert(name, proc);
             } else if let Some(value) = self.decls.values.remove(&name) {
-                let value = self.lower_global(value);
+                let value = self.lower_value(&mut Vec::new(), value);
                 self.values.insert(name, value);
             }
 
@@ -266,13 +266,6 @@ impl<'a> Lowerer<'a> {
             .collect();
 
         builder.add(id, params, instructions, branch);
-    }
-
-    fn lower_global(&mut self, value: mir::Value) -> lir::Global {
-        match value.node {
-            mir::ValueNode::Int(i) => lir::Global { data: i },
-            mir::ValueNode::Invalid | mir::ValueNode::Name(_) => todo!(),
-        }
     }
 
     fn lower_value(&mut self, within: &mut Vec<lir::Instruction>, value: mir::Value) -> lir::Value {

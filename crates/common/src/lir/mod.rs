@@ -21,12 +21,7 @@ use crate::names::Name;
 #[derive(Debug)]
 pub struct Program {
     pub procs: HashMap<Name, Procedure>,
-    pub values: HashMap<Name, Global>,
+    pub values: HashMap<Name, Value>,
     pub types: Types,
     pub context: Context,
-}
-
-#[derive(Debug)]
-pub struct Global {
-    pub data: i64,
 }

@@ -27,9 +27,29 @@ impl Lowerer<'_> {
             match inst.clone() {
                 lir::Instruction::Crash => todo!(),
                 lir::Instruction::Copy(target, value) => {
-                    let dest = self.lower_target(target);
-                    let src = self.lower_value(value);
-                    insert_move(&mut insts, dest, src);
+                    if let lir::Value::Name(name) = value {
+                        let name = self.lower_name(name);
+                        insert_move(
+                            &mut insts,
+                            x64::Operand::Register(x64::Register::Rax),
+                            x64::Operand::Location(name),
+                        );
+                        let dest = self.lower_target(target);
+                        insert_move(
+                            &mut insts,
+                            dest,
+                            x64::Operand::Memory(x64::Address {
+                                reg: Some(x64::Register::Rax),
+                                offset: None,
+                                scale: x64::Scale::One,
+                                displacement: None,
+                            }),
+                        );
+                    } else {
+                        let dest = self.lower_target(target);
+                        let src = self.lower_value(value);
+                        insert_move(&mut insts, dest, src);
+                    }
                 }
 
                 lir::Instruction::Index(name, lir::Value::Name(of), at) => {

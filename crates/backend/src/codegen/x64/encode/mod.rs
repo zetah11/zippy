@@ -1,4 +1,5 @@
 mod block;
+mod constant;
 mod instruction;
 mod procedure;
 mod program;
@@ -20,16 +21,24 @@ pub fn encode(mut program: Program) -> Encoded {
     encoder.encode_program(program);
     //encoder.perform_relocations();
 
-    let symbols = encoder
+    let code_symbols = encoder
         .addresses
         .into_iter()
         .filter(|(name, _)| !names.is_block(name))
         .map(|(name, offset_size)| (*names.get(&name), offset_size))
         .collect();
 
+    let data_symbols = encoder
+        .constants
+        .into_iter()
+        .map(|(name, offset_size)| (*names.get(&name), offset_size))
+        .collect();
+
     Encoded {
-        symbols,
+        code_symbols,
+        data_symbols,
         code: encoder.code,
+        data: encoder.data,
         relocations: encoder
             .relocations
             .into_iter()
@@ -41,13 +50,17 @@ pub fn encode(mut program: Program) -> Encoded {
 #[derive(Debug)]
 pub struct Encoded {
     pub code: Vec<u8>,
-    pub symbols: Vec<(names::Name, (usize, usize))>,
+    pub data: Vec<u8>,
+    pub code_symbols: Vec<(names::Name, (usize, usize))>,
+    pub data_symbols: Vec<(names::Name, (usize, usize))>,
     pub relocations: Vec<(names::Name, Vec<Relocation>)>,
 }
 
 #[derive(Debug, Default)]
 struct Encoder {
     addresses: HashMap<Name, (usize, usize)>,
+    constants: HashMap<Name, (usize, usize)>,
     relocations: HashMap<Name, Vec<Relocation>>,
     code: Vec<u8>,
+    data: Vec<u8>,
 }

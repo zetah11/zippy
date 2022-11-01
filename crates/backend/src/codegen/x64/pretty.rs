@@ -19,11 +19,31 @@ struct Prettier<'a> {
 impl Prettier<'_> {
     pub fn pretty(self) -> String {
         let mut result = Result::new();
+
         for (name, procedure) in self.program.procedures.iter() {
             self.pretty_procedure(&mut result, name, procedure);
             result.push('\n');
         }
+
+        for (name, data) in self.program.constants.iter() {
+            self.pretty_constant(&mut result, name, data);
+        }
+
         result.into()
+    }
+
+    fn pretty_constant(&self, within: &mut Result, name: &Name, data: &Vec<u8>) {
+        self.pretty_name(within, "", name);
+        within.push_str(":");
+
+        let mut data_fmt = String::with_capacity(5 + data.len() * 2);
+        data_fmt.push_str("data ");
+        for byte in data.iter().rev() {
+            data_fmt.push_str(&format!("{byte:x}"));
+        }
+
+        within.push_at(8, data_fmt);
+        within.push('\n');
     }
 
     fn pretty_procedure(&self, within: &mut Result, name: &Name, procedure: &Procedure) {

@@ -29,12 +29,17 @@ pub fn write_elf(names: &Names, code: Encoded) -> Vec<u8> {
 
 fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
     let text = writer.segment_name(write::StandardSegment::Text);
-    let name = b".text";
-    let code_section = writer.add_section(text.into(), (*name).into(), object::SectionKind::Text);
+    let data = writer.segment_name(write::StandardSegment::Data);
+    let code_name = b".text";
+    let data_name = b".data";
+    let code_section =
+        writer.add_section(text.into(), (*code_name).into(), object::SectionKind::Text);
+    let data_section =
+        writer.add_section(data.into(), (*data_name).into(), object::SectionKind::Data);
 
     let mut symbols = HashMap::new();
 
-    for (name, (offset, size)) in code.symbols {
+    for (name, (offset, size)) in code.code_symbols {
         let mangled = match &names.get_path(&name).1 {
             Actual::Lit(name) => name.clone(),
             Actual::Generated(gen) => gen.to_string("f"),
@@ -50,7 +55,25 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
         symbols.insert(name, symbol);
     }
 
+    for (name, (offset, size)) in code.data_symbols {
+        let mangled = match &names.get_path(&name).1 {
+            Actual::Lit(name) => name.clone(),
+            Actual::Generated(gen) => gen.to_string("v"),
+            Actual::Scope(_) => unreachable!(),
+        };
+
+        let symbol = SymbolBuilder::new(mangled)
+            .with_value(offset, size)
+            .with_kind(object::SymbolKind::Data)
+            .with_code_section(data_section)
+            .build();
+        let symbol = writer.add_symbol(symbol);
+
+        symbols.insert(name, symbol);
+    }
+
     writer.set_section_data(code_section, code.code, 8);
+    writer.set_section_data(data_section, code.data, 8);
 
     for (name, relocations) in code.relocations {
         let symbol = match symbols.get(&name) {
@@ -123,14 +146,19 @@ impl SymbolBuilder {
         }
     }
 
-    pub fn with_value(mut self, value: usize, size: usize) -> Self {
-        self.value = value as u64;
-        self.size = size as u64;
+    pub fn with_code_section(mut self, section: write::SectionId) -> Self {
+        self.section = write::SymbolSection::Section(section);
         self
     }
 
-    pub fn with_code_section(mut self, section: write::SectionId) -> Self {
-        self.section = write::SymbolSection::Section(section);
+    pub fn with_kind(mut self, kind: object::SymbolKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    pub fn with_value(mut self, value: usize, size: usize) -> Self {
+        self.value = value as u64;
+        self.size = size as u64;
         self
     }
 

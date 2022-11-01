@@ -1,5 +1,6 @@
 mod block;
 mod entry;
+mod globals;
 mod instruction;
 mod procedure;
 mod value;
@@ -26,11 +27,13 @@ pub fn lower(
 
         Ok(x64::Program {
             procedures: lowerer.procedures,
+            constants: lowerer.constants,
             names: lowerer.names,
         })
     } else {
         Ok(x64::Program {
             procedures: Vec::new(),
+            constants: Vec::new(),
             names: x64::Names::new(),
         })
     }
@@ -39,6 +42,7 @@ pub fn lower(
 #[derive(Debug)]
 struct Lowerer<'a> {
     procedures: Vec<(x64::Name, x64::Procedure)>,
+    constants: Vec<(x64::Name, Vec<u8>)>,
     names: x64::Names,
     blocks: HashMap<lir::BlockId, x64::Name>,
     entry: Name,
@@ -57,6 +61,7 @@ impl<'a> Lowerer<'a> {
     ) -> Self {
         Self {
             procedures: Vec::new(),
+            constants: Vec::new(),
             names: x64::Names::new(),
             blocks: HashMap::new(),
             entry,
@@ -70,6 +75,14 @@ impl<'a> Lowerer<'a> {
     pub fn lower_program(&mut self) -> Result<(), CodegenError> {
         self.lower_entry()?;
         let procs: Vec<_> = self.program.procs.drain().collect();
+        let values: Vec<_> = self.program.values.drain().collect();
+
+        for (name, value) in values {
+            let name = self.lower_name(name);
+            let value = self.lower_constant(name, value);
+            self.constants.push((name, value));
+        }
+
         for (name, proc) in procs {
             let name = self.lower_name(name);
             let proc = self.lower_procedure(name, proc);

@@ -66,6 +66,12 @@ fn main() -> anyhow::Result<()> {
 
     println!();
 
+    for byte in code.data.iter() {
+        print!("{byte:02x} ");
+    }
+
+    println!();
+
     DirBuilder::new().recursive(true).create("artifacts")?;
     match target {
         Triple {

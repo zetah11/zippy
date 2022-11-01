@@ -6,5 +6,9 @@ impl Encoder {
         for (name, procedure) in program.procedures {
             self.encode_procedure(name, procedure);
         }
+
+        for (name, data) in program.constants {
+            self.encode_constant(name, data);
+        }
     }
 }
