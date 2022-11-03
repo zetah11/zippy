@@ -108,7 +108,6 @@ impl<D: Driver> Lowerer<'_, D> {
         }
 
         let branch = match exprs.branch.node {
-            // 1.65 plz
             BranchNode::Return(values) => 'branch: {
                 let mut tup = Vec::with_capacity(values.len());
                 for value in values.iter() {

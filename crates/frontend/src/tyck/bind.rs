@@ -30,4 +30,37 @@ impl Typer {
             data: ty,
         }
     }
+
+    pub fn bind_fresh(&mut self, pat: Pat) -> Pat<Type> {
+        let (node, ty) = match pat.node {
+            PatNode::Name(name) => {
+                let ty = self.context.fresh();
+                self.context.add(name, Type::Var(ty));
+                (PatNode::Name(name), Type::Var(ty))
+            }
+
+            PatNode::Tuple(x, y) => {
+                let x = Box::new(self.bind_fresh(*x));
+                let y = Box::new(self.bind_fresh(*y));
+
+                let t = x.data.clone();
+                let u = y.data.clone();
+
+                (
+                    PatNode::Tuple(x, y),
+                    Type::Product(Box::new(t), Box::new(u)),
+                )
+            }
+
+            PatNode::Wildcard => (PatNode::Wildcard, Type::Var(self.context.fresh())),
+
+            PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
+        };
+
+        Pat {
+            node,
+            span: pat.span,
+            data: ty,
+        }
+    }
 }

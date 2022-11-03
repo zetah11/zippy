@@ -11,6 +11,34 @@ impl Typer {
                 (ExprNode::Name(name), ty)
             }
 
+            ExprNode::Int(i) => {
+                let var = self.context.fresh();
+                self.int_type(ex.span, Because::Unified(ex.span), Type::Var(var));
+                (ExprNode::Int(i), Type::Var(var))
+            }
+
+            ExprNode::Tuple(a, b) => {
+                let t = self.context.fresh();
+                let u = self.context.fresh();
+                let a = Box::new(self.check(Because::Inferred(ex.span, None), *a, Type::Var(t)));
+                let b = Box::new(self.check(Because::Inferred(ex.span, None), *b, Type::Var(u)));
+                (
+                    ExprNode::Tuple(a, b),
+                    Type::Product(Box::new(Type::Var(t)), Box::new(Type::Var(u))),
+                )
+            }
+
+            ExprNode::Lam(param, body) => {
+                let param = self.bind_fresh(param);
+                let body = Box::new(self.infer(*body));
+
+                let t = param.data.clone();
+                let u = body.data.clone();
+
+                let ty = Type::Fun(Box::new(t), Box::new(u));
+                (ExprNode::Lam(param, body), ty)
+            }
+
             ExprNode::App(fun, arg) => {
                 let fun = self.infer(*fun);
                 let (t, u) = self.fun_type(ex.span, fun.data.clone());
@@ -22,12 +50,13 @@ impl Typer {
                 return self.check(Because::Annotation(anno_span), *ex, ty);
             }
 
-            ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
+            ExprNode::Hole => (ExprNode::Hole, Type::Var(self.context.fresh())),
 
-            _ => {
+            ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
+            /*_ => {
                 self.messages.at(ex.span).tyck_ambiguous();
                 (ExprNode::Invalid, Type::Invalid)
-            }
+            }*/
         };
 
         Expr {

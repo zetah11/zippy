@@ -2,10 +2,11 @@ use super::{Diagnostic, Label, MessageAdder};
 
 const INCOMPATIBLE_TYPES: &str = "ET00";
 const NARROW_RANGE: &str = "ET01";
-const NOT_A_FUN: &str = "ET02";
-const NOT_AN_INT: &str = "ET03";
-const AMBIGUOUS: &str = "ET04";
-const RECURSIVE: &str = "ET05";
+const NO_PROGRESS: &str = "ET02";
+const NOT_A_FUN: &str = "ET03";
+const NOT_AN_INT: &str = "ET04";
+const AMBIGUOUS: &str = "ET05";
+const RECURSIVE: &str = "ET06";
 
 impl<'a> MessageAdder<'a> {
     pub fn tyck_ambiguous(&mut self) {
@@ -51,7 +52,18 @@ impl<'a> MessageAdder<'a> {
                 .with_code(NARROW_RANGE)
                 .with_message("expected a narrower range type")
                 .with_labels(labels),
-        )
+        );
+    }
+
+    pub fn tykc_no_progress(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(NO_PROGRESS)
+                .with_message("unable to make progress while typechecking")
+                .with_labels(labels),
+        );
     }
 
     pub fn tyck_not_a_fun(&mut self, ty: Option<impl Into<String>>) {

@@ -31,11 +31,14 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
     let text = writer.segment_name(write::StandardSegment::Text);
     let data = writer.segment_name(write::StandardSegment::Data);
     let code_name = b".text";
-    let data_name = b".data";
+    let data_name = b".rodata";
     let code_section =
         writer.add_section(text.into(), (*code_name).into(), object::SectionKind::Text);
-    let data_section =
-        writer.add_section(data.into(), (*data_name).into(), object::SectionKind::Data);
+    let data_section = writer.add_section(
+        data.into(),
+        (*data_name).into(),
+        object::SectionKind::ReadOnlyData,
+    );
 
     let mut symbols = HashMap::new();
 

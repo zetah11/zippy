@@ -94,16 +94,28 @@ impl Typer {
     }
 
     pub fn solve(&mut self) {
-        let constraints: Vec<_> = self.constraints.drain(..).collect();
+        let mut len = self.constraints.len();
 
-        for constraint in constraints {
-            match constraint {
-                Constraint::IntType { at, because, ty } => {
-                    let _ = self.int_type(at, because, ty);
+        while !self.constraints.is_empty() {
+            let constraints: Vec<_> = self.constraints.drain(..).collect();
+
+            for constraint in constraints {
+                match constraint {
+                    Constraint::IntType { at, because, ty } => {
+                        let _ = self.int_type(at, because, ty);
+                    }
                 }
             }
-        }
 
-        assert!(self.constraints.is_empty());
+            if self.constraints.len() >= len {
+                match self.constraints.first().unwrap() {
+                    Constraint::IntType { at, .. } => self.messages.at(*at).tykc_no_progress(),
+                };
+
+                break;
+            }
+
+            len = self.constraints.len();
+        }
     }
 }
