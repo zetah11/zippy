@@ -31,7 +31,8 @@ pub fn lower(
     let mut lowerer = Lowerer::new(names, subst);
 
     lowerer.lower_context(context);
-    let decls = lowerer.lower_decls(decls);
+    let context = lowerer.names.root();
+    let decls = lowerer.lower_decls(context, decls);
 
     driver.report(lowerer.messages);
 
@@ -67,11 +68,11 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn lower_decls(&mut self, decls: HiDecls) -> Decls {
+    fn lower_decls(&mut self, ctx: Name, decls: HiDecls) -> Decls {
         let mut values = Vec::with_capacity(decls.values.len());
 
         for def in decls.values {
-            self.destruct_binding(&mut values, def.span, def.pat, def.bind);
+            self.destruct_binding(&mut values, ctx, def.span, def.pat, def.bind);
         }
 
         Decls::new(values)
@@ -111,24 +112,25 @@ impl<'a> Lowerer<'a> {
     fn destruct_binding(
         &mut self,
         within: &mut Vec<ValueDef>,
+        ctx: Name,
         span: Span,
         pat: HiPat,
         bind: HiExpr,
     ) {
-        let bind = self.lower_expr(bind);
+        let bind = self.lower_expr(ctx, bind);
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {}
             HiPatNode::Name(name) => within.push(ValueDef { span, name, bind }),
 
             HiPatNode::Tuple(a, b) => {
                 let ty = self.lower_type(pat.data);
-                let name = self.names.fresh(pat.span, None);
+                let name = self.names.fresh(pat.span, ctx);
                 self.context.add(name, ty);
 
                 within.push(ValueDef { name, span, bind });
 
                 let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, ty| {
-                    let inner = lowerer.names.fresh(span, None);
+                    let inner = lowerer.names.fresh(span, ctx);
                     lowerer.context.add(name, ty);
                     within.push(ValueDef {
                         name,
@@ -159,24 +161,24 @@ impl<'a> Lowerer<'a> {
                 };
 
                 println!("{:?}", self.names.get_path(&name).1);
-                self.make_proj(*a, name, 0, &mut proj);
-                self.make_proj(*b, name, 1, &mut proj);
+                self.make_proj(ctx, *a, name, 0, &mut proj);
+                self.make_proj(ctx, *b, name, 1, &mut proj);
             }
         }
     }
 
-    fn destruct_expr(&mut self, within: &mut Vec<Expr>, pat: HiPat) -> Name {
+    fn destruct_expr(&mut self, within: &mut Vec<Expr>, ctx: Name, pat: HiPat) -> Name {
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {
                 let ty = self.lower_type(pat.data);
-                let target = self.names.fresh(pat.span, None);
+                let target = self.names.fresh(pat.span, ctx);
                 self.context.add(target, ty);
                 target
             }
             HiPatNode::Name(name) => name,
             HiPatNode::Tuple(a, b) => {
                 let ty = self.lower_type(pat.data);
-                let target = self.names.fresh(pat.span, None);
+                let target = self.names.fresh(pat.span, ctx);
                 self.context.add(target, ty);
 
                 let mut proj = |_: &mut Lowerer<'a>, name, value, ndx, span, ty| {
@@ -191,15 +193,15 @@ impl<'a> Lowerer<'a> {
                     });
                 };
 
-                self.make_proj(*a, target, 0, &mut proj);
-                self.make_proj(*b, target, 1, &mut proj);
+                self.make_proj(ctx, *a, target, 0, &mut proj);
+                self.make_proj(ctx, *b, target, 1, &mut proj);
 
                 target
             }
         }
     }
 
-    fn make_proj<F>(&mut self, pat: HiPat, value: Name, ndx: usize, proj: &mut F)
+    fn make_proj<F>(&mut self, ctx: Name, pat: HiPat, value: Name, ndx: usize, proj: &mut F)
     where
         F: FnMut(&mut Lowerer<'a>, Name, Name, usize, Span, TypeId),
     {
@@ -212,21 +214,21 @@ impl<'a> Lowerer<'a> {
 
             HiPatNode::Tuple(a, b) => {
                 let ty = self.lower_type(pat.data);
-                let projd = self.names.fresh(pat.span, None);
+                let projd = self.names.fresh(pat.span, ctx);
                 self.context.add(projd, ty);
 
                 proj(self, projd, value, ndx, pat.span, ty);
 
-                self.make_proj(*a, projd, 0, proj);
-                self.make_proj(*b, projd, 1, proj);
+                self.make_proj(ctx, *a, projd, 0, proj);
+                self.make_proj(ctx, *b, projd, 1, proj);
             }
         }
     }
 
-    fn lower_expr(&mut self, ex: HiExpr) -> ExprSeq {
+    fn lower_expr(&mut self, ctx: Name, ex: HiExpr) -> ExprSeq {
         let ty = self.lower_type(ex.data.clone());
         let mut seq = Vec::new();
-        let value = self.make_expr(&mut seq, ex);
+        let value = self.make_expr(&mut seq, ctx, ex);
         let span = value.span;
         ExprSeq::new(
             span,
@@ -240,7 +242,7 @@ impl<'a> Lowerer<'a> {
         )
     }
 
-    fn make_expr(&mut self, within: &mut Vec<Expr>, ex: HiExpr) -> Value {
+    fn make_expr(&mut self, within: &mut Vec<Expr>, ctx: Name, ex: HiExpr) -> Value {
         let ty = self.lower_type(ex.data);
         let node = match ex.node {
             HiExprNode::Int(i) => ValueNode::Int(i),
@@ -248,14 +250,14 @@ impl<'a> Lowerer<'a> {
             HiExprNode::Lam(param, body) => {
                 let mut bodys = Vec::new();
 
-                let param = self.destruct_expr(&mut bodys, param);
-                let body = self.lower_expr(*body);
+                let param = self.destruct_expr(&mut bodys, ctx, param);
+                let body = self.lower_expr(ctx, *body);
 
                 bodys.extend(body.exprs);
 
                 let body = ExprSeq::new(body.span, body.ty, bodys, body.branch);
 
-                let name = self.names.fresh(ex.span, None);
+                let name = self.names.fresh(ex.span, ctx);
                 self.context.add(name, ty);
 
                 within.push(Expr {
@@ -275,16 +277,16 @@ impl<'a> Lowerer<'a> {
                 let fun = if let Value {
                     node: ValueNode::Name(name),
                     ..
-                } = self.make_expr(within, *fun)
+                } = self.make_expr(within, ctx, *fun)
                 {
                     name
                 } else {
                     unreachable!()
                 };
 
-                let arg = self.make_expr(within, *arg);
+                let arg = self.make_expr(within, ctx, *arg);
 
-                let name = self.names.fresh(ex.span, None);
+                let name = self.names.fresh(ex.span, ctx);
                 self.context.add(name, ty);
 
                 within.push(Expr {
@@ -301,10 +303,10 @@ impl<'a> Lowerer<'a> {
             }
 
             HiExprNode::Tuple(t, u) => {
-                let t = self.make_expr(within, *t);
-                let u = self.make_expr(within, *u);
+                let t = self.make_expr(within, ctx, *t);
+                let u = self.make_expr(within, ctx, *u);
 
-                let name = self.names.fresh(ex.span, None);
+                let name = self.names.fresh(ex.span, ctx);
                 self.context.add(name, ty);
 
                 within.push(Expr {

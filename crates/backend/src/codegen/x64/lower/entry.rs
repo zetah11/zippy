@@ -36,7 +36,7 @@ impl Lowerer<'_> {
         let span = self.old_names.get_span(&self.entry);
         let start = self
             .old_names
-            .add(span, Path(vec![], Actual::Lit("_start".into())));
+            .add(span, Path(None, Actual::Lit("_start".into())));
         let start = self.names.add(start);
         let entry = self.names.add(self.entry);
 
@@ -66,11 +66,11 @@ impl Lowerer<'_> {
         let span = self.old_names.get_span(&self.entry);
         let main = self
             .old_names
-            .add(span, Path(vec![], Actual::Lit("_WinMain".into())));
+            .add(span, Path(None, Actual::Lit("_WinMain".into())));
 
         let exit_process = self
             .old_names
-            .add(span, Path(vec![], Actual::Lit("ExitProcess".into())));
+            .add(span, Path(None, Actual::Lit("ExitProcess".into())));
 
         let main = self.names.add(main);
         let exit_process = self.names.add(exit_process);

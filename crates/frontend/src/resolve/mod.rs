@@ -32,7 +32,8 @@ pub fn resolve(driver: &mut impl Driver, decls: Decls) -> ResolveRes {
     let decls = resolver.resolve(decls);
 
     let entry = driver.entry_name().and_then(|entry| {
-        let res = resolver.names.find_top_level(entry);
+        let root = resolver.names.root();
+        let res = resolver.names.find_in(root, entry);
         if res.is_none() {
             resolver.msgs.resolve_no_entry_point();
         }
@@ -50,46 +51,57 @@ pub fn resolve(driver: &mut impl Driver, decls: Decls) -> ResolveRes {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Resolver {
     names: Names,
-    context: Vec<Name>,
+    context: (Name, Vec<Name>),
     msgs: Messages,
 }
 
 impl Resolver {
     pub fn new() -> Self {
+        let mut names = Names::new();
+        let context = names.root();
         Self {
-            names: Names::new(),
-            context: Vec::new(),
+            names,
+            context: (context, Vec::new()),
             msgs: Messages::new(),
         }
     }
 
     pub fn declare(&mut self, decls: &Decls) {
         self.declare_decls(decls);
-        assert!(self.context.is_empty());
+        assert!(self.context.1.is_empty());
     }
 
     pub fn resolve(&mut self, decls: Decls) -> Decls<Name> {
         self.resolve_decls(decls)
     }
 
+    fn context(&self) -> Name {
+        if let Some(top) = self.context.1.last() {
+            *top
+        } else {
+            self.context.0
+        }
+    }
+
     fn enter(&mut self, span: Span, id: BindId) {
-        let path = Path(self.context.clone(), Actual::Scope(id));
+        let path = Path::new(self.context(), Actual::Scope(id));
         let name = self
             .names
             .lookup(&path)
             .unwrap_or_else(|| self.names.add(span, path));
-        self.context.push(name);
+
+        self.context.1.push(name);
     }
 
     fn exit(&mut self) {
-        self.context.pop();
+        self.context.1.pop();
     }
 
     fn declare_name(&mut self, span: Span, name: Actual) -> Name {
-        let path = Path(self.context.clone(), name);
+        let path = Path::new(self.context(), name);
 
         if let Some(name) = self.names.lookup(&path) {
             let prev = self.names.get_span(&name);
@@ -101,14 +113,21 @@ impl Resolver {
 
     fn lookup_name(&mut self, span: Span, name: Actual) -> Option<Name> {
         // lookup strategy; successively remove the last item from the path until we find something
-        let mut path = Path(self.context.clone(), name);
+        let mut ctx = self.context();
+        let mut path = Path::new(ctx, name);
 
-        for _ in 0..=path.0.len() {
+        loop {
             if let Some(name) = self.names.lookup(&path) {
                 return Some(name);
             }
 
-            path.0.pop();
+            if let Some(next) = self.names.get_path(&ctx).0 {
+                ctx = next;
+                path.0 = Some(ctx);
+                continue;
+            }
+
+            break;
         }
 
         self.msgs.at(span).resolve_unknown_name();

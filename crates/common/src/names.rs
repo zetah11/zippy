@@ -23,21 +23,28 @@ impl From<GeneratedName> for String {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Name(usize);
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Path(pub Option<Name>, pub Actual);
+
+impl Path {
+    pub fn new(ctx: Name, actual: Actual) -> Self {
+        Self(Some(ctx), actual)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum Actual {
+    Root,
+    Lit(String),
+    Scope(BindId),
+    Generated(GeneratedName),
+}
+
 #[derive(Debug, Default)]
 pub struct Names {
     names: BiMap<Name, Path>,
     decls: HashMap<Name, Span>,
     curr_gen: usize,
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Path(pub Vec<Name>, pub Actual);
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Actual {
-    Lit(String),
-    Scope(BindId),
-    Generated(GeneratedName),
 }
 
 impl Names {
@@ -47,6 +54,10 @@ impl Names {
             decls: HashMap::new(),
             curr_gen: 0,
         }
+    }
+
+    pub fn root(&mut self) -> Name {
+        self.add(Span::new(0, 0, 0), Path(None, Actual::Root))
     }
 
     pub fn add(&mut self, at: Span, name: Path) -> Name {
@@ -61,11 +72,11 @@ impl Names {
     }
 
     /// Generate a unique name, optionally at a given path.
-    pub fn fresh(&mut self, at: Span, ctx: Option<Name>) -> Name {
+    pub fn fresh(&mut self, at: Span, ctx: Name) -> Name {
         let id = GeneratedName(self.curr_gen);
         self.curr_gen += 1;
 
-        self.add(at, Path(ctx.into_iter().collect(), Actual::Generated(id)))
+        self.add(at, Path(Some(ctx), Actual::Generated(id)))
     }
 
     pub fn get_path(&self, name: &Name) -> &Path {
@@ -82,7 +93,7 @@ impl Names {
     }
 
     /// Look for a top-level name, such as an entry point.
-    pub fn find_top_level(&self, name: impl Into<String>) -> Option<Name> {
-        self.lookup(&Path(Vec::new(), Actual::Lit(name.into())))
+    pub fn find_in(&self, ctx: Name, name: impl Into<String>) -> Option<Name> {
+        self.lookup(&Path(Some(ctx), Actual::Lit(name.into())))
     }
 }

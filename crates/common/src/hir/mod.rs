@@ -1,7 +1,15 @@
+use std::fmt::{self, Display};
+
 use crate::message::Span;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct BindId(pub(crate) usize);
+
+impl Display for BindId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "s{}", self.0)
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct BindIdGenerator {

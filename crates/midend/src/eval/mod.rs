@@ -145,7 +145,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
             index += 1;
 
             if let Some(def) = value_defs.remove(&name) {
-                let bind = self.reduce_exprs(self.env.clone(), def.bind);
+                let bind = self.reduce_exprs(self.env.clone(), name, def.bind);
                 self.env.set(def.name, bind);
             }
         }
@@ -169,7 +169,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
                 });
 
                 let bind = self.env.lookup(&name).unwrap().clone();
-                let bind = self.reduce_irr(self.env.clone(), bind);
+                let bind = self.reduce_irr(self.env.clone(), name, bind);
 
                 // overwrite with new and improved
                 self.env.set(name, bind.clone());
@@ -177,7 +177,7 @@ impl<'a, D: Driver> Lowerer<'a, D> {
                 defs.push(ValueDef {
                     name,
                     span: bind.span,
-                    bind: self.promote(bind),
+                    bind: self.promote(name, bind),
                 });
 
                 value_names.insert(name);

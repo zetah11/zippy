@@ -68,7 +68,7 @@ impl<'a> Flattener<'a> {
                         .collect();
                     let mut names = Vec::with_capacity(values.len());
                     for value in values {
-                        let new_name = self.names.fresh(expr.span, Some(name));
+                        let new_name = self.names.fresh(expr.span, name);
                         self.context.add(new_name, value.ty);
 
                         names.push(new_name);
@@ -223,7 +223,7 @@ impl<'a> Flattener<'a> {
                 let mut names = Vec::with_capacity(ts.len());
 
                 for t in ts.clone() {
-                    let new_name = self.names.fresh(at, Some(name));
+                    let new_name = self.names.fresh(at, name);
                     self.context.add(new_name, t);
 
                     names.extend(self.flatten_param(at, new_name));

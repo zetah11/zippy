@@ -1,18 +1,20 @@
 //! Promotion converts an [`Irreducible`](super::Irreducible) back to an `ExprSeq`.
 
+use common::names::Name;
+
 use super::{Irreducible, IrreducibleNode, Lowerer};
 use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq};
 use crate::mir::{Value, ValueNode};
 use crate::Driver;
 
 impl<D: Driver> Lowerer<'_, D> {
-    pub fn promote(&mut self, value: Irreducible) -> ExprSeq {
+    pub fn promote(&mut self, ctx: Name, value: Irreducible) -> ExprSeq {
         if let IrreducibleNode::Quote(exprs) = value.node {
             exprs
         } else {
             let mut exprs = Vec::new();
             let Irreducible { span, ty, .. } = value;
-            let res = self.make_irr(&mut exprs, value);
+            let res = self.make_irr(&mut exprs, ctx, value);
 
             ExprSeq {
                 exprs,
@@ -27,7 +29,7 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    fn make_irr(&mut self, within: &mut Vec<Expr>, value: Irreducible) -> Vec<Value> {
+    fn make_irr(&mut self, within: &mut Vec<Expr>, ctx: Name, value: Irreducible) -> Vec<Value> {
         let node = match value.node {
             IrreducibleNode::Invalid => ValueNode::Invalid,
             IrreducibleNode::Integer(i) => {
@@ -36,10 +38,10 @@ impl<D: Driver> Lowerer<'_, D> {
             }
 
             IrreducibleNode::Lambda(params, body) => {
-                let name = self.names.fresh(value.span, None);
+                let name = self.names.fresh(value.span, ctx);
                 self.context.add(name, value.ty);
 
-                let body = self.promote(*body);
+                let body = self.promote(name, *body);
 
                 within.push(Expr {
                     node: ExprNode::Function { name, params, body },
@@ -53,7 +55,7 @@ impl<D: Driver> Lowerer<'_, D> {
             IrreducibleNode::Tuple(values) => {
                 return values
                     .into_iter()
-                    .flat_map(|value| self.make_irr(within, value))
+                    .flat_map(|value| self.make_irr(within, ctx, value))
                     .collect();
             }
 

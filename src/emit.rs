@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use backend::codegen::x64::{self, Encoded};
-use common::names::{Actual, Names};
+use backend::mangle::mangle;
+use common::names::Names;
 
 use object::write;
 
@@ -43,12 +44,7 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
     let mut symbols = HashMap::new();
 
     for (name, (offset, size)) in code.code_symbols {
-        let mangled = match &names.get_path(&name).1 {
-            Actual::Lit(name) => name.clone(),
-            Actual::Generated(gen) => gen.to_string("f"),
-            Actual::Scope(_) => unreachable!(),
-        };
-
+        let mangled = mangle(names, &name);
         let symbol = SymbolBuilder::new(mangled)
             .with_value(offset, size)
             .with_code_section(code_section)
@@ -59,12 +55,7 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
     }
 
     for (name, (offset, size)) in code.data_symbols {
-        let mangled = match &names.get_path(&name).1 {
-            Actual::Lit(name) => name.clone(),
-            Actual::Generated(gen) => gen.to_string("v"),
-            Actual::Scope(_) => unreachable!(),
-        };
-
+        let mangled = mangle(names, &name);
         let symbol = SymbolBuilder::new(mangled)
             .with_value(offset, size)
             .with_kind(object::SymbolKind::Data)
@@ -82,11 +73,7 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
         let symbol = match symbols.get(&name) {
             Some(symbol) => *symbol,
             None => {
-                let mangled = match &names.get_path(&name).1 {
-                    Actual::Lit(name) => name.clone(),
-                    Actual::Generated(gen) => gen.to_string("_f"),
-                    Actual::Scope(_) => unreachable!(),
-                };
+                let mangled = mangle(names, &name);
 
                 let symbol = SymbolBuilder::new(mangled).build();
                 let symbol = writer.add_symbol(symbol);

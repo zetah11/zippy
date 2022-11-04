@@ -100,7 +100,7 @@ impl<'a> Lowerer<'a> {
         let old = self.names.get(&within);
         let span = self.old_names.get_span(old);
 
-        let new = self.old_names.fresh(span, Some(*old));
+        let new = self.old_names.fresh(span, *old);
         let new = self.names.add_block(new);
 
         self.blocks.insert(block, new);

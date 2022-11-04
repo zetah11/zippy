@@ -194,10 +194,12 @@ impl Prettier<'_> {
 
     fn pretty_name(&self, within: &mut Result, prefix: impl AsRef<str>, name: &Name) {
         let name = self.program.names.get(name);
-        let names::Path(_ctx, name) = self.names.get_path(name);
+        let names::Path(ctx, name) = self.names.get_path(name);
+
         let name = match name {
             names::Actual::Generated(id) => id.to_string(prefix),
             names::Actual::Lit(name) => name.clone(),
+            names::Actual::Root => unreachable!(),
             names::Actual::Scope(_) => unimplemented!(),
         };
 

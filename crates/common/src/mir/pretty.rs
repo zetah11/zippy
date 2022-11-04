@@ -243,10 +243,17 @@ impl<'a> Prettier<'a> {
 
     fn doc_name(&'a self, name: &Name) -> DocBuilder<Arena<'a>> {
         let path = self.names.get_path(name);
-        match &path.1 {
+        let preceding = path
+            .0
+            .as_ref()
+            .map(|name| self.doc_name(name).append(self.allocator.text(".")))
+            .unwrap_or_else(|| self.allocator.nil());
+
+        preceding.append(match &path.1 {
             Actual::Lit(lit) => self.allocator.text(lit),
             Actual::Generated(id) => self.allocator.text(String::from(*id)),
-            Actual::Scope(_) => unreachable!(),
-        }
+            Actual::Root => self.allocator.nil(),
+            Actual::Scope(id) => self.allocator.text(format!("<scope {}>", id.0)),
+        })
     }
 }

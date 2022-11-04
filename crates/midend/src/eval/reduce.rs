@@ -1,10 +1,12 @@
+use common::names::Name;
+
 use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq, Type, Value, ValueNode};
 use crate::Driver;
 
 use super::{Env, Irreducible, IrreducibleNode, Lowerer};
 
 impl<D: Driver> Lowerer<'_, D> {
-    pub fn reduce_exprs(&mut self, env: Env, exprs: ExprSeq) -> Irreducible {
+    pub fn reduce_exprs(&mut self, env: Env, ctx: Name, exprs: ExprSeq) -> Irreducible {
         let mut env = env.child();
 
         let mut new_exprs = Vec::new();
@@ -14,7 +16,7 @@ impl<D: Driver> Lowerer<'_, D> {
                 ExprNode::Join { .. } => todo!(),
 
                 ExprNode::Function { name, params, body } => {
-                    let body_irr = self.reduce_exprs(env.clone(), body.clone());
+                    let body_irr = self.reduce_exprs(env.clone(), ctx, body.clone());
                     env.set(
                         name,
                         Irreducible {
@@ -44,7 +46,7 @@ impl<D: Driver> Lowerer<'_, D> {
                             child_env = child_env.with(*param, arg);
                         }
 
-                        let result = self.reduce_irr(child_env, *body.clone());
+                        let result = self.reduce_irr(child_env, ctx, *body.clone());
                         match result.node {
                             IrreducibleNode::Tuple(values) => {
                                 assert!(names.len() == values.len());
@@ -164,9 +166,9 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    pub fn reduce_irr(&mut self, env: Env, irr: Irreducible) -> Irreducible {
+    pub fn reduce_irr(&mut self, env: Env, ctx: Name, irr: Irreducible) -> Irreducible {
         let node = match irr.node {
-            IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, exprs),
+            IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, ctx, exprs),
             IrreducibleNode::Lambda(params, body) => {
                 let t = match self.types.get(&irr.ty) {
                     Type::Fun(t, _) => t.clone(),
@@ -178,7 +180,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     .iter()
                     .copied()
                     .map(|t| {
-                        let name = self.names.fresh(irr.span, None);
+                        let name = self.names.fresh(irr.span, ctx);
                         self.context.add(name, t);
                         name
                     })
@@ -209,14 +211,14 @@ impl<D: Driver> Lowerer<'_, D> {
                     );
                 }
 
-                let body = self.reduce_irr(closed, *body);
+                let body = self.reduce_irr(closed, ctx, *body);
                 IrreducibleNode::Lambda(new_names, Box::new(body))
             }
 
             IrreducibleNode::Tuple(irrs) => {
                 let irrs = irrs
                     .into_iter()
-                    .map(|irr| self.reduce_irr(env.clone(), irr))
+                    .map(|irr| self.reduce_irr(env.clone(), ctx, irr))
                     .collect();
                 IrreducibleNode::Tuple(irrs)
             }
