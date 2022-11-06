@@ -41,8 +41,8 @@ impl Resolver {
     pub fn new(names: &Names, code: &Encoded) -> Self {
         let mut map = HashMap::with_capacity(code.labels.len());
         for (name, label) in code.labels.iter() {
-            let address = code.result.label_ip(label).unwrap();
             let name = mangle(names, name);
+            let address = code.result.label_ip(label).unwrap();
             map.insert(address, name);
         }
 

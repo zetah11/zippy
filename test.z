@@ -1,6 +1,6 @@
 -- in test.z
-let main: 1 -> ? = ? => f x
+let main: 1 -> ? = ? => f 9
 let id: 10 -> ? = x => x
 let f = id
 
-let x: 10 = 9
+--let x: 10 = 9

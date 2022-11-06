@@ -22,11 +22,13 @@ impl Lowerer<'_> {
                 ..
             } => self.entry_linux(entry),
 
-            target => Err(Error::UnsupportedTarget(target.clone())),
+            target => return Err(Error::UnsupportedTarget(target.clone())),
         }
+
+        Ok(())
     }
 
-    fn entry_linux(&mut self, entry: Name) -> Result<(), Error> {
+    fn entry_linux(&mut self, entry: Name) {
         let span = self.names.get_span(&entry);
         let start = self
             .names
@@ -34,15 +36,13 @@ impl Lowerer<'_> {
 
         let entry = self.label(entry);
 
-        self.set_label(start)?;
-        self.asm.call(entry)?;
-        self.asm.mov(rax, 60i64)?;
-        self.asm.syscall()?;
-
-        Ok(())
+        self.set_label(start);
+        self.asm.call(entry).unwrap();
+        self.asm.mov(rax, 60i64).unwrap();
+        self.asm.syscall().unwrap();
     }
 
-    fn entry_windows(&mut self, entry: Name) -> Result<(), Error> {
+    fn entry_windows(&mut self, entry: Name) {
         let span = self.names.get_span(&entry);
         let main = self
             .names
@@ -54,11 +54,9 @@ impl Lowerer<'_> {
         let exit_process = self.label(exit_process);
         let entry = self.label(entry);
 
-        self.set_label(main)?;
-        self.asm.call(entry)?;
-        self.asm.mov(rcx, rdi)?;
-        self.asm.call(exit_process)?;
-
-        Ok(())
+        self.set_label(main);
+        self.asm.call(entry).unwrap();
+        self.asm.mov(rcx, rdi).unwrap();
+        self.asm.call(exit_process).unwrap();
     }
 }

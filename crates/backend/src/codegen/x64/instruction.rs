@@ -3,7 +3,7 @@ use common::names::Name;
 use iced_x86::code_asm::{gpr64, ptr, rax, AsmMemoryOperand, AsmRegister64};
 use iced_x86::Register;
 
-use super::{regid_to_reg, Error, Lowerer};
+use super::{regid_to_reg, Lowerer};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Operand {
@@ -55,258 +55,239 @@ impl Lowerer<'_> {
         }
     }
 
-    pub fn asm_call(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_call(&mut self, value: Operand) {
         match value {
-            Operand::Gpr64(source) => self.asm.call(source)?,
-            Operand::Memory(source) => self.asm.call(source)?,
+            Operand::Gpr64(source) => self.asm.call(source).unwrap(),
+            Operand::Memory(source) => self.asm.call(source).unwrap(),
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.call(source)?;
+                self.asm.call(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.call(source)?;
+                self.asm.call(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for call"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_cmp(&mut self, left: Operand, right: Operand) -> Result<(), Error> {
+    pub fn asm_cmp(&mut self, left: Operand, right: Operand) {
         match (left, right) {
-            (Operand::Gpr64(left), Operand::Gpr64(right)) => self.asm.cmp(left, right)?,
-            (Operand::Gpr64(left), Operand::Memory(right)) => self.asm.cmp(left, right)?,
+            (Operand::Gpr64(left), Operand::Gpr64(right)) => self.asm.cmp(left, right).unwrap(),
+            (Operand::Gpr64(left), Operand::Memory(right)) => self.asm.cmp(left, right).unwrap(),
             (Operand::Gpr64(left), Operand::Integer(i)) => match i32::try_from(i) {
-                Ok(i) => self.asm.cmp(left, i)?,
+                Ok(i) => self.asm.cmp(left, i).unwrap(),
                 _ => {
-                    self.asm.mov(rax, i)?;
-                    self.asm.cmp(left, rax)?;
+                    self.asm.mov(rax, i).unwrap();
+                    self.asm.cmp(left, rax).unwrap();
                 }
             },
 
-            (Operand::Memory(left), Operand::Gpr64(right)) => self.asm.cmp(left, right)?,
+            (Operand::Memory(left), Operand::Gpr64(right)) => self.asm.cmp(left, right).unwrap(),
             (Operand::Memory(left), Operand::Integer(i)) => {
                 match (i32::try_from(i), u32::try_from(i)) {
-                    (Ok(i), _) => self.asm.cmp(left, i)?,
-                    (_, Ok(i)) => self.asm.cmp(left, i)?,
+                    (Ok(i), _) => self.asm.cmp(left, i).unwrap(),
+                    (_, Ok(i)) => self.asm.cmp(left, i).unwrap(),
                     (..) => {
-                        self.asm.mov(rax, i)?;
-                        self.asm.cmp(left, rax)?;
+                        self.asm.mov(rax, i).unwrap();
+                        self.asm.cmp(left, rax).unwrap();
                     }
                 }
             }
 
             _ => unreachable!("invalid opcode/operand combination for cmp"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_je(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_je(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.je(source)?;
+                self.asm.je(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.je(source)?;
+                self.asm.je(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jg(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jg(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jg(source)?;
+                self.asm.jg(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jg(source)?;
+                self.asm.jg(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jge(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jge(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jge(source)?;
+                self.asm.jge(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jge(source)?;
+                self.asm.jge(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jl(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jl(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jl(source)?;
+                self.asm.jl(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jl(source)?;
+                self.asm.jl(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jle(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jle(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jle(source)?;
+                self.asm.jle(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jle(source)?;
+                self.asm.jle(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jmp(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jmp(&mut self, value: Operand) {
         match value {
-            Operand::Gpr64(source) => self.asm.jmp(source)?,
-            Operand::Memory(source) => self.asm.jmp(source)?,
+            Operand::Gpr64(source) => self.asm.jmp(source).unwrap(),
+            Operand::Memory(source) => self.asm.jmp(source).unwrap(),
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jmp(source)?;
+                self.asm.jmp(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jmp(source)?;
+                self.asm.jmp(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for jmp"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_jne(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_jne(&mut self, value: Operand) {
         match value {
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.jne(source)?;
+                self.asm.jne(source).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.jne(source)?;
+                self.asm.jne(source).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for je"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_leave(&mut self) -> Result<(), Error> {
-        self.asm.leave()?;
-        Ok(())
+    pub fn asm_leave(&mut self) {
+        self.asm.leave().unwrap();
     }
 
-    pub fn asm_mov(&mut self, target: Operand, source: Operand) -> Result<(), Error> {
+    pub fn asm_mov(&mut self, target: Operand, source: Operand) {
         match (target, source) {
-            (Operand::Gpr64(target), Operand::Gpr64(source)) => self.asm.mov(target, source)?,
-            (Operand::Gpr64(target), Operand::Memory(source)) => self.asm.mov(target, source)?,
-            (Operand::Gpr64(target), Operand::Integer(source)) => self.asm.mov(target, source)?,
+            (Operand::Gpr64(target), Operand::Gpr64(source)) => {
+                self.asm.mov(target, source).unwrap()
+            }
+            (Operand::Gpr64(target), Operand::Memory(source)) => {
+                self.asm.mov(target, source).unwrap()
+            }
+            (Operand::Gpr64(target), Operand::Integer(source)) => {
+                self.asm.mov(target, source).unwrap()
+            }
             (Operand::Gpr64(target), Operand::Label(source)) => {
                 let source = self.label(source);
-                self.asm.lea(target, ptr(source))?;
+                self.asm.lea(target, ptr(source)).unwrap();
             }
             (Operand::Gpr64(target), Operand::Block(source)) => {
                 let source = self.block_label(source);
-                self.asm.lea(target, ptr(source))?;
+                self.asm.lea(target, ptr(source)).unwrap();
             }
 
-            (Operand::Memory(target), Operand::Gpr64(source)) => self.asm.mov(target, source)?,
+            (Operand::Memory(target), Operand::Gpr64(source)) => {
+                self.asm.mov(target, source).unwrap()
+            }
             (Operand::Memory(target), Operand::Integer(source)) => {
                 match (i32::try_from(source), u32::try_from(source)) {
-                    (Ok(i), _) => self.asm.mov(target, i)?,
-                    (_, Ok(i)) => self.asm.mov(target, i)?,
+                    (Ok(i), _) => self.asm.mov(target, i).unwrap(),
+                    (_, Ok(i)) => self.asm.mov(target, i).unwrap(),
                     (..) => {
-                        self.asm.mov(rax, source)?;
-                        self.asm.mov(target, rax)?;
+                        self.asm.mov(rax, source).unwrap();
+                        self.asm.mov(target, rax).unwrap();
                     }
                 }
             }
 
             _ => unreachable!("invalid opcode/operand combination for mov"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_pop(&mut self, target: Operand) -> Result<(), Error> {
+    pub fn asm_pop(&mut self, target: Operand) {
         match target {
-            Operand::Gpr64(target) => self.asm.pop(target)?,
-            Operand::Memory(target) => self.asm.pop(target)?,
+            Operand::Gpr64(target) => self.asm.pop(target).unwrap(),
+            Operand::Memory(target) => self.asm.pop(target).unwrap(),
 
             _ => unreachable!("invalid opcode/operand combination for pop"),
         }
-
-        Ok(())
     }
 
-    pub fn asm_push(&mut self, value: Operand) -> Result<(), Error> {
+    pub fn asm_push(&mut self, value: Operand) {
         match value {
-            Operand::Gpr64(source) => self.asm.push(source)?,
-            Operand::Memory(source) => self.asm.push(source)?,
+            Operand::Gpr64(source) => self.asm.push(source).unwrap(),
+            Operand::Memory(source) => self.asm.push(source).unwrap(),
             Operand::Integer(i) => match (i32::try_from(i), u32::try_from(i)) {
-                (Ok(i), _) => self.asm.push(i)?,
-                (_, Ok(i)) => self.asm.push(i)?,
+                (Ok(i), _) => self.asm.push(i).unwrap(),
+                (_, Ok(i)) => self.asm.push(i).unwrap(),
                 (..) => {
-                    self.asm.mov(rax, i)?;
-                    self.asm.push(rax)?;
+                    self.asm.mov(rax, i).unwrap();
+                    self.asm.push(rax).unwrap();
                 }
             },
             Operand::Label(source) => {
                 let source = self.label(source);
-                self.asm.lea(rax, ptr(source))?;
-                self.asm.push(rax)?;
+                self.asm.lea(rax, ptr(source)).unwrap();
+                self.asm.push(rax).unwrap();
             }
             Operand::Block(source) => {
                 let source = self.block_label(source);
-                self.asm.lea(rax, ptr(source))?;
-                self.asm.push(rax)?;
+                self.asm.lea(rax, ptr(source)).unwrap();
+                self.asm.push(rax).unwrap();
             }
         }
-
-        Ok(())
     }
 
-    pub fn asm_ret(&mut self) -> Result<(), Error> {
-        self.asm.ret()?;
-        Ok(())
+    pub fn asm_ret(&mut self) {
+        self.asm.ret().unwrap();
     }
 
-    pub fn asm_ret1(&mut self, by: u32) -> Result<(), Error> {
-        self.asm.ret_1(by)?;
-        Ok(())
+    pub fn asm_ret1(&mut self, by: u32) {
+        self.asm.ret_1(by).unwrap();
     }
 }

@@ -13,7 +13,7 @@ use std::fmt::{self, Display};
 
 use common::lir;
 use common::names::{Name, Names};
-use iced_x86::code_asm::{CodeAssembler, CodeAssemblerResult, CodeLabel, IcedError};
+use iced_x86::code_asm::{CodeAssembler, CodeAssemblerResult, CodeLabel};
 use iced_x86::BlockEncoderOptions;
 use target_lexicon::Triple;
 
@@ -26,7 +26,7 @@ pub fn encode(
     program: lir::Program,
 ) -> Result<Encoded, Error> {
     let mut lowerer = Lowerer::new(names, entry, target, program)?;
-    lowerer.lower_program()?;
+    lowerer.lower_program();
     lowerer.assemble()
 }
 
@@ -39,7 +39,6 @@ pub struct Encoded {
 #[derive(Debug)]
 pub enum Error {
     UnsupportedTarget(Triple),
-    IcedError(IcedError),
 }
 
 impl std::error::Error for Error {}
@@ -47,14 +46,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnsupportedTarget(triple) => write!(f, "the target '{triple}' is unsupported"),
-            Self::IcedError(err) => write!(f, "iced error: '{err}'"),
         }
-    }
-}
-
-impl From<IcedError> for Error {
-    fn from(err: IcedError) -> Self {
-        Self::IcedError(err)
     }
 }
 
@@ -91,27 +83,32 @@ impl<'a> Lowerer<'a> {
         Ok(res)
     }
 
-    pub fn lower_program(&mut self) -> Result<(), Error> {
+    pub fn lower_program(&mut self) {
         let procs: Vec<_> = self.program.procs.drain().collect();
 
         for (name, procedure) in procs {
-            self.lower_procedure(name, procedure)?;
+            self.lower_procedure(name, procedure);
         }
-
-        Ok(())
     }
 
     pub fn assemble(mut self) -> Result<Encoded, Error> {
-        let result = self.asm.assemble_options(
-            0,
-            BlockEncoderOptions::RETURN_RELOC_INFOS
-                | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS
-                | BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS,
-        )?;
+        let result = self
+            .asm
+            .assemble_options(
+                0,
+                BlockEncoderOptions::RETURN_RELOC_INFOS
+                    | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS
+                    | BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS,
+            )
+            .unwrap();
         Ok(Encoded {
             result,
             labels: self.labels,
         })
+    }
+
+    fn clear_block_labels(&mut self) {
+        self.blocks.clear();
     }
 
     fn label(&mut self, name: Name) -> CodeLabel {
@@ -128,21 +125,19 @@ impl<'a> Lowerer<'a> {
             .or_insert_with(|| self.asm.create_label())
     }
 
-    fn set_label(&mut self, name: Name) -> Result<(), Error> {
+    fn set_label(&mut self, name: Name) {
         let label = self
             .labels
             .entry(name)
             .or_insert_with(|| self.asm.create_label());
-        self.asm.set_label(label)?;
-        Ok(())
+        self.asm.set_label(label).unwrap();
     }
 
-    fn set_block_label(&mut self, block: lir::BlockId) -> Result<(), Error> {
+    fn set_block_label(&mut self, block: lir::BlockId) {
         let label = self
             .blocks
             .entry(block)
             .or_insert_with(|| self.asm.create_label());
-        self.asm.set_label(label)?;
-        Ok(())
+        self.asm.set_label(label).unwrap();
     }
 }
