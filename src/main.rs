@@ -1,15 +1,15 @@
 mod args;
 mod console_driver;
-mod emit;
+//mod emit;
 mod input;
 mod target;
 
-use std::fs::{DirBuilder, File};
-use std::io::Write;
-use std::path::Path;
+//use std::fs::{DirBuilder, File};
+//use std::io::Write;
+//use std::path::Path;
 
 use backend::asm::asm;
-use backend::codegen::x64::{self, codegen, CONSTRAINTS};
+use backend::codegen::x64::{encode, pretty, CONSTRAINTS};
 use frontend::{parse, ParseResult};
 use midend::elaborate;
 
@@ -20,10 +20,10 @@ use codespan_reporting::files::SimpleFiles;
 use console_driver::ConsoleDriver;
 
 use args::Arguments;
-use emit::{write_coff, write_elf};
+//use emit::{write_coff, write_elf};
 use input::read_file;
 use target::get_target;
-use target_lexicon::{BinaryFormat, OperatingSystem, Triple};
+//use target_lexicon::{BinaryFormat, OperatingSystem, Triple};
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
 
     let program = asm(CONSTRAINTS, &types, &context, entry, decls);
 
-    let code = match codegen(&mut names, &target, entry, program) {
+    let code = match encode(&mut names, &target, entry, program) {
         Ok(code) => code,
         Err(error) => {
             let mut cmd = Arguments::command();
@@ -57,21 +57,15 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    println!("{}", x64::pretty_program(&names, &code));
+    println!("{}", pretty(&names, &code));
 
-    let code = x64::encode(code);
-    for byte in code.code.iter() {
-        print!("{byte:02x} ");
+    for byte in code.result.inner.code_buffer.iter() {
+        print!("{byte:0>2x} ");
     }
 
     println!();
 
-    for byte in code.data.iter() {
-        print!("{byte:02x} ");
-    }
-
-    println!();
-
+    /*
     DirBuilder::new().recursive(true).create("artifacts")?;
     match target {
         Triple {
@@ -111,6 +105,7 @@ fn main() -> anyhow::Result<()> {
             .exit();
         }
     }
+    */
 
     Ok(())
 }

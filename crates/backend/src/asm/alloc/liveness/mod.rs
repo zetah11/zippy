@@ -142,7 +142,6 @@ impl<'a> Analyzer<'a> {
     ) -> (HashSet<Register>, HashSet<Register>) {
         match instruction {
             Instruction::Crash => (HashSet::new(), HashSet::new()),
-            Instruction::Reserve(_) => (HashSet::new(), HashSet::new()),
             Instruction::Copy(target, value) => {
                 let kills = self.reg_in_target(target).into_iter().collect();
                 let gens = self.reg_in_value(value).into_iter().collect();

@@ -4,8 +4,6 @@ use super::{BlockId, Register, Target, Value};
 pub enum Instruction {
     Crash,
 
-    Reserve(usize),
-
     Copy(Target, Value),
     Index(Target, Value, usize),
     Tuple(Target, Vec<Value>),

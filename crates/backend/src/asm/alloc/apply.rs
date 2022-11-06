@@ -151,7 +151,6 @@ impl Applier {
     fn apply_inst(&self, inst: Instruction) -> Instruction {
         match inst {
             Instruction::Crash => Instruction::Crash,
-            Instruction::Reserve(res) => Instruction::Reserve(res),
             Instruction::Copy(target, value) => {
                 let target = self.apply_target(target);
                 let value = self.apply_value(value);

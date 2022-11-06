@@ -1,66 +1,148 @@
-mod encode;
-mod lower;
+mod block;
+mod entry;
+mod instruction;
 mod pretty;
-mod repr;
+mod procedure;
+mod values;
 
-#[cfg(test)]
-mod tests;
+pub use self::pretty::pretty;
+pub use self::values::CONSTRAINTS;
 
-pub use self::pretty::pretty_program;
-pub use encode::{encode, Encoded, Relocation, RelocationKind};
+use std::collections::HashMap;
+use std::fmt::{self, Display};
 
 use common::lir;
 use common::names::{Name, Names};
+use iced_x86::code_asm::{CodeAssembler, CodeAssemblerResult, CodeLabel, IcedError};
+use iced_x86::BlockEncoderOptions;
 use target_lexicon::Triple;
 
-pub fn codegen(
+use self::values::regid_to_reg;
+
+pub fn encode(
     names: &mut Names,
     target: &Triple,
     entry: Option<Name>,
     program: lir::Program,
-) -> Result<repr::Program, CodegenError> {
-    lower::lower(names, target, entry, program)
+) -> Result<Encoded, Error> {
+    let mut lowerer = Lowerer::new(names, entry, target, program)?;
+    lowerer.lower_program()?;
+    lowerer.assemble()
 }
 
-use crate::asm::{Constraints, RegisterInfo};
+#[derive(Debug)]
+pub struct Encoded {
+    pub result: CodeAssemblerResult,
+    pub labels: HashMap<Name, CodeLabel>,
+}
 
-use super::CodegenError;
+#[derive(Debug)]
+pub enum Error {
+    UnsupportedTarget(Triple),
+    IcedError(IcedError),
+}
 
-pub const CONSTRAINTS: Constraints = Constraints {
-    #[rustfmt::skip]
-    registers: &[
-        RegisterInfo { id:  0, size: 8, name: "rdi", aliases: &[] },
-        RegisterInfo { id:  1, size: 8, name: "rsi", aliases: &[] },
-        RegisterInfo { id:  2, size: 8, name: "rdx", aliases: &[] },
-        RegisterInfo { id:  3, size: 8, name: "rcx", aliases: &[] },
-        RegisterInfo { id:  4, size: 8, name: "r8",  aliases: &[] },
-        RegisterInfo { id:  5, size: 8, name: "r9",  aliases: &[] },
-        RegisterInfo { id:  6, size: 8, name: "r10", aliases: &[] },
-        RegisterInfo { id:  7, size: 8, name: "r11", aliases: &[] },
-        RegisterInfo { id:  8, size: 8, name: "r12", aliases: &[] },
-        RegisterInfo { id:  9, size: 8, name: "r13", aliases: &[] },
-        RegisterInfo { id: 10, size: 8, name: "r14", aliases: &[] },
-        RegisterInfo { id: 11, size: 8, name: "r15", aliases: &[] },
-    ],
-    call_clobbers: &[0, 1, 2, 3, 4, 5],
-    parameters: &[0, 1, 2, 3, 4, 5],
-    returns: &[0, 1, 2, 3, 4, 5],
-};
+impl std::error::Error for Error {}
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedTarget(triple) => write!(f, "the target '{triple}' is unsupported"),
+            Self::IcedError(err) => write!(f, "iced error: '{err}'"),
+        }
+    }
+}
 
-fn regid_to_reg(id: usize) -> repr::Register {
-    match id {
-        0 => repr::Register::Rdi,
-        1 => repr::Register::Rsi,
-        2 => repr::Register::Rdx,
-        3 => repr::Register::Rcx,
-        4 => repr::Register::R8,
-        5 => repr::Register::R9,
-        6 => repr::Register::R10,
-        7 => repr::Register::R11,
-        8 => repr::Register::R12,
-        9 => repr::Register::R13,
-        10 => repr::Register::R14,
-        11 => repr::Register::R15,
-        _ => unreachable!(),
+impl From<IcedError> for Error {
+    fn from(err: IcedError) -> Self {
+        Self::IcedError(err)
+    }
+}
+
+struct Lowerer<'a> {
+    asm: CodeAssembler,
+    names: &'a mut Names,
+
+    program: lir::Program,
+
+    labels: HashMap<Name, CodeLabel>,
+    blocks: HashMap<lir::BlockId, CodeLabel>,
+}
+
+impl<'a> Lowerer<'a> {
+    pub fn new(
+        names: &'a mut Names,
+        entry: Option<Name>,
+        target: &Triple,
+        program: lir::Program,
+    ) -> Result<Self, Error> {
+        let mut res = Self {
+            asm: CodeAssembler::new(64).unwrap(),
+            names,
+            program,
+
+            labels: HashMap::new(),
+            blocks: HashMap::new(),
+        };
+
+        if let Some(entry) = entry {
+            res.entry(entry, target)?;
+        }
+
+        Ok(res)
+    }
+
+    pub fn lower_program(&mut self) -> Result<(), Error> {
+        let procs: Vec<_> = self.program.procs.drain().collect();
+
+        for (name, procedure) in procs {
+            self.lower_procedure(name, procedure)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn assemble(mut self) -> Result<Encoded, Error> {
+        let result = self.asm.assemble_options(
+            0,
+            BlockEncoderOptions::RETURN_RELOC_INFOS
+                | BlockEncoderOptions::RETURN_CONSTANT_OFFSETS
+                | BlockEncoderOptions::RETURN_NEW_INSTRUCTION_OFFSETS,
+        )?;
+        Ok(Encoded {
+            result,
+            labels: self.labels,
+        })
+    }
+
+    fn label(&mut self, name: Name) -> CodeLabel {
+        *self
+            .labels
+            .entry(name)
+            .or_insert_with(|| self.asm.create_label())
+    }
+
+    fn block_label(&mut self, block: lir::BlockId) -> CodeLabel {
+        *self
+            .blocks
+            .entry(block)
+            .or_insert_with(|| self.asm.create_label())
+    }
+
+    fn set_label(&mut self, name: Name) -> Result<(), Error> {
+        let label = self
+            .labels
+            .entry(name)
+            .or_insert_with(|| self.asm.create_label());
+        self.asm.set_label(label)?;
+        Ok(())
+    }
+
+    fn set_block_label(&mut self, block: lir::BlockId) -> Result<(), Error> {
+        let label = self
+            .blocks
+            .entry(block)
+            .or_insert_with(|| self.asm.create_label());
+        self.asm.set_label(label)?;
+        Ok(())
     }
 }

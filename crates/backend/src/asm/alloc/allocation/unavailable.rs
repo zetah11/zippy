@@ -50,6 +50,7 @@ impl Allocator<'_> {
                 Register::Physical(id) => Some(id),
                 _ => None,
             })
+            .flat_map(|id| self.aliases.get(&id).unwrap().iter().copied())
             .collect()
     }
 }

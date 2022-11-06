@@ -56,7 +56,6 @@ impl Clobberer {
     fn clobber_inst(&mut self, inst: &Instruction) {
         match inst {
             Instruction::Crash => {}
-            Instruction::Reserve(..) => {}
             Instruction::Copy(target, _) => self.clobber_target(target),
             Instruction::Index(target, ..) => self.clobber_target(target),
             Instruction::Tuple(target, ..) => self.clobber_target(target),

@@ -38,16 +38,24 @@ struct Allocator<'a> {
     context: &'a Context,
 
     mapping: HashMap<usize, Register>,
+    aliases: HashMap<usize, Vec<usize>>,
     frame_space: usize,
 }
 
 impl<'a> Allocator<'a> {
     pub fn new(constraints: &'a Constraints, types: &'a Types, context: &'a Context) -> Self {
+        let aliases = constraints
+            .registers
+            .iter()
+            .map(|reg| (reg.id, reg.aliases.to_vec()))
+            .collect();
+
         Self {
             constraints,
             types,
             context,
             mapping: HashMap::new(),
+            aliases,
             frame_space: 0,
         }
     }
