@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{BlockId, Branch, Instruction, Procedure, Register, Target};
+use super::{BlockId, Branch, Instruction, Procedure, Register, Target, TargetNode};
 
 /// Compute a set of all the physical registers which this procedure clobbers (i.e. assigns or overwrites).
 pub fn clobbered(proc: &Procedure) -> HashSet<usize> {
@@ -63,9 +63,9 @@ impl Clobberer {
     }
 
     fn clobber_target(&mut self, target: &Target) {
-        match target {
-            Target::Register(reg) => self.clobber_reg(reg),
-            Target::Name(_) => {}
+        match &target.node {
+            TargetNode::Register(reg) => self.clobber_reg(reg),
+            TargetNode::Name(_) => {}
         }
     }
 

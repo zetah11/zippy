@@ -1,4 +1,4 @@
-use common::lir::{self, BlockId, Target, Value};
+use common::lir::{self, BlockId, Target, TargetNode, Value, ValueNode};
 use common::names::Name;
 use iced_x86::code_asm::{
     gpr16, gpr32, gpr64, gpr8, ptr, rax, rbp, AsmMemoryOperand, AsmRegister16, AsmRegister32,
@@ -47,32 +47,32 @@ impl TryFrom<Register> for Operand {
 
 impl Lowerer<'_> {
     pub fn target_operand(&self, target: &Target) -> Option<Operand> {
-        match target {
-            Target::Register(lir::Register::Physical(id)) => {
-                Operand::try_from(regid_to_reg(*id)).ok()
+        match target.node {
+            TargetNode::Register(lir::Register::Physical(id)) => {
+                Operand::try_from(regid_to_reg(id)).ok()
             }
-            Target::Register(lir::Register::Frame(offset, _)) => {
-                Some(Operand::Memory(rbp + *offset))
+            TargetNode::Register(lir::Register::Frame(offset, _)) => {
+                Some(Operand::Memory(rbp + offset))
             }
-            Target::Register(lir::Register::Virtual(_)) => unreachable!(),
+            TargetNode::Register(lir::Register::Virtual(_)) => unreachable!(),
 
-            Target::Name(name) => Some(Operand::Label(*name)),
+            TargetNode::Name(name) => Some(Operand::Label(name)),
         }
     }
 
     pub fn value_operand(&self, value: &Value) -> Option<Operand> {
-        match value {
-            Value::Register(lir::Register::Physical(id)) => {
-                Operand::try_from(regid_to_reg(*id)).ok()
+        match value.node {
+            ValueNode::Register(lir::Register::Physical(id)) => {
+                Operand::try_from(regid_to_reg(id)).ok()
             }
-            Value::Register(lir::Register::Frame(offset, _)) => {
-                Some(Operand::Memory(rbp + *offset))
+            ValueNode::Register(lir::Register::Frame(offset, _)) => {
+                Some(Operand::Memory(rbp + offset))
             }
-            Value::Register(lir::Register::Virtual(_)) => unreachable!(),
+            ValueNode::Register(lir::Register::Virtual(_)) => unreachable!(),
 
-            Value::Name(name) => Some(Operand::Label(*name)),
+            ValueNode::Name(name) => Some(Operand::Label(name)),
 
-            Value::Integer(i) => Some(Operand::Integer(*i)),
+            ValueNode::Integer(i) => Some(Operand::Integer(i)),
         }
     }
 
@@ -333,8 +333,14 @@ impl Lowerer<'_> {
                 self.asm.mov(target, source).unwrap()
             }
             (Operand::Gpr64(target), Operand::Label(source)) => {
+                let ty = self.program.context.get(&source);
                 let source = self.label(source);
-                self.asm.mov(target, ptr(source)).unwrap();
+
+                if self.program.types.is_indirect(&ty) {
+                    self.asm.lea(target, ptr(source)).unwrap();
+                } else {
+                    self.asm.mov(target, ptr(source)).unwrap();
+                }
             }
             (Operand::Gpr64(target), Operand::Block(source)) => {
                 let source = self.block_label(source);

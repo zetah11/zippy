@@ -19,7 +19,7 @@ pub fn regalloc(constraints: &Constraints, program: Program) -> Program {
     let mut procs = HashMap::with_capacity(program.procs.len());
 
     for (name, procedure) in program.procs {
-        let allocation = allocate(constraints, &program.types, &program.context, &procedure);
+        let allocation = allocate(constraints, &program.types, &procedure);
         let applied = apply(allocation, procedure);
         procs.insert(name, applied);
     }

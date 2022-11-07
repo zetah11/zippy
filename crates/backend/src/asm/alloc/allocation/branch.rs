@@ -1,4 +1,4 @@
-use common::lir::{Branch, Procedure, Register, Value, Virtual};
+use common::lir::{Branch, Procedure, Register, Virtual};
 
 use super::Allocator;
 
@@ -7,22 +7,15 @@ impl Allocator<'_> {
     pub fn allocate_branch(&mut self, procedure: &Procedure, branch: &Branch) {
         match branch {
             Branch::Call(fun, args, conts) => {
-                let fun_ty = match fun {
-                    Value::Register(Register::Virtual(Virtual { ty, .. })) => *ty,
-                    Value::Name(name) => self.context.get(name),
-
-                    Value::Register(_) | Value::Integer(_) => unreachable!(),
-                };
-
                 let args: Vec<_> = args
                     .iter()
-                    .map(|arg| match arg {
+                    .map(|(arg, _)| match arg {
                         Register::Virtual(Virtual { id, .. }) => *id,
                         _ => unreachable!(),
                     })
                     .collect();
 
-                let (arg_regs, ret_regs) = self.calling_convention(&fun_ty);
+                let (arg_regs, ret_regs) = self.calling_convention(&fun.ty);
 
                 assert!(arg_regs.len() == args.len());
                 for (arg, reg) in args.into_iter().zip(arg_regs) {
@@ -47,7 +40,7 @@ impl Allocator<'_> {
             Branch::Return(_, values) => {
                 let (ret_names, ret_types): (Vec<_>, Vec<_>) = values
                     .iter()
-                    .map(|value| match value {
+                    .map(|(value, _)| match value {
                         Register::Virtual(Virtual { ty, id }) => (*id, *ty),
                         _ => unreachable!(),
                     })

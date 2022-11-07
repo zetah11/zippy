@@ -57,6 +57,11 @@ impl Types {
         self.types.get(ty.0).unwrap()
     }
 
+    /// Is the given type an indirect (e.g. pointer) type?
+    pub fn is_indirect(&self, ty: &TypeId) -> bool {
+        matches!(self.get(ty), Type::Fun(..))
+    }
+
     pub fn offsetof(&self, ty: &TypeId, ndx: usize) -> usize {
         match self.get(ty) {
             Type::Product(ties) => {

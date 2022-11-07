@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use common::lir::{BlockId, Branch, Instruction, Procedure, Register, Target, Value};
+use common::lir::{
+    BlockId, Branch, Instruction, Procedure, Register, Target, TargetNode, Value, ValueNode,
+};
 
 use super::info::ProcInfo;
 
@@ -113,7 +115,7 @@ impl<'a> Analyzer<'a> {
             Branch::Call(fun, args, _) => self
                 .reg_in_value(fun)
                 .into_iter()
-                .chain(args.iter().copied())
+                .chain(args.iter().map(|(reg, _)| *reg))
                 .collect(),
 
             Branch::Jump(_, arg) => arg.iter().flat_map(|arg| self.reg_in_value(arg)).collect(),
@@ -132,7 +134,7 @@ impl<'a> Analyzer<'a> {
                 .chain(elze.iter().flat_map(|arg| self.reg_in_value(arg)))
                 .collect(),
 
-            Branch::Return(_, args) => args.iter().copied().collect(),
+            Branch::Return(_, args) => args.iter().map(|(reg, _)| *reg).collect(),
         }
     }
 
@@ -181,15 +183,15 @@ impl<'a> Analyzer<'a> {
     }
 
     fn reg_in_value(&self, value: &Value) -> Option<Register> {
-        match value {
-            Value::Register(reg) => Some(*reg),
+        match value.node {
+            ValueNode::Register(reg) => Some(reg),
             _ => None,
         }
     }
 
     fn reg_in_target(&self, target: &Target) -> Option<Register> {
-        match target {
-            Target::Register(reg) => Some(*reg),
+        match target.node {
+            TargetNode::Register(reg) => Some(reg),
             _ => None,
         }
     }

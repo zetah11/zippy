@@ -6,7 +6,7 @@ mod unavailable;
 
 use std::collections::HashMap;
 
-use common::lir::{Context, Procedure, Register, Types, Virtual};
+use common::lir::{Procedure, Register, Types, Virtual};
 
 use super::constraint::Constraints;
 use super::info::info;
@@ -22,20 +22,14 @@ pub struct Allocation {
     pub frame_space: usize,
 }
 
-pub fn allocate(
-    constraints: &Constraints,
-    types: &Types,
-    context: &Context,
-    procedure: &Procedure,
-) -> Allocation {
-    let allocator = Allocator::new(constraints, types, context);
+pub fn allocate(constraints: &Constraints, types: &Types, procedure: &Procedure) -> Allocation {
+    let allocator = Allocator::new(constraints, types);
     allocator.allocate(procedure)
 }
 
 struct Allocator<'a> {
     constraints: &'a Constraints,
     types: &'a Types,
-    context: &'a Context,
 
     mapping: HashMap<usize, Register>,
     aliases: HashMap<usize, Vec<usize>>,
@@ -43,7 +37,7 @@ struct Allocator<'a> {
 }
 
 impl<'a> Allocator<'a> {
-    pub fn new(constraints: &'a Constraints, types: &'a Types, context: &'a Context) -> Self {
+    pub fn new(constraints: &'a Constraints, types: &'a Types) -> Self {
         let aliases = constraints
             .registers
             .iter()
@@ -53,7 +47,6 @@ impl<'a> Allocator<'a> {
         Self {
             constraints,
             types,
-            context,
             mapping: HashMap::new(),
             aliases,
             frame_space: 0,

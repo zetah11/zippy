@@ -1,4 +1,4 @@
-use common::lir::Value;
+use common::lir::{Value, ValueNode};
 use common::names::Name;
 
 use super::Lowerer;
@@ -8,7 +8,7 @@ impl Lowerer<'_> {
         let ty = self.program.context.get(&name);
         let size = self.program.types.sizeof(&ty);
 
-        let Value::Integer(i) = value else { unreachable!() };
+        let ValueNode::Integer(i) = value.node else { unreachable!() };
         let bytes = i.to_le_bytes();
 
         self.set_label(name);

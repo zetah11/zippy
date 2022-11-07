@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
 
     let (types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
-    let program = asm(CONSTRAINTS, &types, &context, entry, decls);
+    let program = asm(CONSTRAINTS, &types, &context, &names, entry, decls);
 
     let code = match encode(&mut names, &target, entry, program) {
         Ok(code) => code,

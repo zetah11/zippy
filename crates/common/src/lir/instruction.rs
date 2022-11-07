@@ -1,4 +1,4 @@
-use super::{BlockId, Register, Target, Value};
+use super::{BlockId, Register, Target, TypeId, Value};
 
 #[derive(Clone, Debug)]
 pub enum Instruction {
@@ -11,8 +11,8 @@ pub enum Instruction {
 
 #[derive(Clone, Debug)]
 pub enum Branch {
-    Call(Value, Vec<Register>, Vec<BlockId>),
-    Return(BlockId, Vec<Register>),
+    Call(Value, Vec<(Register, TypeId)>, Vec<BlockId>),
+    Return(BlockId, Vec<(Register, TypeId)>),
     Jump(BlockId, Vec<Value>),
     JumpIf {
         left: Value,

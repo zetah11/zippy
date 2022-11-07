@@ -7,7 +7,7 @@ pub use instruction::{Branch, Condition, Instruction};
 pub use proc::{ProcBuilder, Procedure};
 pub use register::{Register, Virtual};
 pub use types::{Context, Type, TypeId, Types};
-pub use value::{Target, Value};
+pub use value::{Target, TargetNode, Value, ValueNode};
 
 mod block;
 mod clobber;

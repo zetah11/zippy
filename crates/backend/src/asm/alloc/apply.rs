@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use common::lir::{BlockId, Branch, Instruction, ProcBuilder, Procedure, Register, Target, Value};
+use common::lir::{
+    BlockId, Branch, Instruction, ProcBuilder, Procedure, Register, Target, TargetNode, Value,
+    ValueNode,
+};
 
 use super::allocation::Allocation;
 
@@ -89,7 +92,10 @@ impl Applier {
             Branch::Return(cont, values) => (
                 Branch::Return(
                     self.map_block(cont),
-                    values.into_iter().map(|reg| self.apply_reg(reg)).collect(),
+                    values
+                        .into_iter()
+                        .map(|(reg, ty)| (self.apply_reg(reg), ty))
+                        .collect(),
                 ),
                 vec![],
             ),
@@ -131,7 +137,10 @@ impl Applier {
             }
             Branch::Call(fun, args, conts) => {
                 let fun = self.apply_value(fun);
-                let args = args.into_iter().map(|arg| self.apply_reg(arg)).collect();
+                let args = args
+                    .into_iter()
+                    .map(|(arg, ty)| (self.apply_reg(arg), ty))
+                    .collect();
                 (
                     Branch::Call(
                         fun,
@@ -180,17 +189,29 @@ impl Applier {
     }
 
     fn apply_value(&self, value: Value) -> Value {
-        match value {
-            Value::Integer(i) => Value::Integer(i),
-            Value::Name(name) => Value::Name(name),
-            Value::Register(reg) => Value::Register(self.apply_reg(reg)),
+        let node = match value.node {
+            ValueNode::Integer(i) => ValueNode::Integer(i),
+            ValueNode::Name(name) => ValueNode::Name(name),
+            ValueNode::Register(reg) => ValueNode::Register(self.apply_reg(reg)),
+        };
+
+        Value {
+            node,
+            ty: value.ty,
+            span: value.span,
         }
     }
 
     fn apply_target(&self, target: Target) -> Target {
-        match target {
-            Target::Name(name) => Target::Name(name),
-            Target::Register(reg) => Target::Register(self.apply_reg(reg)),
+        let node = match target.node {
+            TargetNode::Name(name) => TargetNode::Name(name),
+            TargetNode::Register(reg) => TargetNode::Register(self.apply_reg(reg)),
+        };
+
+        Target {
+            node,
+            ty: target.ty,
+            span: target.span,
         }
     }
 
