@@ -118,20 +118,15 @@ impl<'a> Analyzer<'a> {
                 .chain(args.iter().map(|(reg, _)| *reg))
                 .collect(),
 
-            Branch::Jump(_, arg) => arg.iter().flat_map(|arg| self.reg_in_value(arg)).collect(),
+            Branch::Jump(_, args) => args.iter().copied().collect(),
 
             Branch::JumpIf {
-                left,
-                right,
-                then: (_, then),
-                elze: (_, elze),
-                ..
+                left, right, args, ..
             } => self
                 .reg_in_value(left)
                 .into_iter()
                 .chain(self.reg_in_value(right))
-                .chain(then.iter().flat_map(|arg| self.reg_in_value(arg)))
-                .chain(elze.iter().flat_map(|arg| self.reg_in_value(arg)))
+                .chain(args.iter().copied())
                 .collect(),
 
             Branch::Return(_, args) => args.iter().map(|(reg, _)| *reg).collect(),

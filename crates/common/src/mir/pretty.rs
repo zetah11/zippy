@@ -252,7 +252,7 @@ impl<'a> Prettier<'a> {
         preceding.append(match &path.1 {
             Actual::Lit(lit) => self.allocator.text(lit),
             Actual::Generated(id) => self.allocator.text(String::from(*id)),
-            Actual::Root => self.allocator.nil(),
+            Actual::Root => self.allocator.text("package"),
             Actual::Scope(id) => self.allocator.text(format!("<scope {}>", id.0)),
         })
     }

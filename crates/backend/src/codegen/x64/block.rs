@@ -56,8 +56,9 @@ impl Lowerer<'_> {
                 left,
                 cond,
                 right,
-                then: (then_cont, _then_args),
-                elze: (elze_cont, _elze_args),
+                args: _args,
+                then,
+                elze,
             } => {
                 let left = self.value_operand(left).unwrap();
                 let right = self.value_operand(right).unwrap();
@@ -65,31 +66,31 @@ impl Lowerer<'_> {
                 // TODO: swap things around if this is invalid (e.g. integer on the left side)
                 self.asm_cmp(left, right);
 
-                let then_follows = order.first().map(|next| then_cont == next).unwrap_or(false);
-                let elze_follows = order.first().map(|next| elze_cont == next).unwrap_or(false);
+                let then_follows = order.first().map(|next| then == next).unwrap_or(false);
+                let elze_follows = order.first().map(|next| elze == next).unwrap_or(false);
 
                 assert!(!(then_follows && elze_follows));
 
                 match cond {
-                    Condition::Equal if elze_follows => self.asm_je(Operand::Block(*then_cont)),
-                    Condition::Equal if then_follows => self.asm_jne(Operand::Block(*elze_cont)),
+                    Condition::Equal if elze_follows => self.asm_je(Operand::Block(*then)),
+                    Condition::Equal if then_follows => self.asm_jne(Operand::Block(*elze)),
                     Condition::Equal => {
-                        self.asm_je(Operand::Block(*then_cont));
-                        self.asm_jmp(Operand::Block(*elze_cont));
+                        self.asm_je(Operand::Block(*then));
+                        self.asm_jmp(Operand::Block(*elze));
                     }
 
-                    Condition::Greater if elze_follows => self.asm_jg(Operand::Block(*then_cont)),
-                    Condition::Greater if then_follows => self.asm_jle(Operand::Block(*elze_cont)),
+                    Condition::Greater if elze_follows => self.asm_jg(Operand::Block(*then)),
+                    Condition::Greater if then_follows => self.asm_jle(Operand::Block(*elze)),
                     Condition::Greater => {
-                        self.asm_jg(Operand::Block(*then_cont));
-                        self.asm_jmp(Operand::Block(*elze_cont));
+                        self.asm_jg(Operand::Block(*then));
+                        self.asm_jmp(Operand::Block(*elze));
                     }
 
-                    Condition::Less if elze_follows => self.asm_jl(Operand::Block(*then_cont)),
-                    Condition::Less if then_follows => self.asm_jge(Operand::Block(*elze_cont)),
+                    Condition::Less if elze_follows => self.asm_jl(Operand::Block(*then)),
+                    Condition::Less if then_follows => self.asm_jge(Operand::Block(*elze)),
                     Condition::Less => {
-                        self.asm_jl(Operand::Block(*then_cont));
-                        self.asm_jmp(Operand::Block(*elze_cont));
+                        self.asm_jl(Operand::Block(*then));
+                        self.asm_jmp(Operand::Block(*elze));
                     }
                 }
             }

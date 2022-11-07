@@ -49,11 +49,7 @@ impl Lowerer<'_> {
 
             Branch::Jump(to, _) => vec![*to],
 
-            Branch::JumpIf {
-                then: (then, _),
-                elze: (elze, _),
-                ..
-            } => vec![*then, *elze],
+            Branch::JumpIf { then, elze, .. } => vec![*then, *elze],
 
             Branch::Return(..) => vec![],
         }

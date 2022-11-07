@@ -102,9 +102,7 @@ impl Applier {
             Branch::Jump(succ, args) => (
                 Branch::Jump(
                     self.map_block(succ),
-                    args.into_iter()
-                        .map(|value| self.apply_value(value))
-                        .collect(),
+                    args.into_iter().map(|reg| self.apply_reg(reg)).collect(),
                 ),
                 vec![succ],
             ),
@@ -112,25 +110,20 @@ impl Applier {
                 left,
                 cond,
                 right,
-                then: (then, then_args),
-                elze: (elze, elze_args),
+                args,
+                then,
+                elze,
             } => {
                 let left = self.apply_value(left);
                 let right = self.apply_value(right);
-                let then_arg = then_args
-                    .into_iter()
-                    .map(|value| self.apply_value(value))
-                    .collect();
-                let elze_arg = elze_args
-                    .into_iter()
-                    .map(|value| self.apply_value(value))
-                    .collect();
+                let args = args.into_iter().map(|reg| self.apply_reg(reg)).collect();
                 let res = Branch::JumpIf {
                     left,
                     cond,
                     right,
-                    then: (self.map_block(then), then_arg),
-                    elze: (self.map_block(elze), elze_arg),
+                    args,
+                    then: self.map_block(then),
+                    elze: self.map_block(elze),
                 };
 
                 (res, vec![then, elze])

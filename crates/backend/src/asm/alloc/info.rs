@@ -31,11 +31,7 @@ pub fn info(proc: &Procedure) -> ProcInfo {
                 worklist.push(*to);
             }
 
-            Branch::JumpIf {
-                then: (then, _),
-                elze: (elze, _),
-                ..
-            } => {
+            Branch::JumpIf { then, elze, .. } => {
                 edges.push((from, *then));
                 edges.push((from, *elze));
 

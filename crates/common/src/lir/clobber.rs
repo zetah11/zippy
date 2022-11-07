@@ -44,7 +44,7 @@ impl Clobberer {
             }
 
             Branch::JumpIf { then, elze, .. } => {
-                self.worklist.extend([then.0, elze.0]);
+                self.worklist.extend([then, elze]);
             }
 
             Branch::Call(.., conts) => {
