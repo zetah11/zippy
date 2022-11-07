@@ -85,6 +85,7 @@ impl Types {
 
             Type::Product(ties) => ties.iter().map(|ty| self.sizeof(ty)).sum(),
 
+            // TODO: platform specific!
             Type::Fun(..) => 8,
         }
     }

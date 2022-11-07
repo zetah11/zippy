@@ -40,10 +40,22 @@ struct Resolver {
 impl Resolver {
     pub fn new(names: &Names, code: &Encoded) -> Self {
         let mut map = HashMap::with_capacity(code.labels.len());
+
         for (name, label) in code.labels.iter() {
+            assert!(code.info.is_intern(name));
+
             let name = mangle(names, name);
             let address = code.result.label_ip(label).unwrap();
+
             map.insert(address, name);
+        }
+
+        for (name, (address, _)) in code.relocs.iter() {
+            assert!(code.info.is_extern(name));
+
+            let name = mangle(names, name);
+
+            map.insert(*address, name);
         }
 
         Self { map }

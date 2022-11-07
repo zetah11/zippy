@@ -25,6 +25,7 @@ pub fn lower(
         values: lowerer.values,
         types: lowerer.types,
         context: lowerer.context,
+        info: lowerer.info,
     }
 }
 
@@ -36,6 +37,7 @@ struct Lowerer<'a> {
     values: HashMap<Name, lir::Value>,
     types: lir::Types,
     context: lir::Context,
+    info: lir::NameInfo,
 
     old_types: &'a mir::Types,
     old_context: &'a mir::Context,
@@ -61,6 +63,7 @@ impl<'a> Lowerer<'a> {
             values: HashMap::new(),
             types: lir::Types::new(),
             context: lir::Context::new(),
+            info: lir::NameInfo::new(),
 
             old_types: types,
             old_context: context,
@@ -82,9 +85,11 @@ impl<'a> Lowerer<'a> {
             if let Some((params, body)) = self.decls.functions.remove(&name) {
                 let proc = self.lower_function(params, body);
                 self.procs.insert(name, proc);
+                self.info.add(name, lir::Info::procedure());
             } else if let Some(value) = self.decls.values.remove(&name) {
                 let value = self.lower_value(&mut Vec::new(), value);
                 self.values.insert(name, value);
+                self.info.add(name, lir::Info::constant());
             }
 
             trace!("{} names left to lower", self.worklist.len());

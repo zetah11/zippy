@@ -34,6 +34,11 @@ impl Lowerer<'_> {
 
                 // We don't have to do anything about `_arg`, since any necessary moves should have been set up before.
                 let fun = self.value_operand(fun).unwrap();
+                if let Operand::Label(name) = fun {
+                    if self.program.info.is_extern(&name) {
+                        todo!()
+                    }
+                }
 
                 if call {
                     self.asm_call(fun);
@@ -124,6 +129,7 @@ impl Lowerer<'_> {
                     return;
                 }
 
+                println!("{target:?} {value:?}");
                 self.asm_mov(target, value);
             }
 

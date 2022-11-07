@@ -24,7 +24,14 @@ impl Allocator<'_> {
             let size = self.types.sizeof(arg);
 
             for physical in &self.constraints.parameters[arg_mapping.len()..] {
-                let reg = &self.constraints.registers[*physical];
+                // ouch
+                let reg = &self
+                    .constraints
+                    .registers
+                    .iter()
+                    .find(|reg| &reg.id == physical)
+                    .unwrap();
+
                 if reg.size >= size {
                     arg_mapping.push(Register::Physical(*physical));
                     continue 'args;
@@ -45,7 +52,13 @@ impl Allocator<'_> {
             let size = self.types.sizeof(ret);
 
             for physical in &self.constraints.returns[ret_mapping.len()..] {
-                let reg = &self.constraints.registers[*physical];
+                let reg = &self
+                    .constraints
+                    .registers
+                    .iter()
+                    .find(|reg| &reg.id == physical)
+                    .unwrap();
+
                 if reg.size >= size {
                     ret_mapping.push(Register::Physical(*physical));
                     continue 'rets;

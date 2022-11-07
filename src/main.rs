@@ -1,12 +1,12 @@
 mod args;
 mod console_driver;
-//mod emit;
+mod emit;
 mod input;
 mod target;
 
-//use std::fs::{DirBuilder, File};
-//use std::io::Write;
-//use std::path::Path;
+use std::fs::{DirBuilder, File};
+use std::io::Write;
+use std::path::Path;
 
 use backend::asm::asm;
 use backend::codegen::x64::{encode, pretty, CONSTRAINTS};
@@ -20,10 +20,10 @@ use codespan_reporting::files::SimpleFiles;
 use console_driver::ConsoleDriver;
 
 use args::Arguments;
-//use emit::{write_coff, write_elf};
+use emit::{write_coff, write_elf};
 use input::read_file;
 use target::get_target;
-//use target_lexicon::{BinaryFormat, OperatingSystem, Triple};
+use target_lexicon::{BinaryFormat, OperatingSystem, Triple};
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -59,13 +59,8 @@ fn main() -> anyhow::Result<()> {
 
     println!("{}", pretty(&names, &code));
 
-    for byte in code.result.inner.code_buffer.iter() {
-        print!("{byte:0>2x} ");
-    }
+    println!("{}", pretty_hex::pretty_hex(&code.result.inner.code_buffer));
 
-    println!();
-
-    /*
     DirBuilder::new().recursive(true).create("artifacts")?;
     match target {
         Triple {
@@ -105,7 +100,6 @@ fn main() -> anyhow::Result<()> {
             .exit();
         }
     }
-    */
 
     Ok(())
 }

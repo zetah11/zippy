@@ -3,21 +3,24 @@ mod entry;
 mod instruction;
 mod pretty;
 mod procedure;
-mod values;
+mod registers;
+mod relocation;
+mod value;
 
 pub use self::pretty::pretty;
-pub use self::values::CONSTRAINTS;
+pub use self::registers::CONSTRAINTS;
+pub use self::relocation::RelocationKind;
 
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 
-use common::lir;
+use common::lir::{self, NameInfo};
 use common::names::{Name, Names};
 use iced_x86::code_asm::{CodeAssembler, CodeAssemblerResult, CodeLabel};
 use iced_x86::BlockEncoderOptions;
 use target_lexicon::Triple;
 
-use self::values::regid_to_reg;
+use self::registers::regid_to_reg;
 
 pub fn encode(
     names: &mut Names,
@@ -34,6 +37,8 @@ pub fn encode(
 pub struct Encoded {
     pub result: CodeAssemblerResult,
     pub labels: HashMap<Name, CodeLabel>,
+    pub relocs: HashMap<Name, (u64, Vec<(RelocationKind, CodeLabel)>)>,
+    pub info: NameInfo,
 }
 
 #[derive(Debug)]
@@ -58,6 +63,8 @@ struct Lowerer<'a> {
 
     labels: HashMap<Name, CodeLabel>,
     blocks: HashMap<lir::BlockId, CodeLabel>,
+    relocs: HashMap<Name, (u64, Vec<(RelocationKind, CodeLabel)>)>,
+    reloc_addr: u64,
 }
 
 impl<'a> Lowerer<'a> {
@@ -74,6 +81,8 @@ impl<'a> Lowerer<'a> {
 
             labels: HashMap::new(),
             blocks: HashMap::new(),
+            relocs: HashMap::new(),
+            reloc_addr: u64::MAX,
         };
 
         if let Some(entry) = entry {
@@ -85,9 +94,14 @@ impl<'a> Lowerer<'a> {
 
     pub fn lower_program(&mut self) {
         let procs: Vec<_> = self.program.procs.drain().collect();
+        let values: Vec<_> = self.program.values.drain().collect();
 
         for (name, procedure) in procs {
             self.lower_procedure(name, procedure);
+        }
+
+        for (name, value) in values {
+            self.lower_constant(name, value);
         }
     }
 
@@ -104,11 +118,27 @@ impl<'a> Lowerer<'a> {
         Ok(Encoded {
             result,
             labels: self.labels,
+            relocs: self.relocs,
+            info: self.program.info,
         })
     }
 
     fn clear_block_labels(&mut self) {
         self.blocks.clear();
+    }
+
+    fn relocation_here(&mut self, name: Name, kind: RelocationKind) -> u64 {
+        let mut at = self.asm.create_label();
+        self.asm.set_label(&mut at).unwrap();
+
+        let relocs = self.relocs.entry(name).or_insert_with(|| {
+            let id = self.reloc_addr;
+            self.reloc_addr -= 1;
+            (id, Vec::new())
+        });
+
+        relocs.1.push((kind, at));
+        relocs.0
     }
 
     fn label(&mut self, name: Name) -> CodeLabel {

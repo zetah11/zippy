@@ -1,0 +1,127 @@
+use iced_x86::Register;
+
+use crate::asm::{Constraints, RegisterInfo};
+
+pub const CONSTRAINTS: Constraints = Constraints {
+    call_clobbers: &[],
+
+    parameters: &[
+        60, 61, 62, 63, 64, 65, 40, 41, 42, 43, 44, 45, 20, 21, 22, 23, 24, 25, 0, 1, 2, 3, 4, 5,
+    ],
+    returns: &[
+        60, 61, 62, 63, 64, 65, 40, 41, 42, 43, 44, 45, 20, 21, 22, 23, 24, 25, 0, 1, 2, 3, 4, 5,
+    ],
+
+    #[rustfmt::skip]
+    registers: &[
+        RegisterInfo { id: 60, size: 1, name: "dil",  aliases: &[ 0, 20, 40] },
+        RegisterInfo { id: 61, size: 1, name: "sil",  aliases: &[ 1, 21, 41] },
+        RegisterInfo { id: 62, size: 1, name: "dl",   aliases: &[ 2, 22, 42] },
+        RegisterInfo { id: 63, size: 1, name: "cl",   aliases: &[ 3, 23, 43] },
+        RegisterInfo { id: 64, size: 1, name: "r8l",  aliases: &[ 4, 24, 44] },
+        RegisterInfo { id: 65, size: 1, name: "r9l",  aliases: &[ 5, 25, 45] },
+        RegisterInfo { id: 66, size: 1, name: "r10l", aliases: &[ 6, 26, 46] },
+        RegisterInfo { id: 67, size: 1, name: "r11l", aliases: &[ 7, 27, 47] },
+        RegisterInfo { id: 68, size: 1, name: "r12l", aliases: &[ 8, 28, 48] },
+        RegisterInfo { id: 69, size: 1, name: "r13l", aliases: &[ 9, 29, 49] },
+        RegisterInfo { id: 70, size: 1, name: "r14l", aliases: &[10, 30, 50] },
+        RegisterInfo { id: 71, size: 1, name: "r15l", aliases: &[11, 31, 51] },
+
+        RegisterInfo { id: 40, size: 2, name: "di",   aliases: &[ 0, 20, 60] },
+        RegisterInfo { id: 41, size: 2, name: "si",   aliases: &[ 1, 21, 61] },
+        RegisterInfo { id: 42, size: 2, name: "dx",   aliases: &[ 2, 22, 62] },
+        RegisterInfo { id: 43, size: 2, name: "cx",   aliases: &[ 3, 23, 63] },
+        RegisterInfo { id: 44, size: 2, name: "r8w",  aliases: &[ 4, 24, 64] },
+        RegisterInfo { id: 45, size: 2, name: "r9w",  aliases: &[ 5, 25, 65] },
+        RegisterInfo { id: 46, size: 2, name: "r10w", aliases: &[ 6, 26, 66] },
+        RegisterInfo { id: 47, size: 2, name: "r11w", aliases: &[ 7, 27, 67] },
+        RegisterInfo { id: 48, size: 2, name: "r12w", aliases: &[ 8, 28, 68] },
+        RegisterInfo { id: 49, size: 2, name: "r13w", aliases: &[ 9, 29, 69] },
+        RegisterInfo { id: 50, size: 2, name: "r14w", aliases: &[10, 30, 70] },
+        RegisterInfo { id: 51, size: 2, name: "r15w", aliases: &[11, 31, 71] },
+
+        RegisterInfo { id: 20, size: 4, name: "edi",  aliases: &[ 0, 40, 60] },
+        RegisterInfo { id: 21, size: 4, name: "esi",  aliases: &[ 1, 41, 61] },
+        RegisterInfo { id: 22, size: 4, name: "edx",  aliases: &[ 2, 42, 62] },
+        RegisterInfo { id: 23, size: 4, name: "ecx",  aliases: &[ 3, 43, 63] },
+        RegisterInfo { id: 24, size: 4, name: "r8d",  aliases: &[ 4, 44, 64] },
+        RegisterInfo { id: 25, size: 4, name: "r9d",  aliases: &[ 5, 45, 65] },
+        RegisterInfo { id: 26, size: 4, name: "r10d", aliases: &[ 6, 46, 66] },
+        RegisterInfo { id: 27, size: 4, name: "r11d", aliases: &[ 7, 47, 67] },
+        RegisterInfo { id: 28, size: 4, name: "r12d", aliases: &[ 8, 48, 68] },
+        RegisterInfo { id: 29, size: 4, name: "r13d", aliases: &[ 9, 49, 69] },
+        RegisterInfo { id: 30, size: 4, name: "r14d", aliases: &[10, 50, 70] },
+        RegisterInfo { id: 31, size: 4, name: "r15d", aliases: &[11, 51, 71] },
+
+        RegisterInfo { id:  0, size: 8, name: "rdi",  aliases: &[20, 40, 60] },
+        RegisterInfo { id:  1, size: 8, name: "rsi",  aliases: &[21, 41, 61] },
+        RegisterInfo { id:  2, size: 8, name: "rdx",  aliases: &[22, 42, 62] },
+        RegisterInfo { id:  3, size: 8, name: "rcx",  aliases: &[23, 43, 63] },
+        RegisterInfo { id:  4, size: 8, name: "r8",   aliases: &[24, 44, 64] },
+        RegisterInfo { id:  5, size: 8, name: "r9",   aliases: &[25, 45, 65] },
+        RegisterInfo { id:  6, size: 8, name: "r10",  aliases: &[26, 46, 66] },
+        RegisterInfo { id:  7, size: 8, name: "r11",  aliases: &[27, 47, 67] },
+        RegisterInfo { id:  8, size: 8, name: "r12",  aliases: &[28, 48, 68] },
+        RegisterInfo { id:  9, size: 8, name: "r13",  aliases: &[29, 49, 69] },
+        RegisterInfo { id: 10, size: 8, name: "r14",  aliases: &[30, 50, 70] },
+        RegisterInfo { id: 11, size: 8, name: "r15",  aliases: &[31, 51, 71] },
+    ],
+};
+
+pub fn regid_to_reg(id: usize) -> Register {
+    match id {
+        0 => Register::RDI,
+        1 => Register::RSI,
+        2 => Register::RDX,
+        3 => Register::RCX,
+        4 => Register::R8,
+        5 => Register::R9,
+        6 => Register::R10,
+        7 => Register::R11,
+        8 => Register::R12,
+        9 => Register::R13,
+        10 => Register::R14,
+        11 => Register::R15,
+
+        20 => Register::EDI,
+        21 => Register::ESI,
+        22 => Register::EDX,
+        23 => Register::ECX,
+        24 => Register::R8D,
+        25 => Register::R9D,
+        26 => Register::R10D,
+        27 => Register::R11D,
+        28 => Register::R12D,
+        29 => Register::R13D,
+        30 => Register::R14D,
+        31 => Register::R15D,
+
+        40 => Register::DI,
+        41 => Register::SI,
+        42 => Register::DX,
+        43 => Register::CX,
+        44 => Register::R8W,
+        45 => Register::R9W,
+        46 => Register::R10W,
+        47 => Register::R11W,
+        48 => Register::R12W,
+        49 => Register::R13W,
+        50 => Register::R14W,
+        51 => Register::R15W,
+
+        60 => Register::DIL,
+        61 => Register::SIL,
+        62 => Register::DL,
+        63 => Register::CL,
+        64 => Register::R8L,
+        65 => Register::R9W,
+        66 => Register::R10L,
+        67 => Register::R11L,
+        68 => Register::R12L,
+        69 => Register::R13L,
+        70 => Register::R14L,
+        71 => Register::R15L,
+
+        _ => unreachable!(),
+    }
+}

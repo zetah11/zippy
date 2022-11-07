@@ -28,48 +28,44 @@ pub fn write_elf(names: &Names, code: Encoded) -> Vec<u8> {
     writer.write().unwrap()
 }
 
-fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
+fn write(writer: &mut write::Object, names: &Names, mut code: Encoded) {
     let text = writer.segment_name(write::StandardSegment::Text);
-    let data = writer.segment_name(write::StandardSegment::Data);
+    //let data = writer.segment_name(write::StandardSegment::Data);
     let code_name = b".text";
-    let data_name = b".rodata";
+    //let data_name = b".rodata";
     let code_section =
         writer.add_section(text.into(), (*code_name).into(), object::SectionKind::Text);
+
+    /*
     let data_section = writer.add_section(
         data.into(),
         (*data_name).into(),
         object::SectionKind::ReadOnlyData,
     );
+    */
 
     let mut symbols = HashMap::new();
 
-    for (name, (offset, size)) in code.code_symbols {
+    for (name, label) in code.labels {
         let mangled = mangle(names, &name);
+        let address = code.result.label_ip(&label).unwrap();
         let symbol = SymbolBuilder::new(mangled)
-            .with_value(offset, size)
-            .with_code_section(code_section)
+            .with_value(address, 0)
+            .with_section(code_section)
             .build();
         let symbol = writer.add_symbol(symbol);
 
         symbols.insert(name, symbol);
     }
 
-    for (name, (offset, size)) in code.data_symbols {
-        let mangled = mangle(names, &name);
-        let symbol = SymbolBuilder::new(mangled)
-            .with_value(offset, size)
-            .with_kind(object::SymbolKind::Data)
-            .with_code_section(data_section)
-            .build();
-        let symbol = writer.add_symbol(symbol);
+    writer.set_section_data(
+        code_section,
+        code.result.inner.code_buffer.drain(..).collect::<Vec<_>>(),
+        8,
+    );
+    //writer.set_section_data(data_section, code.data, 8);
 
-        symbols.insert(name, symbol);
-    }
-
-    writer.set_section_data(code_section, code.code, 8);
-    writer.set_section_data(data_section, code.data, 8);
-
-    for (name, relocations) in code.relocations {
+    for (name, (_, relocations)) in code.relocs {
         let symbol = match symbols.get(&name) {
             Some(symbol) => *symbol,
             None => {
@@ -83,34 +79,39 @@ fn write(writer: &mut write::Object, names: &Names, code: Encoded) {
             }
         };
 
-        for relocation in relocations {
-            let relocation = make_relocation(symbol, relocation);
+        for (relocation, label) in relocations {
+            // terrible, horrible, awful
+            let address = code.result.label_ip(&label).unwrap() + 1;
+
+            let relocation = make_relocation(symbol, address, relocation);
             writer.add_relocation(code_section, relocation).unwrap();
         }
     }
 }
 
-fn make_relocation(symbol: write::SymbolId, relocation: x64::Relocation) -> write::Relocation {
-    match relocation.kind {
-        x64::RelocationKind::Absolute => write::Relocation {
-            offset: relocation.at as u64,
-            size: 64,
-            kind: object::RelocationKind::Absolute,
-            encoding: object::RelocationEncoding::Generic,
-            symbol,
-            addend: 0,
-        },
-
+fn make_relocation(
+    symbol: write::SymbolId,
+    address: u64,
+    relocation: x64::RelocationKind,
+) -> write::Relocation {
+    match relocation {
         x64::RelocationKind::RelativeNext => write::Relocation {
-            offset: relocation.at as u64,
+            offset: address,
             size: 32,
             kind: object::RelocationKind::Relative,
             encoding: object::RelocationEncoding::Generic,
             symbol,
-            addend: -4, // ???
+            // WHAT?
+            // I need to figure this out; somehow, if I use an addend of `0`, the linker
+            // reports an addend of `4`, `-1` becomes `3`, `-2` becomes `2` and `-3` becomes
+            // `1`. So you might, in your normal, sensible understanding of the world think
+            // that `-4` would produce `0` but actually it produces `0xfffffff3`. Of course.
+            // So this number right here, this reasonable `0xfffffffc`, was found through
+            // brute force. I do not understand why this works, why `-4` doesn't (or even
+            // why tf `0` is insufficient to begin with. I thought this was relative to the
+            // next instruction???)
+            addend: 0xfffffffc, // ??? ?????????? ???
         },
-
-        x64::RelocationKind::Relative => todo!(),
     }
 }
 
@@ -136,19 +137,21 @@ impl SymbolBuilder {
         }
     }
 
-    pub fn with_code_section(mut self, section: write::SectionId) -> Self {
+    pub fn with_section(mut self, section: write::SectionId) -> Self {
         self.section = write::SymbolSection::Section(section);
         self
     }
 
+    /*
     pub fn with_kind(mut self, kind: object::SymbolKind) -> Self {
         self.kind = kind;
         self
     }
+    */
 
-    pub fn with_value(mut self, value: usize, size: usize) -> Self {
-        self.value = value as u64;
-        self.size = size as u64;
+    pub fn with_value(mut self, value: u64, size: u64) -> Self {
+        self.value = value;
+        self.size = size;
         self
     }
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 pub use block::{Block, BlockId};
 pub use clobber::clobbered;
+pub use info::{Info, NameInfo};
 pub use instruction::{Branch, Condition, Instruction};
 pub use proc::{ProcBuilder, Procedure};
 pub use register::{Register, Virtual};
@@ -10,6 +11,7 @@ pub use value::{Target, Value};
 
 mod block;
 mod clobber;
+mod info;
 mod instruction;
 mod proc;
 mod register;
@@ -24,4 +26,5 @@ pub struct Program {
     pub values: HashMap<Name, Value>,
     pub types: Types,
     pub context: Context,
+    pub info: NameInfo,
 }
