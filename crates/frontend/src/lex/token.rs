@@ -2,6 +2,9 @@ use logos::Logos;
 
 #[derive(Logos, Debug)]
 pub enum FreeToken<'src> {
+    #[token("fun")]
+    Fun,
+
     #[token("let")]
     Let,
 

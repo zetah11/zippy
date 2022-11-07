@@ -1,7 +1,7 @@
 use common::lir::{self, BlockId, Target, Value};
 use common::names::Name;
 use iced_x86::code_asm::{
-    gpr16, gpr32, gpr64, gpr8, ptr, rax, AsmMemoryOperand, AsmRegister16, AsmRegister32,
+    gpr16, gpr32, gpr64, gpr8, ptr, rax, rbp, AsmMemoryOperand, AsmRegister16, AsmRegister32,
     AsmRegister64, AsmRegister8,
 };
 use iced_x86::Register;
@@ -51,7 +51,9 @@ impl Lowerer<'_> {
             Target::Register(lir::Register::Physical(id)) => {
                 Operand::try_from(regid_to_reg(*id)).ok()
             }
-            Target::Register(lir::Register::Frame(..)) => todo!(),
+            Target::Register(lir::Register::Frame(offset, _)) => {
+                Some(Operand::Memory(rbp + *offset))
+            }
             Target::Register(lir::Register::Virtual(_)) => unreachable!(),
 
             Target::Name(name) => Some(Operand::Label(*name)),
@@ -63,8 +65,8 @@ impl Lowerer<'_> {
             Value::Register(lir::Register::Physical(id)) => {
                 Operand::try_from(regid_to_reg(*id)).ok()
             }
-            Value::Register(lir::Register::Frame(..)) => {
-                todo!()
+            Value::Register(lir::Register::Frame(offset, _)) => {
+                Some(Operand::Memory(rbp + *offset))
             }
             Value::Register(lir::Register::Virtual(_)) => unreachable!(),
 

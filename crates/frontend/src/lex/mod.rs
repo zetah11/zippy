@@ -11,6 +11,7 @@ use token::FreeToken;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
+    Fun,
     Let,
     Upto,
 
@@ -46,7 +47,8 @@ pub fn lex(driver: &mut impl Driver, src: impl AsRef<str>, file: File) -> Vec<(T
 impl Token {
     fn delimit_after(&self) -> bool {
         match self {
-            Self::Let
+            Self::Fun
+            | Self::Let
             | Self::Upto
             | Self::GroupOpen
             | Self::MinArrow
@@ -75,7 +77,8 @@ impl Token {
             | Self::Equal
             | Self::Colon => false,
 
-            Self::Let
+            Self::Fun
+            | Self::Let
             | Self::GroupOpen
             | Self::Question
             | Self::Name(_)
@@ -126,6 +129,7 @@ impl<'src> Lexer<'src> {
         if let Some((tok, span)) = self.lex.next() {
             let span = Span::new(self.file, span.start, span.end);
             let tok = match tok {
+                FreeToken::Fun => Token::Fun,
                 FreeToken::Let => Token::Let,
                 FreeToken::Upto => Token::Upto,
                 FreeToken::LParen => Token::GroupOpen,

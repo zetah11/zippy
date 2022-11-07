@@ -1,6 +1,6 @@
 use common::message::Span;
 
-use super::tree::{Decl, DeclNode};
+use super::tree::{Decl, DeclNode, Expr, ExprNode};
 use super::Parser;
 use crate::lex::Token;
 
@@ -61,24 +61,55 @@ where
     }
 
     /// Tokens that may start a `decl`.
-    const DECL_STARTS: &'static [Token] = &[Token::GroupOpen, Token::Let];
+    const DECL_STARTS: &'static [Token] = &[Token::GroupOpen, Token::Fun, Token::Let];
 
     /// ```abnf
-    /// decl = let-decl
+    /// decl = let-decl / fun-decl
     /// ```
     fn decl(&mut self) -> Decl {
         if let Some(span) = self.matches(Token::Let) {
             self.let_decl(span)
+        } else if let Some(span) = self.matches(Token::Fun) {
+            self.fun_decl(span)
         } else {
             unreachable!()
         }
     }
 
     /// ```abnf
-    /// let-decl = "let" small-expr [":" small-expr] ["=" expr]
+    /// let-decl = "let" small-expr ["=" expr]
     /// ```
     fn let_decl(&mut self, let_span: Span) -> Decl {
         let pat = self.parse_small_expr();
+        let bind = self.consume(Token::Equal).then(|| self.parse_expr());
+
+        let span = bind.as_ref().map(|bind| bind.span).unwrap_or(pat.span);
+        let anno_span = pat.span;
+
+        Decl {
+            node: DeclNode::ValueDecl {
+                pat,
+                anno: Some(Expr {
+                    node: ExprNode::Wildcard,
+                    span: anno_span,
+                }),
+                bind,
+            },
+            span: let_span + span,
+        }
+    }
+
+    /// ```abnf
+    /// fun-decl = "fun" base-expr *(base-expr) [":" small-expr] ["=" expr]
+    /// ```
+    fn fun_decl(&mut self, fun_span: Span) -> Decl {
+        let name = self.parse_base_expr();
+
+        let mut args = Vec::new();
+        while !self.is_done() && self.peek(Self::BASE_EXPR_STARTS) {
+            let arg = self.parse_base_expr();
+            args.push(arg);
+        }
 
         let anno = self.consume(Token::Colon).then(|| self.parse_small_expr());
         let bind = self.consume(Token::Equal).then(|| self.parse_expr());
@@ -87,11 +118,17 @@ where
             .as_ref()
             .map(|bind| bind.span)
             .or_else(|| anno.as_ref().map(|anno| anno.span))
-            .unwrap_or(pat.span);
+            .or_else(|| args.iter().map(|arg| arg.span).reduce(|a, b| a + b))
+            .unwrap_or(name.span);
 
         Decl {
-            node: DeclNode::ValueDecl { pat, anno, bind },
-            span: let_span + span,
+            node: DeclNode::FunDecl {
+                name,
+                args,
+                anno,
+                bind,
+            },
+            span: fun_span + span,
         }
     }
 }

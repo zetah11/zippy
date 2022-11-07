@@ -50,6 +50,7 @@ pub struct Pat<Data = ()> {
 pub enum PatNode<Data> {
     Name(Name),
     Tuple(Box<Pat<Data>>, Box<Pat<Data>>),
+    Anno(Box<Pat<Data>>, Type),
     Wildcard,
     Invalid,
 }

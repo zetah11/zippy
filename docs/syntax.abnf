@@ -6,19 +6,20 @@ prog        = decls
 decls       = [decl *(";" decl) [";"]]
 decls      =/ "(" decls ")"
 
-decl        = let-decl
+decl        = let-decl / fun-decl
 
-let-decl    = "let" small-expr [":" small-expr] ["=" expr]
+let-decl    = "let" small-expr ["=" expr]
+fun-decl    = "fun" base-expr *(base-expr) [":" small-expr] ["=" expr]
 
 
 expr        = lam-expr
 
-lam-expr    = anno-expr ["=>" expr]
-anno-expr   = small-expr [":" small-expr]
+lam-expr    = small-expr ["=>" expr]
 
 small-expr  = tuple-expr
 
-tuple-expr  = arrow-expr *("," arrow-expr)
+tuple-expr  = anno-expr *("," anno-expr)
+anno-expr   = arrow-expr [":" arrow-expr]
 
 arrow-expr  = range-expr ["->" arrow-expr]
 range-expr  = mul-expr ["upto" mul-expr]

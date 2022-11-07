@@ -129,7 +129,6 @@ impl Lowerer<'_> {
                     return;
                 }
 
-                println!("{target:?} {value:?}");
                 self.asm_mov(target, value);
             }
 

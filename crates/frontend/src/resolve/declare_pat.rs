@@ -13,6 +13,9 @@ impl Resolver {
                 self.declare_pat(x);
                 self.declare_pat(y);
             }
+            PatNode::Anno(pat, _ty) => {
+                self.declare_pat(pat);
+            }
             PatNode::Wildcard | PatNode::Invalid => (),
         }
     }

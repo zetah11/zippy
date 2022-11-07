@@ -19,6 +19,11 @@ impl Typer {
                 (PatNode::Tuple(x, y), ty)
             }
 
+            PatNode::Anno(pat, uy) => {
+                self.assignable(pat.span, ty, uy.clone());
+                return self.bind_pat(*pat, uy);
+            }
+
             PatNode::Wildcard => (PatNode::Wildcard, ty),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
@@ -51,6 +56,8 @@ impl Typer {
                     Type::Product(Box::new(t), Box::new(u)),
                 )
             }
+
+            PatNode::Anno(pat, ty) => return self.bind_pat(*pat, ty),
 
             PatNode::Wildcard => (PatNode::Wildcard, Type::Var(self.context.fresh())),
 

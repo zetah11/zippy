@@ -56,6 +56,57 @@ impl Unconcretifier {
                         bind,
                     });
                 }
+
+                cst::DeclNode::FunDecl {
+                    name,
+                    args,
+                    anno,
+                    bind,
+                } => {
+                    let pat = self.unconc_pat(name);
+                    let anno =
+                        anno.map(|anno| self.unconc_type(anno))
+                            .unwrap_or_else(|| hir::Type {
+                                node: hir::TypeNode::Wildcard,
+                                span: pat.span,
+                            });
+
+                    let bind = if let Some(bind) = bind {
+                        self.unconc_expr(bind)
+                    } else {
+                        hir::Expr {
+                            node: hir::ExprNode::Invalid,
+                            span: decl.span,
+                        }
+                    };
+
+                    let span = bind.span + anno.span;
+                    let mut bind = hir::Expr {
+                        node: hir::ExprNode::Anno(Box::new(bind), anno),
+                        span,
+                    };
+
+                    for arg in args.into_iter().rev() {
+                        let arg = self.unconc_pat(arg);
+                        let span = bind.span + arg.span;
+                        bind = hir::Expr {
+                            node: hir::ExprNode::Lam(self.bind_id.fresh(), arg, Box::new(bind)),
+                            span,
+                        };
+                    }
+
+                    let span = pat.span;
+                    values.push(hir::ValueDef {
+                        span: decl.span,
+                        id: self.bind_id.fresh(),
+                        pat,
+                        anno: hir::Type {
+                            node: hir::TypeNode::Wildcard,
+                            span,
+                        },
+                        bind,
+                    });
+                }
             }
         }
 
@@ -156,6 +207,11 @@ impl Unconcretifier {
                 let x = Box::new(self.unconc_pat(*x));
                 let y = Box::new(self.unconc_pat(*y));
                 hir::PatNode::Tuple(x, y)
+            }
+            cst::ExprNode::Anno(pat, ty) => {
+                let pat = Box::new(self.unconc_pat(*pat));
+                let ty = self.unconc_type(*ty);
+                hir::PatNode::Anno(pat, ty)
             }
             cst::ExprNode::Wildcard => hir::PatNode::Wildcard,
             cst::ExprNode::Invalid => hir::PatNode::Invalid,

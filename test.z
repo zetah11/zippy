@@ -1,6 +1,7 @@
 -- in test.z
-let main: 1 -> ? = ? => f x
-let id: 10 -> ? = x => x
+fun main (?: 1) = apply (f, x)
+fun id (x: 10) = x
+fun apply (f: 10 -> 10, x) = f x
 let f = id
 
 let x: 10 = 9

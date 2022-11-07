@@ -23,11 +23,11 @@ where
     }
 
     /// ```abnf
-    /// lam-expr = anno-expr ["=>" expr]
+    /// lam-expr = small-expr ["=>" expr]
     /// ; reassoc 'f x => y' as 'f (x => y)'
     /// ```
     fn lam_expr(&mut self) -> Expr {
-        let expr = self.anno_expr();
+        let expr = self.parse_small_expr();
         if self.consume(Token::EqArrow) {
             let body = self.parse_expr();
             let span = expr.span + body.span;
@@ -56,12 +56,28 @@ where
     }
 
     /// ```abnf
-    /// anno-expr = small-expr [":" small-expr]
+    /// tuple-expr = anno-expr *("," anno-expr)
+    /// ```
+    fn tuple_expr(&mut self) -> Expr {
+        let mut expr = self.anno_expr();
+        while self.consume(Token::Comma) {
+            let other = self.anno_expr();
+            let span = expr.span + other.span;
+            expr = Expr {
+                node: ExprNode::Tuple(Box::new(expr), Box::new(other)),
+                span,
+            };
+        }
+        expr
+    }
+
+    /// ```abnf
+    /// anno-expr = arrow-expr [":" arrow-expr]
     /// ```
     fn anno_expr(&mut self) -> Expr {
-        let expr = self.parse_small_expr();
+        let expr = self.arrow_expr();
         if self.consume(Token::Colon) {
-            let anno = self.parse_small_expr();
+            let anno = self.arrow_expr();
             let span = expr.span + anno.span;
 
             Expr {
@@ -71,22 +87,6 @@ where
         } else {
             expr
         }
-    }
-
-    /// ```abnf
-    /// tuple-expr = arrow-expr *("," tuple-expr)
-    /// ```
-    fn tuple_expr(&mut self) -> Expr {
-        let mut expr = self.arrow_expr();
-        while self.consume(Token::Comma) {
-            let other = self.arrow_expr();
-            let span = expr.span + other.span;
-            expr = Expr {
-                node: ExprNode::Tuple(Box::new(expr), Box::new(other)),
-                span,
-            };
-        }
-        expr
     }
 
     /// ```abnf
@@ -149,10 +149,10 @@ where
     /// app-expr = base-expr [app-expr]
     /// ```
     fn app_expr(&mut self) -> Expr {
-        let mut expr = self.base_expr();
+        let mut expr = self.parse_base_expr();
 
         while !self.is_done() && self.peek(Self::BASE_EXPR_STARTS) {
-            let arg = self.base_expr();
+            let arg = self.parse_base_expr();
             let span = expr.span + arg.span;
 
             expr = Expr {
@@ -166,7 +166,7 @@ where
 
     /// Tokens that may start a `base_expr`. Does not contain [`Token::Invalid`]
     /// in order to prevent `app_expr` from consuming too many invalid tokens.
-    const BASE_EXPR_STARTS: &'static [Token] = &[
+    pub const BASE_EXPR_STARTS: &'static [Token] = &[
         Token::Name(String::new()),
         Token::Number(0),
         Token::Question,
@@ -178,7 +178,7 @@ where
     /// base-expr =/ "(" expr ")"
     /// base-expr =/ "(" OP-NAME ")"
     /// ```
-    fn base_expr(&mut self) -> Expr {
+    pub fn parse_base_expr(&mut self) -> Expr {
         self.advance();
         if let Some((tok, span)) = self.prev.take() {
             let node = match tok {

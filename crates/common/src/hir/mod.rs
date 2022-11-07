@@ -74,6 +74,7 @@ pub struct Pat<Name = String> {
 pub enum PatNode<Name> {
     Name(Name),
     Tuple(Box<Pat<Name>>, Box<Pat<Name>>),
+    Anno(Box<Pat<Name>>, Type),
     Wildcard,
     Invalid,
 }

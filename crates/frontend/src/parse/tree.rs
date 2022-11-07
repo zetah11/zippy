@@ -15,6 +15,13 @@ pub enum DeclNode {
         anno: Option<Expr>,
         bind: Option<Expr>,
     },
+
+    FunDecl {
+        name: Expr,
+        args: Vec<Expr>,
+        anno: Option<Expr>,
+        bind: Option<Expr>,
+    },
 }
 
 #[derive(Clone, Debug)]

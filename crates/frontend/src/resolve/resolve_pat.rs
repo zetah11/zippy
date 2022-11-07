@@ -18,6 +18,11 @@ impl Resolver {
                 PatNode::Tuple(x, y)
             }
 
+            PatNode::Anno(pat, ty) => {
+                let pat = Box::new(self.resolve_pat(*pat));
+                PatNode::Anno(pat, ty)
+            }
+
             PatNode::Wildcard => PatNode::Wildcard,
             PatNode::Invalid => PatNode::Invalid,
         };

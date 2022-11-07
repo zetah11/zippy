@@ -164,6 +164,8 @@ impl<'a> Lowerer<'a> {
                 self.make_proj(ctx, *a, name, 0, &mut proj);
                 self.make_proj(ctx, *b, name, 1, &mut proj);
             }
+
+            HiPatNode::Anno(..) => unreachable!(),
         }
     }
 
@@ -198,6 +200,8 @@ impl<'a> Lowerer<'a> {
 
                 target
             }
+
+            HiPatNode::Anno(..) => unreachable!(),
         }
     }
 
@@ -222,6 +226,8 @@ impl<'a> Lowerer<'a> {
                 self.make_proj(ctx, *a, projd, 0, proj);
                 self.make_proj(ctx, *b, projd, 1, proj);
             }
+
+            HiPatNode::Anno(..) => unreachable!(),
         }
     }
 
