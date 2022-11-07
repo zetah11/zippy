@@ -7,47 +7,35 @@ also modular implicits, potentially.
 as of now, a very basic core works. lexing through typing through code
 generating is working more or less as it should for range types, higher-order functions (though not closures just yet :]), and tuples.
 
-on a windows machine in a batch shell (with `link.exe` in path, somehow):
+on a linux machine:
 
-    corollary> type test.z
+    corollary> cat test.z
     -- in test.z
-    let main: 0 upto 1 -> ? =
-      ? => f (f (f (f id))) 5
-
-    let f: (0 upto 10 -> 0 upto 10) -> ? =
-      f => f
-
-    let id = f (x => x)
+    fun main (?: 1) = apply (id, 9)
+    fun apply (f: 10 -> 10, x) = f x
+    fun id (x: 10) = x
 
     corollary> cargo run -q -- test.z
     <snip>
 
-    corollary> link /entry:_WinMain artifacts\test.lib Kernel32.lib /out:artifacts\test.exe
-    <snip>
+    corollary> ld artifacts/test.o -o artifacts/test
+    corollary> ./artifacts/test
+    corollary [9]> objdump -M intel -d artifacts/test
 
-    corollary> artifacts\test.exe
-
-    corollary> echo %ERRORLEVEL%
-    5
-
-    corollary> link /dump /disasm artifacts\test.exe
-    Microsoft (R) COFF/PE Dumper Version 14.33.31630.0
-    Copyright (C) Microsoft Corporation.  All rights reserved.
+    artifacts/test:     file format elf64-x86-64
 
 
-    Dump of file artifacts\test.exe
+    Disassembly of section .text:
 
-    File Type: EXECUTABLE IMAGE
+    0000000000401000 <_start>:
+      401000:       e8 0c 00 00 00          call   401011 <_nmain>
+      401005:       48 b8 3c 00 00 00 00    movabs rax,0x3c
+      40100c:       00 00 00
+      40100f:       0f 05                   syscall
 
-      0000000140001000: E8 08 00 00 00     call        000000014000100D
-      0000000140001005: 48 89 F9           mov         rcx,rdi
-      0000000140001008: E8 0B 00 00 00     call        0000000140001018
-      000000014000100D: 48 BF 05 00 00 00  mov         rdi,5
-                        00 00 00 00
-      0000000140001017: C3                 ret
-      0000000140001018: FF 25 E2 0F 00 00  jmp         qword ptr [0000000140002000h]
-
-      Summary
-
-            1000 .rdata
-            1000 .text
+    0000000000401011 <_nmain>:
+      401011:       55                      push   rbp
+      401012:       48 89 e5                mov    rbp,rsp
+      401015:       40 b7 09                mov    dil,0x9
+      401018:       c9                      leave
+      401019:       c3                      ret
