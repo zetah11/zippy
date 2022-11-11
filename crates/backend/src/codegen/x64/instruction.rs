@@ -1,4 +1,4 @@
-use common::lir::{self, BlockId, Target, TargetNode, Value, ValueNode};
+use common::lir::{self, BaseOffset, BlockId, Target, TargetNode, Value, ValueNode};
 use common::names::Name;
 use iced_x86::code_asm::{
     gpr16, gpr32, gpr64, gpr8, ptr, rax, rbp, AsmMemoryOperand, AsmRegister16, AsmRegister32,
@@ -6,7 +6,8 @@ use iced_x86::code_asm::{
 };
 use iced_x86::Register;
 
-use super::{regid_to_reg, Lowerer};
+use super::{Constraints, Lowerer};
+use crate::asm::AllocConstraints;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Operand {
@@ -48,12 +49,20 @@ impl TryFrom<Register> for Operand {
 impl Lowerer<'_> {
     pub fn target_operand(&self, target: &Target) -> Option<Operand> {
         match target.node {
-            TargetNode::Register(lir::Register::Physical(id)) => {
-                Operand::try_from(regid_to_reg(id)).ok()
+            TargetNode::Register(lir::Register::Physical(_)) => {
+                todo!()
             }
-            TargetNode::Register(lir::Register::Frame(offset, _)) => {
-                Some(Operand::Memory(rbp + offset))
+            TargetNode::Register(lir::Register::Frame(BaseOffset::Local(offset), ty)) => {
+                let size = Constraints::sizeof(&self.program.types, &ty);
+                let physical = offset + size;
+
+                Some(Operand::Memory(rbp - physical))
             }
+
+            TargetNode::Register(lir::Register::Frame(BaseOffset::Argument(..), _)) => {
+                todo!("need to remember continuation count");
+            }
+
             TargetNode::Register(lir::Register::Virtual(_)) => unreachable!(),
 
             TargetNode::Name(name) => Some(Operand::Label(name)),
@@ -62,11 +71,16 @@ impl Lowerer<'_> {
 
     pub fn value_operand(&self, value: &Value) -> Option<Operand> {
         match value.node {
-            ValueNode::Register(lir::Register::Physical(id)) => {
-                Operand::try_from(regid_to_reg(id)).ok()
+            ValueNode::Register(lir::Register::Physical(_)) => {
+                todo!()
             }
-            ValueNode::Register(lir::Register::Frame(offset, _)) => {
-                Some(Operand::Memory(rbp + offset))
+            ValueNode::Register(lir::Register::Frame(BaseOffset::Local(offset), ty)) => {
+                let size = Constraints::sizeof(&self.program.types, &ty);
+                let physical = offset + size;
+                Some(Operand::Memory(rbp - physical))
+            }
+            ValueNode::Register(lir::Register::Frame(BaseOffset::Argument(_), _)) => {
+                todo!("need to remember continuation count");
             }
             ValueNode::Register(lir::Register::Virtual(_)) => unreachable!(),
 
@@ -336,7 +350,7 @@ impl Lowerer<'_> {
                 let ty = self.program.context.get(&source);
                 let source = self.label(source);
 
-                if self.program.types.is_indirect(&ty) {
+                if self.program.types.is_function(&ty) {
                     self.asm.lea(target, ptr(source)).unwrap();
                 } else {
                     self.asm.mov(target, ptr(source)).unwrap();

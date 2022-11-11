@@ -1,14 +1,14 @@
 mod block;
+mod constraints;
 mod entry;
 mod instruction;
 mod pretty;
 mod procedure;
-mod registers;
 mod relocation;
 mod value;
 
+pub use self::constraints::Constraints;
 pub use self::pretty::pretty;
-pub use self::registers::CONSTRAINTS;
 pub use self::relocation::RelocationKind;
 
 use std::collections::HashMap;
@@ -19,8 +19,6 @@ use common::names::{Name, Names};
 use iced_x86::code_asm::{CodeAssembler, CodeAssemblerResult, CodeLabel};
 use iced_x86::BlockEncoderOptions;
 use target_lexicon::Triple;
-
-use self::registers::regid_to_reg;
 
 pub fn encode(
     names: &mut Names,

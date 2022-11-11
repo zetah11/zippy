@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 
 use bitflags::bitflags;
 
@@ -21,15 +22,35 @@ impl Info {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum CallingConvention {
+    #[default]
+    Corollary,
+    SystemV,
+    Stdcall,
+}
+
+impl Display for CallingConvention {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Corollary => write!(f, "corollary"),
+            Self::SystemV => write!(f, "systemv"),
+            Self::Stdcall => write!(f, "stdcall"),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct NameInfo {
     map: HashMap<Name, Info>,
+    conventions: HashMap<Name, CallingConvention>,
 }
 
 impl NameInfo {
     pub fn new() -> Self {
         Self {
             map: HashMap::new(),
+            conventions: HashMap::new(),
         }
     }
 
@@ -37,8 +58,21 @@ impl NameInfo {
         assert!(self.map.insert(name, info).is_none());
     }
 
+    pub fn add_convention(&mut self, name: Name, convention: CallingConvention) {
+        assert!(self.map.contains_key(&name));
+        assert!(self.conventions.insert(name, convention).is_none());
+    }
+
     pub fn get(&self, name: &Name) -> Option<Info> {
         self.map.get(name).copied()
+    }
+
+    pub fn get_convention(&self, name: &Name) -> Option<CallingConvention> {
+        if self.is_procedure(name) {
+            Some(self.conventions.get(name).copied().unwrap_or_default())
+        } else {
+            None
+        }
     }
 
     pub fn is(&self, name: &Name, info: Info) -> bool {

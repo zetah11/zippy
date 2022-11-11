@@ -9,6 +9,12 @@ pub struct Virtual {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Register {
     Virtual(Virtual),
-    Frame(isize, TypeId),
+    Frame(BaseOffset, TypeId),
     Physical(usize),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum BaseOffset {
+    Local(usize),
+    Argument(usize),
 }

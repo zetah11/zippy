@@ -1,6 +1,7 @@
 mod location;
 
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use common::message::Span;
 use log::{debug, trace};
@@ -8,9 +9,10 @@ use log::{debug, trace};
 use common::names::{Name, Names};
 use common::{lir, mir};
 
-use location::Location;
+use self::location::Location;
+use crate::asm::AllocConstraints;
 
-pub fn lower(
+pub fn lower<Constraints: AllocConstraints>(
     entry: Option<Name>,
     types: &mir::Types,
     context: &mir::Context,
@@ -19,7 +21,7 @@ pub fn lower(
 ) -> lir::Program {
     debug!("lowering mir to lir");
     assert!(decls.defs.is_empty());
-    let mut lowerer = Lowerer::new(entry, decls, types, context, names);
+    let mut lowerer: Lowerer<Constraints> = Lowerer::new(entry, decls, types, context, names);
     lowerer.lower();
 
     lir::Program {
@@ -31,7 +33,7 @@ pub fn lower(
     }
 }
 
-struct Lowerer<'a> {
+struct Lowerer<'a, Constraints> {
     worklist: Vec<Name>,
     decls: mir::Decls,
 
@@ -47,9 +49,11 @@ struct Lowerer<'a> {
 
     names: HashMap<Name, Location>,
     virtual_id: usize,
+
+    _constraints: PhantomData<Constraints>,
 }
 
-impl<'a> Lowerer<'a> {
+impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
     pub fn new(
         entry: Option<Name>,
         decls: mir::Decls,
@@ -75,6 +79,8 @@ impl<'a> Lowerer<'a> {
 
             names: HashMap::new(),
             virtual_id: 0,
+
+            _constraints: PhantomData,
         };
 
         res.find_globals();
@@ -229,7 +235,7 @@ impl<'a> Lowerer<'a> {
                 mir::ExprNode::Proj { name, of, at } => {
                     let ty = self.context.get(&name);
 
-                    let index = self.types.offsetof(&ty, at);
+                    let index = Constraints::offsetof(&self.types, &ty, at);
                     let of = self.name_to_value(of, expr.span);
                     let name = self.name_to_target(name, expr.span);
 

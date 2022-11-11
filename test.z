@@ -1,4 +1,2 @@
 -- in test.z
-fun main (?: 1) = apply (id, 9)
-fun apply (f: 10 -> 10, x) = f x
-fun id (x: 10) = x
+fun main (?: 1) : 10 = 5

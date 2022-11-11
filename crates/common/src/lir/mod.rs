@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 pub use block::{Block, BlockId};
 pub use clobber::clobbered;
-pub use info::{Info, NameInfo};
+pub use info::{CallingConvention, Info, NameInfo};
 pub use instruction::{Branch, Condition, Instruction};
 pub use proc::{ProcBuilder, Procedure};
-pub use register::{Register, Virtual};
+pub use register::{BaseOffset, Register, Virtual};
 pub use types::{Context, Type, TypeId, Types};
 pub use value::{Target, TargetNode, Value, ValueNode};
 

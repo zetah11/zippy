@@ -9,7 +9,7 @@ use std::io::Write;
 use std::path::Path;
 
 use backend::asm::asm;
-use backend::codegen::x64::{encode, pretty, CONSTRAINTS};
+use backend::codegen::x64::{self, encode, pretty};
 use frontend::{parse, ParseResult};
 use midend::elaborate;
 
@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
 
     let (types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
-    let program = asm(CONSTRAINTS, &types, &context, &names, entry, decls);
+    let program = asm::<x64::Constraints>(&mut driver, &types, &context, &names, entry, decls);
 
     let code = match encode(&mut names, &target, entry, program) {
         Ok(code) => code,

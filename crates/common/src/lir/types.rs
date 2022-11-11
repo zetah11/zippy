@@ -57,41 +57,7 @@ impl Types {
         self.types.get(ty.0).unwrap()
     }
 
-    /// Is the given type an indirect (e.g. pointer) type?
-    pub fn is_indirect(&self, ty: &TypeId) -> bool {
+    pub fn is_function(&self, ty: &TypeId) -> bool {
         matches!(self.get(ty), Type::Fun(..))
-    }
-
-    pub fn offsetof(&self, ty: &TypeId, ndx: usize) -> usize {
-        match self.get(ty) {
-            Type::Product(ties) => {
-                assert!(ties.len() > ndx);
-                ties.iter().take(ndx).map(|ty| self.sizeof(ty)).sum()
-            }
-
-            Type::Fun(..) | Type::Range(..) => unreachable!(),
-        }
-    }
-
-    /// Get the size of the given type in bytes.
-    pub fn sizeof(&self, ty: &TypeId) -> usize {
-        match self.get(ty) {
-            Type::Range(lo, hi) => {
-                let range = if 0 < *lo {
-                    *hi as usize
-                } else if 0 > *hi {
-                    -(*lo as i128) as usize
-                } else {
-                    (hi - lo) as usize
-                };
-
-                ((range as f64).log2() / 8.0).ceil() as usize
-            }
-
-            Type::Product(ties) => ties.iter().map(|ty| self.sizeof(ty)).sum(),
-
-            // TODO: platform specific!
-            Type::Fun(..) => 8,
-        }
     }
 }
