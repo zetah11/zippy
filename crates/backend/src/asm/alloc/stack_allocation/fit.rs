@@ -6,7 +6,7 @@ impl<C: AllocConstraints> Allocator<'_, C> {
             .into_iter()
             .filter_map(|(place, size)| match place {
                 Place::Local(local) => Some((local, size)),
-                Place::Argument(_) => None,
+                Place::Argument(_) | Place::Parameter(_) => None,
             })
             .collect();
 

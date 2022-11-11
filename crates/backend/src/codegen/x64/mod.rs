@@ -7,6 +7,8 @@ mod procedure;
 mod relocation;
 mod value;
 
+use crate::asm::{Place, ProcedureAllocation};
+
 pub use self::constraints::Constraints;
 pub use self::pretty::pretty;
 pub use self::relocation::RelocationKind;
@@ -119,6 +121,19 @@ impl<'a> Lowerer<'a> {
             relocs: self.relocs,
             info: self.program.info,
         })
+    }
+
+    /// Number of bytes to reserve for caller
+    fn calling_return_space(&self, convention: &ProcedureAllocation) -> usize {
+        convention
+            .arguments
+            .iter()
+            .filter_map(|arg| match arg {
+                Place::Argument(offset) => Some(*offset),
+                _ => None,
+            })
+            .min()
+            .unwrap_or(0)
     }
 
     fn clear_block_labels(&mut self) {

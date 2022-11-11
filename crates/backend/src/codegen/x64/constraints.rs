@@ -59,14 +59,14 @@ fn convention_corollary(types: &Types, args: &[TypeId], rets: &[TypeId]) -> Proc
     let mut returns = Vec::with_capacity(rets.len());
 
     for ret in rets.iter() {
-        returns.push(Place::Argument(offset));
+        returns.push(Place::Parameter(offset));
         offset += Constraints::sizeof(types, ret);
     }
 
     let mut arguments = Vec::with_capacity(args.len());
 
     for arg in args.iter().rev() {
-        arguments.push(Place::Argument(offset));
+        arguments.push(Place::Parameter(offset));
         offset += Constraints::sizeof(types, arg);
     }
 

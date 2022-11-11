@@ -180,6 +180,7 @@ impl Applier {
                 let (offset, _) = self.allocation.mapping.get(&reg.id).copied().unwrap();
                 let offset = match offset {
                     Place::Argument(offset) => BaseOffset::Argument(offset),
+                    Place::Parameter(offset) => BaseOffset::Parameter(offset),
                     Place::Local(offset) => BaseOffset::Local(offset),
                 };
 

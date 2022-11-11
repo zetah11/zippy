@@ -17,4 +17,5 @@ pub enum Register {
 pub enum BaseOffset {
     Local(usize),
     Argument(usize),
+    Parameter(usize),
 }

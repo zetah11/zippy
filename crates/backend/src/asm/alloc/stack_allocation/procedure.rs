@@ -50,7 +50,7 @@ impl<Constraints: AllocConstraints> Allocator<'_, Constraints> {
                 _ => todo!(),
             };
 
-            let convention = self.convention(&name).clone();
+            let convention = self.convention(&name).as_call();
             let args = args.iter().map(|(reg, _)| *reg).collect();
             let rets = conts
                 .first() // return continuation is always first

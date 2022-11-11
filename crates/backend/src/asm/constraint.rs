@@ -6,7 +6,11 @@ pub type RegisterId = usize;
 pub enum Place {
     /// Placed on the stack as an argument.
     Argument(usize),
-    /// Placed as a local on the current stack.
+
+    /// Placed on the stack as a parameter.
+    Parameter(usize),
+
+    /// Placed on the stack as a local.
     Local(usize),
 }
 
@@ -14,6 +18,36 @@ pub enum Place {
 pub struct ProcedureAllocation {
     pub arguments: Vec<Place>,
     pub returns: Vec<Place>,
+}
+
+impl ProcedureAllocation {
+    pub fn as_call(&self) -> Self {
+        let arguments = self
+            .arguments
+            .iter()
+            .map(|arg| match arg {
+                Place::Local(offset) => Place::Local(*offset),
+                Place::Parameter(offset) => Place::Argument(*offset),
+                Place::Argument(_) => {
+                    unreachable!("not a ProcedureAllocation for a function signature")
+                }
+            })
+            .collect();
+
+        let returns = self
+            .returns
+            .iter()
+            .map(|ret| match ret {
+                Place::Local(offset) => Place::Local(*offset),
+                Place::Parameter(offset) => Place::Argument(*offset),
+                Place::Argument(_) => {
+                    unreachable!("not a ProcedureAllocation for a function signature")
+                }
+            })
+            .collect();
+
+        Self { arguments, returns }
+    }
 }
 
 pub trait AllocConstraints {

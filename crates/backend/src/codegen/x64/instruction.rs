@@ -1,8 +1,8 @@
-use common::lir::{self, BaseOffset, BlockId, Target, TargetNode, Value, ValueNode};
+use common::lir::{self, BaseOffset, BlockId, Procedure, Target, TargetNode, Value, ValueNode};
 use common::names::Name;
 use iced_x86::code_asm::{
-    gpr16, gpr32, gpr64, gpr8, ptr, rax, rbp, AsmMemoryOperand, AsmRegister16, AsmRegister32,
-    AsmRegister64, AsmRegister8,
+    byte_ptr, dword_ptr, gpr16, gpr32, gpr64, gpr8, ptr, qword_ptr, rax, rbp, word_ptr,
+    AsmMemoryOperand, AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8,
 };
 use iced_x86::Register;
 
@@ -47,20 +47,40 @@ impl TryFrom<Register> for Operand {
 }
 
 impl Lowerer<'_> {
-    pub fn target_operand(&self, target: &Target) -> Option<Operand> {
+    pub fn target_operand(&self, within: &Procedure, target: &Target) -> Option<Operand> {
         match target.node {
             TargetNode::Register(lir::Register::Physical(_)) => {
                 todo!()
             }
+
             TargetNode::Register(lir::Register::Frame(BaseOffset::Local(offset), ty)) => {
                 let size = Constraints::sizeof(&self.program.types, &ty);
-                let physical = offset + size;
+                let offset = offset + size;
 
-                Some(Operand::Memory(rbp - physical))
+                Some(Operand::Memory(match size {
+                    1 => byte_ptr(rbp - offset),
+                    2 => word_ptr(rbp - offset),
+                    4 => dword_ptr(rbp - offset),
+                    8 => qword_ptr(rbp - offset),
+                    _ => todo!(),
+                }))
             }
 
-            TargetNode::Register(lir::Register::Frame(BaseOffset::Argument(..), _)) => {
-                todo!("need to remember continuation count");
+            TargetNode::Register(lir::Register::Frame(BaseOffset::Parameter(offset), ty)) => {
+                let size = Constraints::sizeof(&self.program.types, &ty);
+                let offset = 8 * within.continuations.len() + offset + size;
+
+                Some(Operand::Memory(match size {
+                    1 => byte_ptr(rbp + offset),
+                    2 => word_ptr(rbp + offset),
+                    4 => dword_ptr(rbp + offset),
+                    8 => qword_ptr(rbp + offset),
+                    _ => todo!(),
+                }))
+            }
+
+            TargetNode::Register(lir::Register::Frame(..)) => {
+                todo!("push/pop etc");
             }
 
             TargetNode::Register(lir::Register::Virtual(_)) => unreachable!(),
@@ -69,19 +89,42 @@ impl Lowerer<'_> {
         }
     }
 
-    pub fn value_operand(&self, value: &Value) -> Option<Operand> {
+    pub fn value_operand(&self, within: &Procedure, value: &Value) -> Option<Operand> {
         match value.node {
             ValueNode::Register(lir::Register::Physical(_)) => {
                 todo!()
             }
+
             ValueNode::Register(lir::Register::Frame(BaseOffset::Local(offset), ty)) => {
                 let size = Constraints::sizeof(&self.program.types, &ty);
-                let physical = offset + size;
-                Some(Operand::Memory(rbp - physical))
+                let offset = offset + size;
+
+                Some(Operand::Memory(match size {
+                    1 => byte_ptr(rbp - offset),
+                    2 => word_ptr(rbp - offset),
+                    4 => dword_ptr(rbp - offset),
+                    8 => qword_ptr(rbp - offset),
+                    _ => todo!(),
+                }))
             }
-            ValueNode::Register(lir::Register::Frame(BaseOffset::Argument(_), _)) => {
-                todo!("need to remember continuation count");
+
+            ValueNode::Register(lir::Register::Frame(BaseOffset::Parameter(offset), ty)) => {
+                let size = Constraints::sizeof(&self.program.types, &ty);
+                let offset = 8 * within.continuations.len() + offset + size;
+
+                Some(Operand::Memory(match size {
+                    1 => byte_ptr(rbp + offset),
+                    2 => word_ptr(rbp + offset),
+                    4 => dword_ptr(rbp + offset),
+                    8 => qword_ptr(rbp + offset),
+                    _ => todo!(),
+                }))
             }
+
+            ValueNode::Register(lir::Register::Frame(..)) => {
+                todo!("push/pop etc");
+            }
+
             ValueNode::Register(lir::Register::Virtual(_)) => unreachable!(),
 
             ValueNode::Name(name) => Some(Operand::Label(name)),
@@ -164,6 +207,11 @@ impl Lowerer<'_> {
                         self.asm.cmp(left, rax).unwrap();
                     }
                 }
+            }
+
+            (Operand::Memory(left), Operand::Memory(right)) => {
+                self.asm.mov(rax, right).unwrap();
+                self.asm.cmp(left, rax).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for cmp"),
@@ -373,6 +421,12 @@ impl Lowerer<'_> {
                         self.asm.mov(target, rax).unwrap();
                     }
                 }
+            }
+
+            (Operand::Memory(target), Operand::Memory(source)) => {
+                // todo: sizes
+                self.asm.mov(rax, source).unwrap();
+                self.asm.mov(target, rax).unwrap();
             }
 
             _ => unreachable!("invalid opcode/operand combination for mov"),

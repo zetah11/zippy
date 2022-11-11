@@ -11,7 +11,7 @@ impl Lowerer<'_> {
 
         for inst in block.insts.clone() {
             let inst = procedure.get_instruction(inst);
-            self.lower_instruction(inst);
+            self.lower_instruction(procedure, inst);
         }
 
         self.lower_branch(order, procedure, procedure.get_branch(block.branch));
@@ -33,7 +33,7 @@ impl Lowerer<'_> {
                 }
 
                 // We don't have to do anything about `_arg`, since any necessary moves should have been set up before.
-                let fun = self.value_operand(fun).unwrap();
+                let fun = self.value_operand(procedure, fun).unwrap();
                 if let Operand::Label(name) = fun {
                     if self.program.info.is_extern(&name) {
                         todo!()
@@ -60,8 +60,8 @@ impl Lowerer<'_> {
                 then,
                 elze,
             } => {
-                let left = self.value_operand(left).unwrap();
-                let right = self.value_operand(right).unwrap();
+                let left = self.value_operand(procedure, left).unwrap();
+                let right = self.value_operand(procedure, right).unwrap();
 
                 // TODO: swap things around if this is invalid (e.g. integer on the left side)
                 self.asm_cmp(left, right);
@@ -120,11 +120,11 @@ impl Lowerer<'_> {
         }
     }
 
-    fn lower_instruction(&mut self, inst: &Instruction) {
+    fn lower_instruction(&mut self, procedure: &Procedure, inst: &Instruction) {
         match inst {
             Instruction::Copy(target, value) => {
-                let target = self.target_operand(target).unwrap();
-                let value = self.value_operand(value).unwrap();
+                let target = self.target_operand(procedure, target).unwrap();
+                let value = self.value_operand(procedure, value).unwrap();
 
                 if target == value {
                     return;
