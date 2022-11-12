@@ -179,8 +179,8 @@ impl Applier {
             Register::Virtual(reg) => {
                 let (offset, _) = self.allocation.mapping.get(&reg.id).copied().unwrap();
                 let offset = match offset {
-                    Place::Argument(offset) => BaseOffset::Argument(offset),
-                    Place::Parameter(offset) => BaseOffset::Parameter(offset),
+                    Place::Argument { offset, total } => BaseOffset::Argument { offset, total },
+                    Place::Parameter { offset, total } => BaseOffset::Parameter { offset, total },
                     Place::Local(offset) => BaseOffset::Local(offset),
                 };
 

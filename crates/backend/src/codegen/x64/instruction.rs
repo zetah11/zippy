@@ -66,7 +66,10 @@ impl Lowerer<'_> {
                 }))
             }
 
-            TargetNode::Register(lir::Register::Frame(BaseOffset::Parameter(offset), ty)) => {
+            TargetNode::Register(lir::Register::Frame(
+                BaseOffset::Parameter { offset, .. },
+                ty,
+            )) => {
                 let size = Constraints::sizeof(&self.program.types, &ty);
                 let offset = 8 * within.continuations.len() + offset + size;
 
@@ -108,7 +111,7 @@ impl Lowerer<'_> {
                 }))
             }
 
-            ValueNode::Register(lir::Register::Frame(BaseOffset::Parameter(offset), ty)) => {
+            ValueNode::Register(lir::Register::Frame(BaseOffset::Parameter { offset, .. }, ty)) => {
                 let size = Constraints::sizeof(&self.program.types, &ty);
                 let offset = 8 * within.continuations.len() + offset + size;
 

@@ -86,8 +86,20 @@ impl<'a, Constraints: AllocConstraints> Allocator<'a, Constraints> {
                         );
 
                         ProcedureAllocation {
-                            arguments: args.iter().map(|_| Place::Argument(0)).collect(),
-                            returns: rets.iter().map(|_| Place::Argument(0)).collect(),
+                            arguments: args
+                                .iter()
+                                .map(|_| Place::Argument {
+                                    offset: 0,
+                                    total: 0,
+                                })
+                                .collect(),
+                            returns: rets
+                                .iter()
+                                .map(|_| Place::Argument {
+                                    offset: 0,
+                                    total: 0,
+                                })
+                                .collect(),
                         }
                     }
                 };

@@ -55,18 +55,24 @@ impl AllocConstraints for Constraints {
 /// `corollary` calling convention. Arguments are pushed left-to-right on the stack. Return values are placed on the
 /// stack in space reserved by the callee.
 fn convention_corollary(types: &Types, args: &[TypeId], rets: &[TypeId]) -> ProcedureAllocation {
+    let total = args
+        .iter()
+        .chain(rets.iter())
+        .map(|ty| Constraints::sizeof(types, ty))
+        .sum();
+
     let mut offset = 0;
     let mut returns = Vec::with_capacity(rets.len());
 
     for ret in rets.iter() {
-        returns.push(Place::Parameter(offset));
+        returns.push(Place::Parameter { offset, total });
         offset += Constraints::sizeof(types, ret);
     }
 
     let mut arguments = Vec::with_capacity(args.len());
 
     for arg in args.iter().rev() {
-        arguments.push(Place::Parameter(offset));
+        arguments.push(Place::Parameter { offset, total });
         offset += Constraints::sizeof(types, arg);
     }
 

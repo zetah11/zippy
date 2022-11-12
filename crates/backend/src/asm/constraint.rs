@@ -5,10 +5,10 @@ pub type RegisterId = usize;
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Place {
     /// Placed on the stack as an argument.
-    Argument(usize),
+    Argument { offset: usize, total: usize },
 
     /// Placed on the stack as a parameter.
-    Parameter(usize),
+    Parameter { offset: usize, total: usize },
 
     /// Placed on the stack as a local.
     Local(usize),
@@ -27,8 +27,11 @@ impl ProcedureAllocation {
             .iter()
             .map(|arg| match arg {
                 Place::Local(offset) => Place::Local(*offset),
-                Place::Parameter(offset) => Place::Argument(*offset),
-                Place::Argument(_) => {
+                Place::Parameter { offset, total } => Place::Argument {
+                    offset: *offset,
+                    total: *total,
+                },
+                Place::Argument { .. } => {
                     unreachable!("not a ProcedureAllocation for a function signature")
                 }
             })
@@ -39,8 +42,11 @@ impl ProcedureAllocation {
             .iter()
             .map(|ret| match ret {
                 Place::Local(offset) => Place::Local(*offset),
-                Place::Parameter(offset) => Place::Argument(*offset),
-                Place::Argument(_) => {
+                Place::Parameter { offset, total } => Place::Argument {
+                    offset: *offset,
+                    total: *total,
+                },
+                Place::Argument { .. } => {
                     unreachable!("not a ProcedureAllocation for a function signature")
                 }
             })

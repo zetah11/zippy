@@ -65,6 +65,8 @@ struct Lowerer<'a> {
     blocks: HashMap<lir::BlockId, CodeLabel>,
     relocs: HashMap<Name, (u64, Vec<(RelocationKind, CodeLabel)>)>,
     reloc_addr: u64,
+
+    arg_offset: usize,
 }
 
 impl<'a> Lowerer<'a> {
@@ -83,6 +85,8 @@ impl<'a> Lowerer<'a> {
             blocks: HashMap::new(),
             relocs: HashMap::new(),
             reloc_addr: u64::MAX,
+
+            arg_offset: 0,
         };
 
         if let Some(entry) = entry {
@@ -129,7 +133,7 @@ impl<'a> Lowerer<'a> {
             .arguments
             .iter()
             .filter_map(|arg| match arg {
-                Place::Argument(offset) => Some(*offset),
+                Place::Argument { offset, .. } => Some(*offset),
                 _ => None,
             })
             .min()

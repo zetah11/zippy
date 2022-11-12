@@ -48,11 +48,13 @@ impl Lowerer<'_> {
         self.asm.call(entry).unwrap();
 
         match return_place {
-            Some(Place::Argument(offset)) => self.asm.mov(rdi, rsp + *offset).unwrap(),
+            Some(Place::Argument { offset, total }) => {
+                self.asm.mov(rdi, rsp + (*total - *offset)).unwrap()
+            }
             Some(Place::Local(_)) => todo!(),
             None => self.asm.xor(rdi, rdi).unwrap(),
 
-            Some(Place::Parameter(_)) => unreachable!(),
+            Some(Place::Parameter { .. }) => unreachable!(),
         }
 
         self.asm.mov(rax, 60i64).unwrap();
@@ -90,11 +92,13 @@ impl Lowerer<'_> {
         self.asm.call(entry).unwrap();
 
         match return_place {
-            Some(Place::Argument(offset)) => self.asm.mov(rcx, rsp + *offset).unwrap(),
+            Some(Place::Argument { offset, total }) => {
+                self.asm.mov(rcx, rsp + (*total - *offset)).unwrap()
+            }
             Some(Place::Local(_)) => todo!(),
             None => self.asm.xor(rcx, rcx).unwrap(),
 
-            Some(Place::Parameter(_)) => unreachable!(),
+            Some(Place::Parameter { .. }) => unreachable!(),
         }
 
         let exit_process = self.relocation_here(exit_process, RelocationKind::RelativeNext);

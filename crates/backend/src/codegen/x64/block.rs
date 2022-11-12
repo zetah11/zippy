@@ -1,8 +1,13 @@
-use common::lir::{BlockId, Branch, Condition, Instruction, Procedure};
-use iced_x86::code_asm::rbx;
+use std::cmp::Ordering;
+
+use common::lir::{
+    BaseOffset, BlockId, Branch, Condition, Instruction, Procedure, Register, TargetNode, ValueNode,
+};
+use iced_x86::code_asm::{rbx, rsp};
 
 use super::instruction::Operand;
-use super::Lowerer;
+use super::{Constraints, Lowerer};
+use crate::asm::AllocConstraints;
 
 impl Lowerer<'_> {
     pub fn lower_block(&mut self, order: &[BlockId], procedure: &Procedure, block: BlockId) {
@@ -123,6 +128,64 @@ impl Lowerer<'_> {
     fn lower_instruction(&mut self, procedure: &Procedure, inst: &Instruction) {
         match inst {
             Instruction::Copy(target, value) => {
+                if let TargetNode::Register(Register::Frame(
+                    BaseOffset::Argument { offset, total },
+                    ty,
+                )) = target.node
+                {
+                    let offset = total - offset;
+                    let size = Constraints::sizeof(&self.program.types, &ty);
+
+                    match self.arg_offset.cmp(&offset) {
+                        Ordering::Equal => {
+                            let value = self.value_operand(procedure, value).unwrap();
+                            self.asm_push(value);
+                            self.arg_offset += size;
+                            return;
+                        }
+
+                        Ordering::Less => {
+                            let value = self.value_operand(procedure, value).unwrap();
+                            let diff = offset - self.arg_offset;
+                            self.asm_push(value);
+                            self.asm.sub(rsp, diff as i32).unwrap();
+                            self.arg_offset = offset + size;
+                            return;
+                        }
+
+                        Ordering::Greater => {}
+                    }
+                }
+
+                if let ValueNode::Register(Register::Frame(
+                    BaseOffset::Argument { offset, total },
+                    ty,
+                )) = value.node
+                {
+                    let offset = total - offset;
+                    let size = Constraints::sizeof(&self.program.types, &ty);
+
+                    match self.arg_offset.cmp(&offset) {
+                        Ordering::Equal => {
+                            let target = self.target_operand(procedure, target).unwrap();
+                            self.asm_pop(target);
+                            self.arg_offset -= size;
+                            return;
+                        }
+
+                        Ordering::Greater => {
+                            let target = self.target_operand(procedure, target).unwrap();
+                            let diff = self.arg_offset - offset;
+                            self.asm_pop(target);
+                            self.asm.add(rsp, (diff - size) as i32).unwrap();
+                            self.arg_offset = offset;
+                            return;
+                        }
+
+                        Ordering::Less => {}
+                    }
+                }
+
                 let target = self.target_operand(procedure, target).unwrap();
                 let value = self.value_operand(procedure, value).unwrap();
 

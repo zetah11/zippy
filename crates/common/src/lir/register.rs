@@ -16,6 +16,6 @@ pub enum Register {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BaseOffset {
     Local(usize),
-    Argument(usize),
-    Parameter(usize),
+    Argument { offset: usize, total: usize },
+    Parameter { offset: usize, total: usize },
 }
