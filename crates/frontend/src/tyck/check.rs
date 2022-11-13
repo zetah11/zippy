@@ -2,7 +2,7 @@ use common::thir::Because;
 
 use super::{Expr, ExprNode, Type, Typer};
 
-impl Typer {
+impl Typer<'_> {
     /// Check that an expression conforms to a given type.
     pub fn check(&mut self, because: Because, ex: Expr, ty: Type) -> Expr<Type> {
         let (node, ty) = match ex.node {

@@ -7,21 +7,28 @@ use common::thir::{Because, Constraint};
 
 use super::{Type, Typer};
 
-impl Typer {
+impl Typer<'_> {
     /// Check if `from` can be given where `into` is expected (i.e. if `from` is wider than `into`), and return the
     /// widest type.
     pub fn assignable(&mut self, span: Span, into: Type, from: Type) {
         self.unifier.unify(span, into, from);
+        let constraints: Vec<_> = self
+            .unifier
+            .worklist
+            .drain(..)
+            .map(|(at, into, from)| Constraint::Assignable { at, into, from })
+            .collect();
+        self.constraints.extend(constraints);
     }
 
     pub fn fun_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
         let t = self.context.fresh();
         let u = self.context.fresh();
-        let expect = Type::Fun(Box::new(Type::Var(t)), Box::new(Type::Var(u)));
+        let expect = Type::Fun(Box::new(Type::mutable(t)), Box::new(Type::mutable(u)));
 
         self.assignable(span, expect, ty);
 
-        (Type::Var(t), Type::Var(u))
+        (Type::mutable(t), Type::mutable(u))
     }
 
     pub fn int_type(&mut self, span: Span, because: Because, ty: Type) -> Type {
@@ -29,8 +36,8 @@ impl Typer {
             Type::Range(lo, hi) => Type::Range(lo, hi),
             Type::Invalid => Type::Invalid,
 
-            Type::Var(v) => {
-                if let Some(ty) = self.unifier.subst.get(&v) {
+            Type::Var(mutable, v) => {
+                if let Some((inst, ty)) = self.unifier.subst.get(&v) {
                     let because = if let Some(cause) = self.unifier.causes.get(&v) {
                         cause.clone()
                     } else {
@@ -44,7 +51,7 @@ impl Typer {
                         because,
                         ty,
                     });
-                    Type::Var(v)
+                    Type::Var(mutable, v)
                 }
             }
 
@@ -60,16 +67,16 @@ impl Typer {
     pub fn tuple_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
         let t = self.context.fresh();
         let u = self.context.fresh();
-        let expect = Type::Product(Box::new(Type::Var(t)), Box::new(Type::Var(u)));
+        let expect = Type::Product(Box::new(Type::mutable(t)), Box::new(Type::mutable(u)));
 
         self.assignable(span, expect, ty);
 
-        (Type::Var(t), Type::Var(u))
+        (Type::mutable(t), Type::mutable(u))
     }
 
     pub fn hole_type(&mut self, span: Span, ty: Type) -> Type {
         let var = self.context.fresh();
-        self.assignable(span, Type::Var(var), ty);
-        Type::Var(var)
+        self.assignable(span, Type::mutable(var), ty);
+        Type::mutable(var)
     }
 }

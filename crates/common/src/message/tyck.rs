@@ -96,7 +96,7 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
-    pub fn tykc_no_progress(&mut self) {
+    pub fn tyck_no_progress(&mut self) {
         let labels = vec![Label::primary(self.at)];
 
         self.add(

@@ -8,14 +8,16 @@ pub use because::Because;
 pub use constraint::Constraint;
 pub use context::{Context, TypeOrSchema};
 pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
-pub use types::{instantiate, Type, UniVar};
+pub use types::{Mutability, Type, UniVar};
 
 use std::collections::HashMap;
+
+use crate::names::Name;
 
 #[derive(Debug)]
 pub struct TypeckResult {
     pub context: Context,
     pub decls: Decls<Type>,
-    pub subst: HashMap<UniVar, Type>,
+    pub subst: HashMap<UniVar, (HashMap<Name, UniVar>, Type)>,
     pub constraints: Vec<Constraint>,
 }

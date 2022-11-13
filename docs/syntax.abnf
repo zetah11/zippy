@@ -10,6 +10,7 @@ decl        = let-decl / fun-decl
 
 let-decl    = "let" small-expr ["=" expr]
 fun-decl    = "fun" base-expr ["|" small-expr "|"] *(base-expr) [":" small-expr] ["=" expr]
+; "|" small-expr "|" without instantiation inbetween
 
 
 expr        = lam-expr
@@ -27,6 +28,7 @@ range-expr  = mul-expr ["upto" mul-expr]
 mul-expr    = app-expr *("*" app-expr)
 
 app-expr    = base-expr *(app-expr / "|" small-expr "|")
+; "|" small-expr "|" without instantiation inbetween
 
 base-expr   = NAME / NUM / WILDCARD
 base-expr  =/ "(" expr ")"

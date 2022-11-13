@@ -2,7 +2,7 @@ use common::{hir, thir};
 
 use super::{Name, Typer};
 
-impl Typer {
+impl Typer<'_> {
     pub fn lower(&mut self, ex: hir::Decls<Name>) -> thir::Decls {
         self.lower_decls(ex)
     }
@@ -114,7 +114,7 @@ impl Typer {
                 let u = Box::new(self.lower_type(*u));
                 thir::Type::Product(t, u)
             }
-            hir::TypeNode::Wildcard => thir::Type::Var(self.context.fresh()),
+            hir::TypeNode::Wildcard => thir::Type::mutable(self.context.fresh()),
             hir::TypeNode::Invalid => thir::Type::Invalid,
         }
     }

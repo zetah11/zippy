@@ -22,7 +22,7 @@ type HiCtx = thir::Context;
 
 pub fn lower(
     driver: &mut impl Driver,
-    subst: &HashMap<UniVar, HiType>,
+    subst: &HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
     names: &mut Names,
     context: HiCtx,
     decls: HiDecls,
@@ -45,13 +45,16 @@ pub fn lower(
 struct Lowerer<'a> {
     types: Types,
     names: &'a mut Names,
-    subst: &'a HashMap<UniVar, HiType>,
+    subst: &'a HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
     messages: Messages,
     context: Context,
 }
 
 impl<'a> Lowerer<'a> {
-    fn new(names: &'a mut Names, subst: &'a HashMap<UniVar, HiType>) -> Self {
+    fn new(
+        names: &'a mut Names,
+        subst: &'a HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
+    ) -> Self {
         Self {
             types: Types::new(),
             names,
@@ -81,6 +84,7 @@ impl<'a> Lowerer<'a> {
     fn lower_type(&mut self, ty: HiType) -> TypeId {
         match ty {
             HiType::Name(_) => todo!(),
+            HiType::Instantiated(..) => todo!(),
 
             HiType::Fun(t, u) => {
                 let t = self.lower_type(*t);
@@ -98,8 +102,8 @@ impl<'a> Lowerer<'a> {
 
             HiType::Range(lo, hi) => self.types.add(Type::Range(lo, hi)),
 
-            HiType::Var(v) => {
-                if let Some(ty) = self.subst.get(&v).cloned() {
+            HiType::Var(_, v) => {
+                if let Some((inst, ty)) = self.subst.get(&v).cloned() {
                     self.lower_type(ty)
                 } else {
                     unimplemented!()

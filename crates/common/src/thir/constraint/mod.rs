@@ -9,4 +9,10 @@ pub enum Constraint {
         because: Because,
         ty: Type,
     },
+
+    Assignable {
+        at: Span,
+        into: Type,
+        from: Type,
+    },
 }

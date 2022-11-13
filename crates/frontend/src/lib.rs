@@ -24,7 +24,7 @@ pub fn parse(driver: &mut impl Driver, source: String, file: usize) -> ParseResu
         names,
         entry,
     } = resolve::resolve(driver, decls);
-    let tyckres = tyck::typeck(driver, decls);
+    let tyckres = tyck::typeck(driver, &names, decls);
 
     ParseResult {
         checked: tyckres,

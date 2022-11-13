@@ -4,7 +4,7 @@ use common::names::Name;
 use super::Typer;
 use super::{Pat, PatNode, Type};
 
-impl Typer {
+impl Typer<'_> {
     pub fn bind_pat(&mut self, pat: Pat, ty: Type) -> Pat<Type> {
         let (node, ty) = match pat.node {
             PatNode::Name(name) => {
@@ -85,8 +85,8 @@ impl Typer {
         let (node, ty) = match pat.node {
             PatNode::Name(name) => {
                 let ty = self.context.fresh();
-                self.context.add(name, Type::Var(ty));
-                (PatNode::Name(name), Type::Var(ty))
+                self.context.add(name, Type::mutable(ty));
+                (PatNode::Name(name), Type::mutable(ty))
             }
 
             PatNode::Tuple(x, y) => {
@@ -104,7 +104,7 @@ impl Typer {
 
             PatNode::Anno(pat, ty) => return self.bind_pat(*pat, ty),
 
-            PatNode::Wildcard => (PatNode::Wildcard, Type::Var(self.context.fresh())),
+            PatNode::Wildcard => (PatNode::Wildcard, Type::mutable(self.context.fresh())),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
         };

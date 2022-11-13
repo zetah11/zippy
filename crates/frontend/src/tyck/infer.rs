@@ -2,7 +2,7 @@ use common::thir::{Because, TypeOrSchema};
 
 use super::{Expr, ExprNode, Type, Typer};
 
-impl Typer {
+impl Typer<'_> {
     /// Infer the type of an expression.
     pub fn infer(&mut self, ex: Expr) -> Expr<Type> {
         let (node, ty) = match ex.node {
@@ -15,18 +15,20 @@ impl Typer {
 
             ExprNode::Int(i) => {
                 let var = self.context.fresh();
-                self.int_type(ex.span, Because::Unified(ex.span), Type::Var(var));
-                (ExprNode::Int(i), Type::Var(var))
+                self.int_type(ex.span, Because::Unified(ex.span), Type::mutable(var));
+                (ExprNode::Int(i), Type::mutable(var))
             }
 
             ExprNode::Tuple(a, b) => {
                 let t = self.context.fresh();
                 let u = self.context.fresh();
-                let a = Box::new(self.check(Because::Inferred(ex.span, None), *a, Type::Var(t)));
-                let b = Box::new(self.check(Because::Inferred(ex.span, None), *b, Type::Var(u)));
+                let a =
+                    Box::new(self.check(Because::Inferred(ex.span, None), *a, Type::mutable(t)));
+                let b =
+                    Box::new(self.check(Because::Inferred(ex.span, None), *b, Type::mutable(u)));
                 (
                     ExprNode::Tuple(a, b),
-                    Type::Product(Box::new(Type::Var(t)), Box::new(Type::Var(u))),
+                    Type::Product(Box::new(Type::mutable(t)), Box::new(Type::mutable(u))),
                 )
             }
 
@@ -78,7 +80,7 @@ impl Typer {
                 let (ty, vars) = self.context.instantiate(&schema);
 
                 for (var, (span, ty)) in vars.into_iter().zip(args) {
-                    self.assignable(span, Type::Var(var), ty);
+                    self.assignable(span, Type::mutable(var), ty);
                 }
 
                 (ExprNode::Name(name), ty)
@@ -88,7 +90,7 @@ impl Typer {
                 return self.check(Because::Annotation(anno_span), *ex, ty);
             }
 
-            ExprNode::Hole => (ExprNode::Hole, Type::Var(self.context.fresh())),
+            ExprNode::Hole => (ExprNode::Hole, Type::mutable(self.context.fresh())),
 
             ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
         };
