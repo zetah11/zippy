@@ -1,3 +1,4 @@
+use std::iter::Sum;
 use std::ops::{Add, AddAssign, Range};
 
 pub type File = usize;
@@ -39,5 +40,15 @@ impl From<Span> for Range<usize> {
             start: s.start,
             end: s.end,
         }
+    }
+}
+
+impl Sum for Span {
+    fn sum<I: Iterator<Item = Self>>(mut iter: I) -> Self {
+        let mut res = iter.next().unwrap();
+        for span in iter {
+            res += span;
+        }
+        res
     }
 }

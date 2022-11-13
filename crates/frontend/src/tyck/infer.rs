@@ -1,4 +1,4 @@
-use common::thir::Because;
+use common::thir::{Because, TypeOrSchema};
 
 use super::{Expr, ExprNode, Type, Typer};
 
@@ -8,6 +8,8 @@ impl Typer {
         let (node, ty) = match ex.node {
             ExprNode::Name(name) => {
                 let ty = self.context.get(&name).clone();
+                let (ty, _) = self.context.instantiate(&ty);
+
                 (ExprNode::Name(name), ty)
             }
 
@@ -46,6 +48,42 @@ impl Typer {
                 (ExprNode::App(Box::new(fun), Box::new(arg)), u)
             }
 
+            ExprNode::Inst(fun, args) => {
+                let ExprNode::Name(name) = fun.node else {
+                    self.messages.at(fun.span).tyck_instantiate_non_name();
+                    return self.infer(*fun);
+                };
+
+                let schema = match self.context.get(&name) {
+                    schema @ TypeOrSchema::Schema(params, _) => {
+                        if params.len() != args.len() {
+                            self.messages.at(ex.span).tyck_instantiate_wrong_arity();
+                        }
+
+                        schema.clone()
+                    }
+                    TypeOrSchema::Type(ty) => {
+                        let print_name: Option<String> = None;
+                        self.messages
+                            .at(ex.span)
+                            .tyck_instantiate_not_generic(print_name);
+                        return Expr {
+                            node: ExprNode::Name(name),
+                            span: ex.span,
+                            data: ty.clone(),
+                        };
+                    }
+                };
+
+                let (ty, vars) = self.context.instantiate(&schema);
+
+                for (var, (span, ty)) in vars.into_iter().zip(args) {
+                    self.assignable(span, Type::Var(var), ty);
+                }
+
+                (ExprNode::Name(name), ty)
+            }
+
             ExprNode::Anno(ex, anno_span, ty) => {
                 return self.check(Because::Annotation(anno_span), *ex, ty);
             }
@@ -53,10 +91,6 @@ impl Typer {
             ExprNode::Hole => (ExprNode::Hole, Type::Var(self.context.fresh())),
 
             ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
-            /*_ => {
-                self.messages.at(ex.span).tyck_ambiguous();
-                (ExprNode::Invalid, Type::Invalid)
-            }*/
         };
 
         Expr {

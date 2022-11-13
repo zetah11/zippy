@@ -1,3 +1,6 @@
+use common::message::Span;
+use common::names::Name;
+
 use super::Typer;
 use super::{Pat, PatNode, Type};
 
@@ -27,6 +30,48 @@ impl Typer {
             PatNode::Wildcard => (PatNode::Wildcard, ty),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
+        };
+
+        Pat {
+            node,
+            span: pat.span,
+            data: ty,
+        }
+    }
+
+    pub fn bind_generic(&mut self, pat: Pat, params: &Vec<(Name, Span)>, ty: Type) -> Pat<Type> {
+        if params.is_empty() {
+            let pat = self.bind_pat(pat, ty);
+            return pat;
+        }
+
+        let (node, ty) = match pat.node {
+            PatNode::Name(name) => {
+                self.context.add_schema(
+                    name,
+                    params.iter().map(|(name, _)| *name).collect(),
+                    ty.clone(),
+                );
+                (PatNode::Name(name), ty)
+            }
+
+            PatNode::Tuple(x, y) => {
+                let (t, u) = self.tuple_type(pat.span, ty);
+                let x = Box::new(self.bind_generic(*x, params, t));
+                let y = Box::new(self.bind_generic(*y, params, u));
+
+                let ty = Type::Product(Box::new(x.data.clone()), Box::new(y.data.clone()));
+
+                (PatNode::Tuple(x, y), ty)
+            }
+
+            PatNode::Anno(pat, uy) => {
+                self.assignable(pat.span, ty, uy.clone());
+                return self.bind_generic(*pat, params, uy);
+            }
+
+            PatNode::Wildcard => (PatNode::Wildcard, ty),
+            PatNode::Invalid => (PatNode::Invalid, ty),
         };
 
         Pat {

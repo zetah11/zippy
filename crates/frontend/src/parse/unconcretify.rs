@@ -3,7 +3,7 @@
 //! that in the process.
 
 use common::hir::{self, BindIdGenerator};
-use common::message::Messages;
+use common::message::{Messages, Span};
 
 use super::tree as cst;
 
@@ -31,7 +31,9 @@ impl Unconcretifier {
         for decl in decls {
             match decl.node {
                 cst::DeclNode::ValueDecl { pat, anno, bind } => {
-                    let pat = self.unconc_pat(pat);
+                    let (pat, insts) = self.unconc_pat(pat);
+                    let implicits = self.unconc_insts(insts);
+
                     let anno =
                         anno.map(|anno| self.unconc_type(anno))
                             .unwrap_or_else(|| hir::Type {
@@ -51,6 +53,7 @@ impl Unconcretifier {
                     values.push(hir::ValueDef {
                         span: decl.span,
                         id: self.bind_id.fresh(),
+                        implicits,
                         pat,
                         anno,
                         bind,
@@ -59,11 +62,23 @@ impl Unconcretifier {
 
                 cst::DeclNode::FunDecl {
                     name,
+                    implicits,
                     args,
                     anno,
                     bind,
                 } => {
-                    let pat = self.unconc_pat(name);
+                    let (pat, insts) = self.unconc_pat(name);
+
+                    let mut implicits_error = false;
+                    if !insts.is_empty() {
+                        let span = insts.into_iter().map(|ex| ex.span).sum();
+                        self.msgs.at(span).parse_disallowed_implicits();
+                        implicits_error = true;
+                    }
+
+                    let implicits = implicits.into_iter().flat_map(unconc_list).collect();
+                    let implicits = self.unconc_insts(implicits);
+
                     let anno =
                         anno.map(|anno| self.unconc_type(anno))
                             .unwrap_or_else(|| hir::Type {
@@ -87,7 +102,14 @@ impl Unconcretifier {
                     };
 
                     for arg in args.into_iter().rev() {
-                        let arg = self.unconc_pat(arg);
+                        let (arg, implicits) = self.unconc_pat(arg);
+
+                        if !implicits.is_empty() && !implicits_error {
+                            let span = implicits.into_iter().map(|ex| ex.span).sum();
+                            self.msgs.at(span).parse_disallowed_implicits();
+                            implicits_error = true;
+                        }
+
                         let span = bind.span + arg.span;
                         bind = hir::Expr {
                             node: hir::ExprNode::Lam(self.bind_id.fresh(), arg, Box::new(bind)),
@@ -99,6 +121,7 @@ impl Unconcretifier {
                     values.push(hir::ValueDef {
                         span: decl.span,
                         id: self.bind_id.fresh(),
+                        implicits,
                         pat,
                         anno: hir::Type {
                             node: hir::TypeNode::Wildcard,
@@ -174,14 +197,28 @@ impl Unconcretifier {
                 hir::ExprNode::Tuple(x, y)
             }
             cst::ExprNode::Lam(pat, body) => {
-                let pat = self.unconc_pat(*pat);
+                let (pat, insts) = self.unconc_pat(*pat);
                 let body = Box::new(self.unconc_expr(*body));
+
+                if !insts.is_empty() {
+                    let span = insts.into_iter().map(|ex| ex.span).sum();
+                    self.msgs.at(span).parse_generic_lambda();
+                }
+
                 hir::ExprNode::Lam(self.bind_id.fresh(), pat, body)
             }
             cst::ExprNode::App(fun, arg) => {
                 let fun = Box::new(self.unconc_expr(*fun));
                 let arg = Box::new(self.unconc_expr(*arg));
                 hir::ExprNode::App(fun, arg)
+            }
+            cst::ExprNode::Inst(fun, args) => {
+                let fun = Box::new(self.unconc_expr(*fun));
+                let args = unconc_list(*args)
+                    .into_iter()
+                    .map(|arg| self.unconc_type(arg))
+                    .collect();
+                hir::ExprNode::Inst(fun, args)
             }
             cst::ExprNode::Anno(expr, anno) => {
                 let expr = Box::new(self.unconc_expr(*expr));
@@ -198,33 +235,57 @@ impl Unconcretifier {
         }
     }
 
-    fn unconc_pat(&mut self, pat: cst::Expr) -> hir::Pat {
-        let node = match pat.node {
-            cst::ExprNode::Name(name) => hir::PatNode::Name(name),
+    fn unconc_pat(&mut self, pat: cst::Expr) -> (hir::Pat, Vec<cst::Expr>) {
+        let (node, insts) = match pat.node {
+            cst::ExprNode::Name(name) => (hir::PatNode::Name(name), vec![]),
             cst::ExprNode::Group(pat) => return self.unconc_pat(*pat),
             cst::ExprNode::BinOp(..) => todo!("constructor patterns not yet supported"),
             cst::ExprNode::Tuple(x, y) => {
-                let x = Box::new(self.unconc_pat(*x));
-                let y = Box::new(self.unconc_pat(*y));
-                hir::PatNode::Tuple(x, y)
+                let (x, mut insts) = self.unconc_pat(*x);
+                let (y, other) = self.unconc_pat(*y);
+                insts.extend(other);
+                (hir::PatNode::Tuple(Box::new(x), Box::new(y)), insts)
             }
             cst::ExprNode::Anno(pat, ty) => {
-                let pat = Box::new(self.unconc_pat(*pat));
+                let (pat, insts) = self.unconc_pat(*pat);
                 let ty = self.unconc_type(*ty);
-                hir::PatNode::Anno(pat, ty)
+                (hir::PatNode::Anno(Box::new(pat), ty), insts)
             }
-            cst::ExprNode::Wildcard => hir::PatNode::Wildcard,
-            cst::ExprNode::Invalid => hir::PatNode::Invalid,
+            cst::ExprNode::Inst(pat, insts) => {
+                let (pat, other) = self.unconc_pat(*pat);
+                let mut insts = unconc_list(*insts);
+                insts.extend(other);
+
+                return (pat, insts);
+            }
+            cst::ExprNode::Wildcard => (hir::PatNode::Wildcard, vec![]),
+            cst::ExprNode::Invalid => (hir::PatNode::Invalid, vec![]),
             _ => {
                 self.msgs.at(pat.span).parse_not_a_pattern();
-                hir::PatNode::Invalid
+                (hir::PatNode::Invalid, vec![])
             }
         };
 
-        hir::Pat {
-            node,
-            span: pat.span,
-        }
+        (
+            hir::Pat {
+                node,
+                span: pat.span,
+            },
+            insts,
+        )
+    }
+
+    fn unconc_insts(&mut self, insts: Vec<cst::Expr>) -> Vec<(String, Span)> {
+        insts
+            .into_iter()
+            .filter_map(|inst| match inst.node {
+                cst::ExprNode::Name(name) => Some((name, inst.span)),
+                _ => {
+                    self.msgs.at(inst.span).parse_not_a_type_name();
+                    None
+                }
+            })
+            .collect()
     }
 
     fn unconc_type(&mut self, typ: cst::Expr) -> hir::Type {
@@ -254,6 +315,8 @@ impl Unconcretifier {
                     }
                 }
             }
+
+            cst::ExprNode::Name(name) => hir::TypeNode::Name(name),
 
             cst::ExprNode::Int(v) => hir::TypeNode::Range(0, v as i64),
 
@@ -289,5 +352,19 @@ impl Unconcretifier {
 fn binop_to_name(op: cst::BinOp) -> &'static str {
     match op {
         cst::BinOp::Mul => "*",
+    }
+}
+
+/// Turn a tuple expression like `(a, b), c, d, (e, f)` into a list of expressions like
+/// `(a, b)`, `c`, `d`, `(e, f)`.
+fn unconc_list(pat: cst::Expr) -> Vec<cst::Expr> {
+    match pat.node {
+        cst::ExprNode::Tuple(a, b) => {
+            let mut list = unconc_list(*b);
+            list.insert(0, *a);
+            list
+        }
+
+        _ => vec![pat],
     }
 }

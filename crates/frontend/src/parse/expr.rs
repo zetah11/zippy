@@ -145,20 +145,43 @@ where
         expr
     }
 
+    fn is_arg(&self) -> bool {
+        !self.is_done()
+            && (self.peek(Self::BASE_EXPR_STARTS) || (!self.in_implicit && self.peek(Token::Pipe)))
+    }
+
     /// ```abnf
-    /// app-expr = base-expr [app-expr]
+    /// app-expr = base-expr *(app-expr / "|" small-expr "|")
     /// ```
     fn app_expr(&mut self) -> Expr {
         let mut expr = self.parse_base_expr();
 
-        while !self.is_done() && self.peek(Self::BASE_EXPR_STARTS) {
+        while self.is_arg() {
+            if let Some(opener) = self.matches(Token::Pipe) {
+                self.in_implicit = true;
+                let arg = self.parse_small_expr();
+                self.in_implicit = false;
+
+                if !self.consume(Token::Pipe) {
+                    self.msgs.at(opener).parse_unclosed_implicits();
+                }
+
+                let span = expr.span + arg.span;
+                expr = Expr {
+                    node: ExprNode::Inst(Box::new(expr), Box::new(arg)),
+                    span,
+                };
+
+                continue;
+            }
+
             let arg = self.parse_base_expr();
             let span = expr.span + arg.span;
 
             expr = Expr {
                 node: ExprNode::App(Box::new(expr), Box::new(arg)),
                 span,
-            }
+            };
         }
 
         expr

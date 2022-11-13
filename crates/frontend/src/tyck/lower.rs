@@ -25,6 +25,7 @@ impl Typer {
 
         thir::ValueDef {
             span: def.span,
+            implicits: def.implicits,
             pat,
             anno,
             bind,
@@ -44,6 +45,14 @@ impl Typer {
                 let fun = Box::new(self.lower_expr(*fun));
                 let arg = Box::new(self.lower_expr(*arg));
                 thir::ExprNode::App(fun, arg)
+            }
+            hir::ExprNode::Inst(fun, args) => {
+                let fun = Box::new(self.lower_expr(*fun));
+                let args = args
+                    .into_iter()
+                    .map(|ty| (ty.span, self.lower_type(ty)))
+                    .collect();
+                thir::ExprNode::Inst(fun, args)
             }
             hir::ExprNode::Anno(ex, ty) => {
                 let ex = Box::new(self.lower_expr(*ex));
@@ -91,8 +100,9 @@ impl Typer {
         }
     }
 
-    fn lower_type(&mut self, ty: hir::Type) -> thir::Type {
+    fn lower_type(&mut self, ty: hir::Type<Name>) -> thir::Type {
         match ty.node {
+            hir::TypeNode::Name(name) => thir::Type::Name(name),
             hir::TypeNode::Range(lo, hi) => thir::Type::Range(lo, hi),
             hir::TypeNode::Fun(t, u) => {
                 let t = Box::new(self.lower_type(*t));

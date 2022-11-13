@@ -18,6 +18,7 @@ pub enum DeclNode {
 
     FunDecl {
         name: Expr,
+        implicits: Option<Expr>,
         args: Vec<Expr>,
         anno: Option<Expr>,
         bind: Option<Expr>,
@@ -45,6 +46,7 @@ pub enum ExprNode {
     Tuple(Box<Expr>, Box<Expr>),
 
     Lam(Box<Expr>, Box<Expr>),
+    Inst(Box<Expr>, Box<Expr>),
     App(Box<Expr>, Box<Expr>),
 
     Anno(Box<Expr>, Box<Expr>),

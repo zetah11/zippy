@@ -60,7 +60,7 @@ impl Typer {
             .into_iter()
             .map(|decl| {
                 (
-                    (decl.pat, decl.anno.clone()),
+                    (decl.pat, decl.implicits, decl.anno.clone()),
                     (decl.span, decl.bind, decl.anno),
                 )
             })
@@ -71,8 +71,8 @@ impl Typer {
         let mut new_pats = Vec::with_capacity(pats.len());
         let mut new_binds = Vec::with_capacity(binds.len());
 
-        for (pat, anno) in pats {
-            new_pats.push(self.bind_pat(pat, anno));
+        for (pat, implicits, anno) in pats {
+            new_pats.push((self.bind_generic(pat, &implicits, anno), implicits));
         }
 
         for (span, bind, anno) in binds {
@@ -82,8 +82,9 @@ impl Typer {
         let values = new_pats
             .into_iter()
             .zip(new_binds.into_iter())
-            .map(|(pat, (span, bind))| ValueDef {
+            .map(|((pat, implicits), (span, bind))| ValueDef {
                 span,
+                implicits,
                 pat,
                 anno: Type::Invalid,
                 bind,

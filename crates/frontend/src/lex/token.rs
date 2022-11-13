@@ -17,6 +17,9 @@ pub enum FreeToken<'src> {
     #[token(")")]
     RParen,
 
+    #[token("|")]
+    Pipe,
+
     #[token("->")]
     MinArrow,
 

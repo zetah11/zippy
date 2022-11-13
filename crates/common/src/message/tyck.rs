@@ -1,11 +1,14 @@
 use super::{Diagnostic, Label, MessageAdder};
 
+const AMBIGUOUS: &str = "ET05";
 const INCOMPATIBLE_TYPES: &str = "ET00";
+const INSTANTIATE_NOT_GENERIC: &str = "ET09";
+const INSTANTIATE_NON_NAME: &str = "ET07";
+const INSTANTIATE_WRONG_ARITY: &str = "ET08";
 const NARROW_RANGE: &str = "ET01";
 const NO_PROGRESS: &str = "ET02";
 const NOT_A_FUN: &str = "ET03";
 const NOT_AN_INT: &str = "ET04";
-const AMBIGUOUS: &str = "ET05";
 const RECURSIVE: &str = "ET06";
 
 impl<'a> MessageAdder<'a> {
@@ -38,6 +41,44 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(INCOMPATIBLE_TYPES)
                 .with_message("incompatible types")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn tyck_instantiate_not_generic(&mut self, name: Option<impl Into<String>>) {
+        let labels = if let Some(name) = name {
+            vec![Label::primary(self.at)
+                .with_message(format!("'{}' is not a polymorphic value", name.into()))]
+        } else {
+            vec![Label::primary(self.at)]
+        };
+
+        self.add(
+            Diagnostic::error()
+                .with_code(INSTANTIATE_NOT_GENERIC)
+                .with_message("cannot explicitly instantiate non-generic value")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn tyck_instantiate_non_name(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(INSTANTIATE_NON_NAME)
+                .with_message("only named values can be explicitly instantiated")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn tyck_instantiate_wrong_arity(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(INSTANTIATE_WRONG_ARITY)
+                .with_message("explicit instantiation has wrong number of arguments")
                 .with_labels(labels),
         );
     }

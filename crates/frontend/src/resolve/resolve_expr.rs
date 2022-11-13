@@ -1,6 +1,7 @@
 use common::hir::{Expr, ExprNode};
+use common::names::{Actual, Name};
 
-use super::{Actual, Name, Resolver};
+use super::Resolver;
 
 impl Resolver {
     pub fn resolve_expr(&mut self, expr: Expr) -> Expr<Name> {
@@ -27,6 +28,12 @@ impl Resolver {
                 ExprNode::App(fun, arg)
             }
 
+            ExprNode::Inst(fun, args) => {
+                let fun = Box::new(self.resolve_expr(*fun));
+                let args = args.into_iter().map(|ty| self.resolve_type(ty)).collect();
+                ExprNode::Inst(fun, args)
+            }
+
             ExprNode::Tuple(x, y) => {
                 let x = Box::new(self.resolve_expr(*x));
                 let y = Box::new(self.resolve_expr(*y));
@@ -35,6 +42,7 @@ impl Resolver {
 
             ExprNode::Anno(expr, ty) => {
                 let expr = Box::new(self.resolve_expr(*expr));
+                let ty = self.resolve_type(ty);
                 ExprNode::Anno(expr, ty)
             }
         };

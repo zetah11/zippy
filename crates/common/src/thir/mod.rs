@@ -6,9 +6,9 @@ mod types;
 
 pub use because::Because;
 pub use constraint::Constraint;
-pub use context::Context;
+pub use context::{Context, TypeOrSchema};
 pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
-pub use types::{Type, UniVar};
+pub use types::{instantiate, Type, UniVar};
 
 use std::collections::HashMap;
 

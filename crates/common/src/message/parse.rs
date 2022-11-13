@@ -2,10 +2,14 @@ use super::{Diagnostic, Label, MessageAdder};
 
 const BASE_EXPR: &str = "EP00";
 const DECLARATION: &str = "EP01";
+const DISALLOWED_IMPLICITS: &str = "EP08";
+const GENERIC_LAMBDA: &str = "EP09";
 const NOT_A_PAT: &str = "EP02";
 const NOT_A_TYPE: &str = "EP03";
+const NOT_A_TYPE_NAME: &str = "EP07";
 const RANGE_NOT_AN_INT: &str = "EP04";
 const UNCLOSED_GROUP: &str = "EP05";
+const UNCLOSED_IMPLICITS: &str = "EP06";
 
 impl<'a> MessageAdder<'a> {
     pub fn parse_expected_base_expr(&mut self) {
@@ -20,6 +24,19 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
+    pub fn parse_disallowed_implicits(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+        let notes = vec!["note: implicit list only allowed right after function name".into()];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(DISALLOWED_IMPLICITS)
+                .with_message("implicit list not allowed in this position")
+                .with_labels(labels)
+                .with_notes(notes),
+        );
+    }
+
     pub fn parse_expected_declaration(&mut self) {
         let labels = vec![Label::primary(self.at).with_message("expected a 'let'-binding")];
 
@@ -27,6 +44,17 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(DECLARATION)
                 .with_message("expected a declaration")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn parse_generic_lambda(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(GENERIC_LAMBDA)
+                .with_message("lambdas may not have implicit parameters")
                 .with_labels(labels),
         );
     }
@@ -55,6 +83,17 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
+    pub fn parse_not_a_type_name(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(NOT_A_TYPE_NAME)
+                .with_message("expected a type name")
+                .with_labels(labels),
+        );
+    }
+
     pub fn parse_range_not_an_int(&mut self) {
         let labels = vec![Label::primary(self.at)];
 
@@ -74,6 +113,19 @@ impl<'a> MessageAdder<'a> {
                 .with_code(UNCLOSED_GROUP)
                 .with_message("unclosed group")
                 .with_labels(labels),
+        );
+    }
+
+    pub fn parse_unclosed_implicits(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+        let notes = vec!["note: implicits are listed inbetween two pipes ('fun f |T, U|')".into()];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(UNCLOSED_IMPLICITS)
+                .with_message("unclosed implicits list")
+                .with_labels(labels)
+                .with_notes(notes),
         );
     }
 }

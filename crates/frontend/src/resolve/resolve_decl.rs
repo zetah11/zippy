@@ -1,4 +1,6 @@
 use common::hir::{Decls, ValueDef};
+use common::message::Span;
+use common::names::{Actual, Path};
 
 use super::{Name, Resolver};
 
@@ -17,15 +19,30 @@ impl Resolver {
         let pat = self.resolve_pat(def.pat);
 
         self.enter(def.span, def.id);
+        let implicits = def
+            .implicits
+            .into_iter()
+            .map(|ty| self.resolve_type_name(ty))
+            .collect();
+        let anno = self.resolve_type(def.anno);
         let bind = self.resolve_expr(def.bind);
+
         self.exit();
 
         ValueDef {
             span: def.span,
             id: def.id,
+            implicits,
             pat,
-            anno: def.anno,
+            anno,
             bind,
         }
+    }
+
+    fn resolve_type_name(&self, ty: (String, Span)) -> (Name, Span) {
+        let path = Path::new(self.context(), Actual::Lit(ty.0));
+        // should never fail
+        let name = self.names.lookup(&path).unwrap();
+        (name, ty.1)
     }
 }

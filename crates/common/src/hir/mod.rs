@@ -38,7 +38,8 @@ pub struct ValueDef<Name = String> {
     pub span: Span,
     pub id: BindId,
     pub pat: Pat<Name>,
-    pub anno: Type,
+    pub implicits: Vec<(Name, Span)>,
+    pub anno: Type<Name>,
     pub bind: Expr<Name>,
 }
 
@@ -55,10 +56,11 @@ pub enum ExprNode<Name> {
 
     Lam(BindId, Pat<Name>, Box<Expr<Name>>),
     App(Box<Expr<Name>>, Box<Expr<Name>>),
+    Inst(Box<Expr<Name>>, Vec<Type<Name>>),
 
     Tuple(Box<Expr<Name>>, Box<Expr<Name>>),
 
-    Anno(Box<Expr<Name>>, Type),
+    Anno(Box<Expr<Name>>, Type<Name>),
 
     Hole,
     Invalid,
@@ -74,22 +76,23 @@ pub struct Pat<Name = String> {
 pub enum PatNode<Name> {
     Name(Name),
     Tuple(Box<Pat<Name>>, Box<Pat<Name>>),
-    Anno(Box<Pat<Name>>, Type),
+    Anno(Box<Pat<Name>>, Type<Name>),
     Wildcard,
     Invalid,
 }
 
 #[derive(Debug)]
-pub struct Type {
-    pub node: TypeNode,
+pub struct Type<Name = String> {
+    pub node: TypeNode<Name>,
     pub span: Span,
 }
 
 #[derive(Debug)]
-pub enum TypeNode {
+pub enum TypeNode<Name> {
+    Name(Name),
     Range(i64, i64),
-    Fun(Box<Type>, Box<Type>),
-    Prod(Box<Type>, Box<Type>),
+    Fun(Box<Type<Name>>, Box<Type<Name>>),
+    Prod(Box<Type<Name>>, Box<Type<Name>>),
     Wildcard,
     Invalid,
 }

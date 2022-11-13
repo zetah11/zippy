@@ -20,6 +20,7 @@ impl Resolver {
 
             PatNode::Anno(pat, ty) => {
                 let pat = Box::new(self.resolve_pat(*pat));
+                let ty = self.resolve_type(ty);
                 PatNode::Anno(pat, ty)
             }
 

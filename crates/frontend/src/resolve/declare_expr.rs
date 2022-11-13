@@ -18,6 +18,10 @@ impl Resolver {
                 self.declare_expr(arg);
             }
 
+            ExprNode::Inst(fun, _args) => {
+                self.declare_expr(fun);
+            }
+
             ExprNode::Tuple(x, y) => {
                 self.declare_expr(x);
                 self.declare_expr(y);

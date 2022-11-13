@@ -1,6 +1,6 @@
 use common::hir::{Pat, PatNode};
+use common::names::Actual;
 
-use super::Actual;
 use super::Resolver;
 
 impl Resolver {

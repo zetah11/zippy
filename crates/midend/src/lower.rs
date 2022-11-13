@@ -80,6 +80,8 @@ impl<'a> Lowerer<'a> {
 
     fn lower_type(&mut self, ty: HiType) -> TypeId {
         match ty {
+            HiType::Name(_) => todo!(),
+
             HiType::Fun(t, u) => {
                 let t = self.lower_type(*t);
                 let u = self.lower_type(*u);
@@ -307,6 +309,8 @@ impl<'a> Lowerer<'a> {
 
                 ValueNode::Name(name)
             }
+
+            HiExprNode::Inst(..) => todo!(),
 
             HiExprNode::Tuple(t, u) => {
                 let t = self.make_expr(within, ctx, *t);

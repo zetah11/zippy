@@ -31,6 +31,14 @@ impl Unifier {
 
             (Type::Number, Type::Range(..)) => {}
 
+            (Type::Name(n), Type::Name(m)) => {
+                if n != m {
+                    let n: Option<String> = None;
+                    let m: Option<String> = None;
+                    self.messages.at(span).tyck_incompatible(n, m);
+                }
+            }
+
             (Type::Fun(t1, u1), Type::Fun(t2, u2)) => {
                 self.unify(span, *t1, *t2);
                 self.unify(span, *u1, *u2);
@@ -85,6 +93,7 @@ impl Unifier {
         match ty {
             Type::Invalid | Type::Number => false,
             Type::Range(_, _) => false,
+            Type::Name(_) => false,
             Type::Fun(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
             Type::Product(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
             Type::Var(war) => var == war,

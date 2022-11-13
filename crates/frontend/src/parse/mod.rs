@@ -43,6 +43,8 @@ struct Parser<I> {
     prev: Option<(Token, Span)>,
     msgs: Messages,
     default_span: Span,
+
+    in_implicit: bool,
 }
 
 impl<I> Parser<I>
@@ -61,6 +63,8 @@ where
 
             msgs: Messages::new(),
             default_span: Span::new(file, 0, 0),
+
+            in_implicit: false,
         };
 
         parser.advance();

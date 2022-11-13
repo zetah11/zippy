@@ -6,6 +6,7 @@ mod declare_pat;
 mod resolve_decl;
 mod resolve_expr;
 mod resolve_pat;
+mod resolve_type;
 
 use log::{debug, info, trace};
 

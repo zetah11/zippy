@@ -18,6 +18,7 @@ pub enum Token {
     GroupOpen,
     GroupClose,
     Delimit,
+    Pipe,
 
     MinArrow,
     EqArrow,
@@ -51,6 +52,7 @@ impl Token {
             | Self::Let
             | Self::Upto
             | Self::GroupOpen
+            | Self::Pipe
             | Self::MinArrow
             | Self::EqArrow
             | Self::Comma
@@ -69,6 +71,7 @@ impl Token {
         match self {
             Self::Upto
             | Self::GroupClose
+            | Self::Pipe
             | Self::Delimit
             | Self::MinArrow
             | Self::EqArrow
@@ -134,6 +137,7 @@ impl<'src> Lexer<'src> {
                 FreeToken::Upto => Token::Upto,
                 FreeToken::LParen => Token::GroupOpen,
                 FreeToken::RParen => Token::GroupClose,
+                FreeToken::Pipe => Token::Pipe,
                 FreeToken::MinArrow => Token::MinArrow,
                 FreeToken::EqArrow => Token::EqArrow,
                 FreeToken::Question => Token::Question,

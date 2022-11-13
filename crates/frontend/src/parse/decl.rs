@@ -100,10 +100,24 @@ where
     }
 
     /// ```abnf
-    /// fun-decl = "fun" base-expr *(base-expr) [":" small-expr] ["=" expr]
+    /// fun-decl = "fun" base-expr ["|" small-expr "|"] *(base-expr) [":" small-expr] ["=" expr]
     /// ```
     fn fun_decl(&mut self, fun_span: Span) -> Decl {
         let name = self.parse_base_expr();
+
+        let implicits = if let Some(opener) = self.matches(Token::Pipe) {
+            self.in_implicit = true;
+            let args = self.parse_small_expr();
+            self.in_implicit = false;
+
+            if !self.consume(Token::Pipe) {
+                self.msgs.at(opener).parse_unclosed_implicits();
+            }
+
+            Some(args)
+        } else {
+            None
+        };
 
         let mut args = Vec::new();
         while !self.is_done() && self.peek(Self::BASE_EXPR_STARTS) {
@@ -124,6 +138,7 @@ where
         Decl {
             node: DeclNode::FunDecl {
                 name,
+                implicits,
                 args,
                 anno,
                 bind,

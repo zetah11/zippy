@@ -11,6 +11,7 @@ pub struct Decls<Data = ()> {
 #[derive(Debug)]
 pub struct ValueDef<Data = ()> {
     pub span: Span,
+    pub implicits: Vec<(Name, Span)>,
     pub pat: Pat<Data>,
     pub anno: Type,
     pub bind: Expr<Data>,
@@ -30,6 +31,7 @@ pub enum ExprNode<Data> {
 
     Lam(Pat<Data>, Box<Expr<Data>>),
     App(Box<Expr<Data>>, Box<Expr<Data>>),
+    Inst(Box<Expr<Data>>, Vec<(Span, Type)>),
 
     Anno(Box<Expr<Data>>, Span, Type),
 
