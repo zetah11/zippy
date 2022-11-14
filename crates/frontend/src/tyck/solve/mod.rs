@@ -6,7 +6,7 @@ pub use unify::Unifier;
 mod unify;
 
 use common::message::Span;
-use common::thir::{Because, Constraint, UniVar};
+use common::thir::{merge_insts, Because, Constraint};
 
 use super::{Type, Typer};
 
@@ -59,13 +59,13 @@ impl Typer<'_> {
         &mut self,
         span: Span,
         because: Because,
-        inst: &HashMap<Name, UniVar>,
+        inst: &HashMap<Name, Type>,
         ty: Type,
     ) -> Type {
         match ty {
             Type::Name(name) if inst.contains_key(&name) => {
-                let var = inst.get(&name).unwrap();
-                self.check_int_type(span, because, inst, Type::mutable(*var))
+                let ty = inst.get(&name).unwrap();
+                self.check_int_type(span, because, inst, ty.clone())
             }
 
             Type::Range(lo, hi) => Type::Range(lo, hi),
@@ -81,7 +81,7 @@ impl Typer<'_> {
                         because
                     };
 
-                    let inst = merge(inst, other_inst);
+                    let inst = merge_insts(inst, other_inst);
                     self.check_int_type(span, because, &inst, ty.clone())
                 } else {
                     self.constraints.push(Constraint::IntType {
@@ -100,15 +100,4 @@ impl Typer<'_> {
             }
         }
     }
-}
-
-fn merge(a: &HashMap<Name, UniVar>, b: &HashMap<Name, UniVar>) -> HashMap<Name, UniVar> {
-    let mut res = HashMap::with_capacity(a.len() + b.len());
-    for (name, var) in a.iter() {
-        assert!(res.insert(*name, *var).is_none());
-    }
-    for (name, var) in b.iter() {
-        assert!(res.insert(*name, *var).is_none());
-    }
-    res
 }

@@ -37,7 +37,7 @@ impl<'a> Prettier<'a> {
 
     #[must_use]
     pub fn pretty_exprs(&'a self, expr: &ExprSeq) -> String {
-        let doc = self.doc_expr_seq(expr);
+        let doc = self.doc_expr_seq(None, expr);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
@@ -45,7 +45,7 @@ impl<'a> Prettier<'a> {
 
     #[must_use]
     pub fn pretty_name(&'a self, name: &Name) -> String {
-        let doc = self.doc_name(name);
+        let doc = self.doc_name(None, name);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
@@ -64,26 +64,26 @@ impl<'a> Prettier<'a> {
             decls
                 .defs
                 .iter()
-                .map(|def| self.doc_valuedef(def))
-                .chain(
-                    decls.values.iter().map(|(name, value)| {
-                        self.doc_let(name).append(self.doc_value(value)).nest(2)
-                    }),
-                )
+                .map(|def| self.doc_valuedef(None, def))
+                .chain(decls.values.iter().map(|(name, value)| {
+                    self.doc_let(None, name)
+                        .append(self.doc_value(Some(name), value))
+                        .nest(2)
+                }))
                 .chain(decls.functions.iter().map(|(name, (param, body))| {
-                    self.doc_fun("fun", name, param)
-                        .append(self.doc_expr_seq(body))
+                    self.doc_fun(None, "fun", name, param)
+                        .append(self.doc_expr_seq(Some(name), body))
                         .nest(2)
                 })),
             self.allocator.hardline(),
         )
     }
 
-    fn doc_valuedef(&'a self, def: &ValueDef) -> DocBuilder<Arena<'a>> {
-        let bind = self.doc_expr_seq(&def.bind);
+    fn doc_valuedef(&'a self, within: Option<&Name>, def: &ValueDef) -> DocBuilder<Arena<'a>> {
+        let bind = self.doc_expr_seq(Some(&def.name), &def.bind);
         self.allocator
             .text("let ")
-            .append(self.doc_name(&def.name))
+            .append(self.doc_name(within, &def.name))
             .append(self.allocator.text(" ="))
             .append(self.allocator.line().append(bind))
             .nest(2)
@@ -116,104 +116,113 @@ impl<'a> Prettier<'a> {
         }
     }
 
-    fn doc_expr_seq(&'a self, exprs: &ExprSeq) -> DocBuilder<Arena<'a>> {
+    fn doc_expr_seq(&'a self, within: Option<&Name>, exprs: &ExprSeq) -> DocBuilder<Arena<'a>> {
         self.allocator
             .intersperse(
                 exprs
                     .exprs
                     .iter()
-                    .map(|expr| self.doc_expr(expr).nest(2))
-                    .chain(std::iter::once(self.doc_branch(&exprs.branch).nest(2))),
+                    .map(|expr| self.doc_expr(within, expr).nest(2))
+                    .chain(std::iter::once(
+                        self.doc_branch(within, &exprs.branch).nest(2),
+                    )),
                 self.allocator.line_().flat_alt("; "),
             )
             .group()
     }
 
-    fn doc_branch(&'a self, branch: &Branch) -> DocBuilder<Arena<'a>> {
+    fn doc_branch(&'a self, within: Option<&Name>, branch: &Branch) -> DocBuilder<Arena<'a>> {
         match &branch.node {
             BranchNode::Return(values) => self
                 .allocator
                 .text("return")
                 .append(self.allocator.space())
                 .append(self.allocator.intersperse(
-                    values.iter().map(|value| self.doc_value(value)),
+                    values.iter().map(|value| self.doc_value(within, value)),
                     self.allocator.text(", "),
                 )),
             BranchNode::Jump(to, arg) => self
                 .allocator
                 .text("jump")
-                .append(self.doc_name(to))
-                .append(self.doc_value(arg).parens()),
+                .append(self.doc_name(within, to))
+                .append(self.doc_value(within, arg).parens()),
         }
     }
 
-    fn doc_expr(&'a self, expr: &Expr) -> DocBuilder<Arena<'a>> {
+    fn doc_expr(&'a self, within: Option<&Name>, expr: &Expr) -> DocBuilder<Arena<'a>> {
         match &expr.node {
             ExprNode::Join { name, param, body } => self
-                .doc_fun("join", name, &[*param])
-                .append(self.doc_expr_seq(body))
+                .doc_fun(within, "join", name, &[*param])
+                .append(self.doc_expr_seq(Some(name), body))
                 .group(),
             ExprNode::Function { name, params, body } => {
                 let fun = self
-                    .doc_fun("fun", name, params)
-                    .append(self.doc_expr_seq(body));
+                    .doc_fun(within, "fun", name, params)
+                    .append(self.doc_expr_seq(Some(name), body));
 
                 fun.flat_alt(
-                    self.doc_fun("fun", name, params)
-                        .append(self.doc_expr_seq(body)),
+                    self.doc_fun(within, "fun", name, params)
+                        .append(self.doc_expr_seq(Some(name), body).parens()),
                 )
-                .parens()
             }
             ExprNode::Apply { names, fun, args } => self
                 .allocator
                 .text("let")
                 .append(self.allocator.space())
                 .append(self.allocator.intersperse(
-                    names.iter().map(|name| self.doc_name(name)),
+                    names.iter().map(|name| self.doc_name(within, name)),
                     self.allocator.text(", "),
                 ))
                 .append(self.allocator.text(" = "))
                 .group()
                 .append(self.allocator.softline())
-                .append(self.doc_name(fun))
+                .append(self.doc_name(within, fun))
                 .append(
                     self.allocator
                         .intersperse(
-                            args.iter().map(|arg| self.doc_value(arg)),
+                            args.iter().map(|arg| self.doc_value(within, arg)),
                             self.allocator.text(", "),
                         )
                         .parens(),
                 )
                 .group(),
             ExprNode::Tuple { name, values } => self
-                .doc_let(name)
+                .doc_let(within, name)
                 .append(
                     self.allocator
                         .intersperse(
-                            values.iter().map(|val| self.doc_value(val)),
+                            values.iter().map(|val| self.doc_value(within, val)),
                             self.allocator.text(", "),
                         )
                         .parens(),
                 )
                 .group(),
             ExprNode::Proj { name, of, at } => self
-                .doc_let(name)
-                .append(self.doc_name(of))
+                .doc_let(within, name)
+                .append(self.doc_name(within, of))
                 .append(self.allocator.text("."))
                 .append(self.allocator.text(format!("{at}")))
                 .group(),
         }
     }
 
-    fn doc_fun(&'a self, kw: &'static str, name: &Name, params: &[Name]) -> DocBuilder<Arena<'a>> {
+    fn doc_fun(
+        &'a self,
+        within: Option<&Name>,
+        kw: &'static str,
+        name: &Name,
+        params: &[Name],
+    ) -> DocBuilder<Arena<'a>> {
         self.allocator
             .text(kw)
             .append(self.allocator.space())
             .append(
-                self.doc_name(name).append(
+                self.doc_name(within, name).append(
                     self.allocator
                         .intersperse(
-                            params.iter().map(|name| self.doc_name(name)),
+                            params
+                                .iter()
+                                .map(|param_name| self.doc_name(Some(name), param_name)),
                             self.allocator.text(", "),
                         )
                         .parens(),
@@ -224,35 +233,39 @@ impl<'a> Prettier<'a> {
             .append(self.allocator.softline())
     }
 
-    fn doc_let(&'a self, name: &Name) -> DocBuilder<Arena<'a>> {
+    fn doc_let(&'a self, within: Option<&Name>, name: &Name) -> DocBuilder<Arena<'a>> {
         self.allocator
             .text("let")
             .append(self.allocator.space())
-            .append(self.doc_name(name))
+            .append(self.doc_name(within, name))
             .append(" =")
             .append(self.allocator.space())
     }
 
-    fn doc_value(&'a self, value: &Value) -> DocBuilder<Arena<'a>> {
+    fn doc_value(&'a self, within: Option<&Name>, value: &Value) -> DocBuilder<Arena<'a>> {
         match &value.node {
             ValueNode::Int(i) => self.allocator.text(format!("{i}")),
-            ValueNode::Name(name) => self.doc_name(name),
+            ValueNode::Name(name) => self.doc_name(within, name),
             ValueNode::Invalid => self.allocator.text("<error>"),
         }
     }
 
-    fn doc_name(&'a self, name: &Name) -> DocBuilder<Arena<'a>> {
+    fn doc_name(&'a self, within: Option<&Name>, name: &Name) -> DocBuilder<Arena<'a>> {
+        if Some(name) == within {
+            return self.allocator.nil();
+        }
+
         let path = self.names.get_path(name);
         let preceding = path
             .0
             .as_ref()
-            .map(|name| self.doc_name(name).append(self.allocator.text(".")))
+            .map(|name| self.doc_name(within, name).append(self.allocator.text(".")))
             .unwrap_or_else(|| self.allocator.nil());
 
         preceding.append(match &path.1 {
             Actual::Lit(lit) => self.allocator.text(lit),
             Actual::Generated(id) => self.allocator.text(String::from(*id)),
-            Actual::Root => self.allocator.text("package"),
+            Actual::Root => self.allocator.text("root"),
             Actual::Scope(id) => self.allocator.text(format!("<scope {}>", id.0)),
         })
     }

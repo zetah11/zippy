@@ -8,7 +8,7 @@ mod types;
 pub use self::pretty::pretty_type;
 pub use because::Because;
 pub use constraint::Constraint;
-pub use context::{Context, TypeOrSchema};
+pub use context::{merge_insts, Context, TypeOrSchema};
 pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
 pub use types::{Mutability, Type, UniVar};
 
@@ -20,6 +20,6 @@ use crate::names::Name;
 pub struct TypeckResult {
     pub context: Context,
     pub decls: Decls<Type>,
-    pub subst: HashMap<UniVar, (HashMap<Name, UniVar>, Type)>,
+    pub subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     pub constraints: Vec<Constraint>,
 }

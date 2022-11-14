@@ -26,6 +26,17 @@ pub fn elaborate(
         tyckres.decls,
     );
 
+    let prettier = common::mir::pretty::Prettier::new(names, &types);
+    for (name, ty) in context.iter() {
+        println!(
+            "{}: {}",
+            prettier.pretty_name(name),
+            prettier.pretty_type(ty)
+        );
+    }
+
+    println!("{}", { prettier.pretty_decls(&res) });
+
     let mut error = check(names, &types, &context, &res);
     if error {
         eprintln!("error during lowering");

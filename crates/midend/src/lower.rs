@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use log::{debug, trace};
 
@@ -10,19 +10,20 @@ use common::mir::{
     ValueDef, ValueNode,
 };
 use common::names::{Name, Names};
-use common::thir::{self, UniVar};
+use common::thir::{self, merge_insts, UniVar};
 
 type HiType = thir::Type;
 type HiPat = thir::Pat<HiType>;
 type HiPatNode = thir::PatNode<HiType>;
 type HiExpr = thir::Expr<HiType>;
 type HiExprNode = thir::ExprNode<HiType>;
+type HiValueDef = thir::ValueDef<HiType>;
 type HiDecls = thir::Decls<HiType>;
 type HiCtx = thir::Context;
 
 pub fn lower(
     driver: &mut impl Driver,
-    subst: &HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
+    subst: &HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
     names: &mut Names,
     context: HiCtx,
     decls: HiDecls,
@@ -45,15 +46,19 @@ pub fn lower(
 struct Lowerer<'a> {
     types: Types,
     names: &'a mut Names,
-    subst: &'a HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
+    subst: &'a HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
     messages: Messages,
     context: Context,
+    polymorphic: HashSet<Name>,
+    templates: HashMap<Name, HiValueDef>,
+
+    values: Vec<ValueDef>,
 }
 
 impl<'a> Lowerer<'a> {
     fn new(
         names: &'a mut Names,
-        subst: &'a HashMap<UniVar, (HashMap<Name, UniVar>, HiType)>,
+        subst: &'a HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
     ) -> Self {
         Self {
             types: Types::new(),
@@ -61,41 +66,74 @@ impl<'a> Lowerer<'a> {
             subst,
             messages: Messages::new(),
             context: Context::new(),
+            polymorphic: HashSet::new(),
+            templates: HashMap::new(),
+
+            values: Vec::new(),
         }
     }
 
     fn lower_context(&mut self, context: HiCtx) {
+        for name in context.polymorphic_names() {
+            self.polymorphic.insert(name);
+        }
+
         for (name, ty) in context {
-            let ty = self.lower_type(ty);
+            let span = self.names.get_span(&name);
+            let Some(ty) = self.lower_type(span, &HashMap::new(), ty) else { continue; };
             self.context.add(name, ty);
         }
     }
 
     fn lower_decls(&mut self, ctx: Name, decls: HiDecls) -> Decls {
-        let mut values = Vec::with_capacity(decls.values.len());
+        let mut monomorphic = Vec::new();
 
         for def in decls.values {
-            self.destruct_binding(&mut values, ctx, def.span, def.pat, def.bind);
+            if def.implicits.is_empty() {
+                monomorphic.push(def);
+            } else {
+                match def.pat.node {
+                    HiPatNode::Name(name) => {
+                        self.templates.insert(name, def);
+                    }
+
+                    _ => todo!("polymorphic destruction"),
+                }
+            }
         }
 
-        Decls::new(values)
+        for def in monomorphic {
+            self.destruct_binding(&HashMap::new(), ctx, def.span, def.pat, def.bind);
+        }
+
+        Decls::new(self.values.drain(..).collect())
     }
 
-    fn lower_type(&mut self, ty: HiType) -> TypeId {
-        match ty {
-            HiType::Name(_) => todo!(),
-            HiType::Instantiated(..) => todo!(),
+    fn lower_type(&mut self, at: Span, inst: &HashMap<Name, HiType>, ty: HiType) -> Option<TypeId> {
+        Some(match ty {
+            HiType::Name(name) => {
+                let Some(ty) = inst.get(&name) else {
+                    return None;
+                };
+
+                self.lower_type(at, inst, ty.clone())?
+            }
+
+            HiType::Instantiated(ty, other_inst) => {
+                let inst = merge_insts(inst, &other_inst);
+                self.lower_type(at, &inst, *ty)?
+            }
 
             HiType::Fun(t, u) => {
-                let t = self.lower_type(*t);
-                let u = self.lower_type(*u);
+                let t = self.lower_type(at, inst, *t)?;
+                let u = self.lower_type(at, inst, *u)?;
 
                 self.types.add(Type::Fun(vec![t], vec![u]))
             }
 
             HiType::Product(t, u) => {
-                let t = self.lower_type(*t);
-                let u = self.lower_type(*u);
+                let t = self.lower_type(at, inst, *t)?;
+                let u = self.lower_type(at, inst, *u)?;
 
                 self.types.add(Type::Product(vec![t, u]))
             }
@@ -103,37 +141,42 @@ impl<'a> Lowerer<'a> {
             HiType::Range(lo, hi) => self.types.add(Type::Range(lo, hi)),
 
             HiType::Var(_, v) => {
-                if let Some((inst, ty)) = self.subst.get(&v).cloned() {
-                    self.lower_type(ty)
+                if let Some((other_inst, ty)) = self.subst.get(&v).cloned() {
+                    let inst = merge_insts(inst, &other_inst);
+                    self.lower_type(at, &inst, ty)?
                 } else {
-                    unimplemented!()
+                    self.messages.at(at).tyck_ambiguous();
+                    self.types.add(Type::Invalid)
                 }
             }
 
             HiType::Invalid => self.types.add(Type::Invalid),
             HiType::Number => unreachable!(),
-        }
+        })
     }
 
     fn destruct_binding(
         &mut self,
-        within: &mut Vec<ValueDef>,
+        inst: &HashMap<Name, HiType>,
         ctx: Name,
         span: Span,
         pat: HiPat,
         bind: HiExpr,
     ) {
-        let bind = self.lower_expr(ctx, bind);
+        let bind = self.lower_expr(inst, ctx, bind);
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {}
-            HiPatNode::Name(name) => within.push(ValueDef { span, name, bind }),
+            HiPatNode::Name(name) => self.values.push(ValueDef { span, name, bind }),
 
             HiPatNode::Tuple(a, b) => {
-                let ty = self.lower_type(pat.data);
+                let ty = self.lower_type(pat.span, inst, pat.data).unwrap();
+
                 let name = self.names.fresh(pat.span, ctx);
                 self.context.add(name, ty);
 
-                within.push(ValueDef { name, span, bind });
+                self.values.push(ValueDef { name, span, bind });
+
+                let mut within = Vec::new();
 
                 let mut proj = |lowerer: &mut Lowerer<'a>, name, of, at, span, ty| {
                     let inner = lowerer.names.fresh(span, ctx);
@@ -167,25 +210,33 @@ impl<'a> Lowerer<'a> {
                 };
 
                 println!("{:?}", self.names.get_path(&name).1);
-                self.make_proj(ctx, *a, name, 0, &mut proj);
-                self.make_proj(ctx, *b, name, 1, &mut proj);
+                self.make_proj(inst, ctx, *a, name, 0, &mut proj);
+                self.make_proj(inst, ctx, *b, name, 1, &mut proj);
+
+                self.values.extend(within);
             }
 
             HiPatNode::Anno(..) => unreachable!(),
         }
     }
 
-    fn destruct_expr(&mut self, within: &mut Vec<Expr>, ctx: Name, pat: HiPat) -> Name {
+    fn destruct_expr(
+        &mut self,
+        inst: &HashMap<Name, HiType>,
+        within: &mut Vec<Expr>,
+        ctx: Name,
+        pat: HiPat,
+    ) -> Name {
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {
-                let ty = self.lower_type(pat.data);
+                let ty = self.lower_type(pat.span, inst, pat.data).unwrap();
                 let target = self.names.fresh(pat.span, ctx);
                 self.context.add(target, ty);
                 target
             }
             HiPatNode::Name(name) => name,
             HiPatNode::Tuple(a, b) => {
-                let ty = self.lower_type(pat.data);
+                let ty = self.lower_type(pat.span, inst, pat.data).unwrap();
                 let target = self.names.fresh(pat.span, ctx);
                 self.context.add(target, ty);
 
@@ -201,8 +252,8 @@ impl<'a> Lowerer<'a> {
                     });
                 };
 
-                self.make_proj(ctx, *a, target, 0, &mut proj);
-                self.make_proj(ctx, *b, target, 1, &mut proj);
+                self.make_proj(inst, ctx, *a, target, 0, &mut proj);
+                self.make_proj(inst, ctx, *b, target, 1, &mut proj);
 
                 target
             }
@@ -211,36 +262,43 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn make_proj<F>(&mut self, ctx: Name, pat: HiPat, value: Name, ndx: usize, proj: &mut F)
-    where
+    fn make_proj<F>(
+        &mut self,
+        inst: &HashMap<Name, HiType>,
+        ctx: Name,
+        pat: HiPat,
+        value: Name,
+        ndx: usize,
+        proj: &mut F,
+    ) where
         F: FnMut(&mut Lowerer<'a>, Name, Name, usize, Span, TypeId),
     {
         match pat.node {
             HiPatNode::Invalid | HiPatNode::Wildcard => {}
             HiPatNode::Name(name) => {
-                let typ = self.lower_type(pat.data);
-                proj(self, name, value, ndx, pat.span, typ);
+                let ty = self.lower_type(pat.span, inst, pat.data).unwrap();
+                proj(self, name, value, ndx, pat.span, ty);
             }
 
             HiPatNode::Tuple(a, b) => {
-                let ty = self.lower_type(pat.data);
+                let ty = self.lower_type(pat.span, inst, pat.data).unwrap();
                 let projd = self.names.fresh(pat.span, ctx);
                 self.context.add(projd, ty);
 
                 proj(self, projd, value, ndx, pat.span, ty);
 
-                self.make_proj(ctx, *a, projd, 0, proj);
-                self.make_proj(ctx, *b, projd, 1, proj);
+                self.make_proj(inst, ctx, *a, projd, 0, proj);
+                self.make_proj(inst, ctx, *b, projd, 1, proj);
             }
 
             HiPatNode::Anno(..) => unreachable!(),
         }
     }
 
-    fn lower_expr(&mut self, ctx: Name, ex: HiExpr) -> ExprSeq {
-        let ty = self.lower_type(ex.data.clone());
+    fn lower_expr(&mut self, inst: &HashMap<Name, HiType>, ctx: Name, ex: HiExpr) -> ExprSeq {
+        let ty = self.lower_type(ex.span, inst, ex.data.clone()).unwrap();
         let mut seq = Vec::new();
-        let value = self.make_expr(&mut seq, ctx, ex);
+        let value = self.make_expr(inst, &mut seq, ctx, ex);
         let span = value.span;
         ExprSeq::new(
             span,
@@ -254,16 +312,22 @@ impl<'a> Lowerer<'a> {
         )
     }
 
-    fn make_expr(&mut self, within: &mut Vec<Expr>, ctx: Name, ex: HiExpr) -> Value {
-        let ty = self.lower_type(ex.data);
+    fn make_expr(
+        &mut self,
+        inst: &HashMap<Name, HiType>,
+        within: &mut Vec<Expr>,
+        ctx: Name,
+        ex: HiExpr,
+    ) -> Value {
+        let ty = self.lower_type(ex.span, inst, ex.data).unwrap();
         let node = match ex.node {
             HiExprNode::Int(i) => ValueNode::Int(i),
             HiExprNode::Name(name) => ValueNode::Name(name),
             HiExprNode::Lam(param, body) => {
                 let mut bodys = Vec::new();
 
-                let param = self.destruct_expr(&mut bodys, ctx, param);
-                let body = self.lower_expr(ctx, *body);
+                let param = self.destruct_expr(inst, &mut bodys, ctx, param);
+                let body = self.lower_expr(inst, ctx, *body);
 
                 bodys.extend(body.exprs);
 
@@ -289,14 +353,14 @@ impl<'a> Lowerer<'a> {
                 let fun = if let Value {
                     node: ValueNode::Name(name),
                     ..
-                } = self.make_expr(within, ctx, *fun)
+                } = self.make_expr(inst, within, ctx, *fun)
                 {
                     name
                 } else {
                     unreachable!()
                 };
 
-                let arg = self.make_expr(within, ctx, *arg);
+                let arg = self.make_expr(inst, within, ctx, *arg);
 
                 let name = self.names.fresh(ex.span, ctx);
                 self.context.add(name, ty);
@@ -314,11 +378,15 @@ impl<'a> Lowerer<'a> {
                 ValueNode::Name(name)
             }
 
-            HiExprNode::Inst(..) => todo!(),
+            HiExprNode::Inst(node, args) => {
+                let HiExprNode::Name(name) = node.node else { unreachable!()};
+                let name = self.instantiate(ex.span, inst, &name, args);
+                ValueNode::Name(name)
+            }
 
             HiExprNode::Tuple(t, u) => {
-                let t = self.make_expr(within, ctx, *t);
-                let u = self.make_expr(within, ctx, *u);
+                let t = self.make_expr(inst, within, ctx, *t);
+                let u = self.make_expr(inst, within, ctx, *u);
 
                 let name = self.names.fresh(ex.span, ctx);
                 self.context.add(name, ty);
@@ -354,5 +422,38 @@ impl<'a> Lowerer<'a> {
             span: ex.span,
             ty,
         }
+    }
+
+    fn instantiate(
+        &mut self,
+        at: Span,
+        inst: &HashMap<Name, HiType>,
+        name: &Name,
+        args: Vec<(Span, HiType)>,
+    ) -> Name {
+        let template = self.templates.get(name).unwrap();
+        assert!(template.implicits.len() == args.len());
+
+        let mut inst = inst.clone();
+        for ((name, _), (_, ty)) in template.implicits.iter().zip(args) {
+            inst.insert(*name, ty);
+        }
+
+        let target = self.names.fresh(at, *name);
+        let span = template.span;
+        let anno = template.anno.clone();
+        let bind = template.bind.clone();
+        let ty = self.lower_type(at, &inst, anno).unwrap();
+        let bind = self.lower_expr(&inst, target, bind);
+
+        self.context.add(target, ty);
+
+        self.values.push(ValueDef {
+            span,
+            name: target,
+            bind,
+        });
+
+        target
     }
 }

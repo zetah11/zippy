@@ -2,15 +2,13 @@ use std::collections::HashMap;
 
 use common::message::{Messages, Span};
 use common::names::{Name, Names};
-use common::thir::{pretty_type, Because, Mutability, Type, UniVar};
-
-use super::merge;
+use common::thir::{merge_insts, pretty_type, Because, Mutability, Type, UniVar};
 
 #[derive(Debug)]
 pub struct Unifier<'a> {
     pub names: &'a Names,
 
-    pub subst: HashMap<UniVar, (HashMap<Name, UniVar>, Type)>,
+    pub subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     pub causes: HashMap<UniVar, Because>,
     pub worklist: Vec<(Span, Type, Type)>,
     pub messages: Messages,
@@ -33,7 +31,7 @@ impl<'a> Unifier<'a> {
 
     fn unify_within(
         &mut self,
-        inst: &HashMap<Name, UniVar>,
+        inst: &HashMap<Name, Type>,
         span: Span,
         expected: Type,
         actual: Type,
@@ -50,13 +48,13 @@ impl<'a> Unifier<'a> {
             (Type::Number, Type::Range(..)) => {}
 
             (Type::Name(n), u) if inst.contains_key(&n) => {
-                let v = inst.get(&n).unwrap();
-                self.unify_within(inst, span, Type::mutable(*v), u)
+                let t = inst.get(&n).unwrap();
+                self.unify_within(inst, span, t.clone(), u)
             }
 
             (t, Type::Name(m)) if inst.contains_key(&m) => {
-                let v = inst.get(&m).unwrap();
-                self.unify_within(inst, span, t, Type::mutable(*v))
+                let u = inst.get(&m).unwrap();
+                self.unify_within(inst, span, t, u.clone())
             }
 
             (Type::Name(n), Type::Name(m)) => {
@@ -81,7 +79,7 @@ impl<'a> Unifier<'a> {
 
             (Type::Var(mutability, v), u) => {
                 if let Some((other_inst, t)) = self.get(mutability, &v) {
-                    let inst = merge(inst, other_inst);
+                    let inst = merge_insts(inst, other_inst);
                     return self.unify_within(&inst, span, t, u);
                 }
 
@@ -108,7 +106,7 @@ impl<'a> Unifier<'a> {
 
             (t, Type::Var(mutability, w)) => {
                 if let Some((other_inst, u)) = self.get(mutability, &w) {
-                    let inst = merge(inst, other_inst);
+                    let inst = merge_insts(inst, other_inst);
                     return self.unify_within(&inst, span, t, u);
                 }
 
@@ -137,7 +135,7 @@ impl<'a> Unifier<'a> {
                 let new: HashMap<_, _> = inst
                     .iter()
                     .chain(other_inst.iter())
-                    .map(|(name, var)| (*name, *var))
+                    .map(|(name, var)| (*name, var.clone()))
                     .collect();
 
                 self.unify_within(&new, span, *t, u)
@@ -147,7 +145,7 @@ impl<'a> Unifier<'a> {
                 let new: HashMap<_, _> = inst
                     .iter()
                     .chain(other_inst.iter())
-                    .map(|(name, var)| (*name, *var))
+                    .map(|(name, var)| (*name, var.clone()))
                     .collect();
 
                 self.unify_within(&new, span, t, *u)
@@ -174,19 +172,19 @@ impl<'a> Unifier<'a> {
             Type::Fun(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
             Type::Product(t, u) => Self::occurs(var, t) || Self::occurs(var, u),
             Type::Instantiated(ty, mapping) => {
-                mapping.values().any(|war| war == var) || Self::occurs(var, ty)
+                mapping.values().any(|ty| Self::occurs(var, ty)) || Self::occurs(var, ty)
             }
             Type::Var(_, war) => var == war,
         }
     }
 
-    fn get(&self, mutability: Mutability, var: &UniVar) -> Option<(&HashMap<Name, UniVar>, Type)> {
+    fn get(&self, mutability: Mutability, var: &UniVar) -> Option<(&HashMap<Name, Type>, Type)> {
         self.subst
             .get(var)
             .map(|(inst, ty)| (inst, ty.make_mutability(mutability)))
     }
 
-    fn set(&mut self, inst: &HashMap<Name, UniVar>, var: UniVar, ty: Type) {
+    fn set(&mut self, inst: &HashMap<Name, Type>, var: UniVar, ty: Type) {
         assert!(self.subst.insert(var, (inst.clone(), ty)).is_none());
     }
 }

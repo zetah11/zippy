@@ -49,7 +49,11 @@ impl Context {
             TypeOrSchema::Type(ty) => (ty.clone(), vec![]),
             TypeOrSchema::Schema(params, ty) => {
                 let vars: Vec<_> = (0..params.len()).map(|_| self.fresh()).collect();
-                let mapping = params.iter().copied().zip(vars.iter().copied()).collect();
+                let mapping = params
+                    .iter()
+                    .copied()
+                    .zip(vars.iter().map(|var| Type::mutable(*var)))
+                    .collect();
 
                 let ty = super::types::instantiate(&mapping, ty);
                 let ty = Type::Instantiated(Box::new(ty), mapping);
@@ -71,13 +75,53 @@ impl Context {
 
         self.names.insert(*name, schema);
     }
+
+    /// Get an iterator over all of the polymorphic names in this context.
+    pub fn polymorphic_names(&self) -> impl Iterator<Item = Name> + '_ {
+        self.names.iter().filter_map(|(name, ty)| match ty {
+            TypeOrSchema::Schema(..) => Some(*name),
+            _ => None,
+        })
+    }
+}
+
+pub struct ContextIter {
+    names: std::collections::hash_map::IntoIter<Name, TypeOrSchema>,
+}
+
+impl Iterator for ContextIter {
+    type Item = (Name, Type);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (name, ts) in self.names.by_ref() {
+            match ts {
+                TypeOrSchema::Schema(..) => continue,
+                TypeOrSchema::Type(ty) => return Some((name, ty)),
+            }
+        }
+
+        None
+    }
 }
 
 impl IntoIterator for Context {
-    type IntoIter = std::collections::hash_map::IntoIter<Name, Type>;
+    type IntoIter = ContextIter;
     type Item = (Name, Type);
 
     fn into_iter(self) -> Self::IntoIter {
-        todo!()
+        ContextIter {
+            names: self.names.into_iter(),
+        }
     }
+}
+
+pub fn merge_insts(a: &HashMap<Name, Type>, b: &HashMap<Name, Type>) -> HashMap<Name, Type> {
+    let mut res = HashMap::with_capacity(a.len() + b.len());
+    for (name, ty) in a.iter() {
+        assert!(res.insert(*name, ty.clone()).is_none());
+    }
+    for (name, ty) in b.iter() {
+        assert!(res.insert(*name, ty.clone()).is_none());
+    }
+    res
 }

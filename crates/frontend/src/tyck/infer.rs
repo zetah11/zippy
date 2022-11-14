@@ -79,11 +79,20 @@ impl Typer<'_> {
 
                 let (ty, vars) = self.context.instantiate(&schema);
 
-                for (var, (span, ty)) in vars.into_iter().zip(args) {
-                    self.assignable(span, Type::mutable(var), ty);
+                for (var, (span, ty)) in vars.into_iter().zip(args.iter()) {
+                    self.assignable(*span, Type::mutable(var), ty.clone());
                 }
 
-                (ExprNode::Name(name), ty)
+                let res = ExprNode::Inst(
+                    Box::new(Expr {
+                        node: ExprNode::Name(name),
+                        span: fun.span,
+                        data: ty.clone(),
+                    }),
+                    args,
+                );
+
+                (res, ty)
             }
 
             ExprNode::Anno(ex, anno_span, ty) => {

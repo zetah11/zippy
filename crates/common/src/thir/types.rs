@@ -24,7 +24,7 @@ pub enum Type {
 
     Product(Box<Type>, Box<Type>),
 
-    Instantiated(Box<Type>, HashMap<Name, UniVar>),
+    Instantiated(Box<Type>, HashMap<Name, Type>),
     Var(Mutability, UniVar),
     Number,
 
@@ -71,10 +71,10 @@ impl Type {
     }
 }
 
-pub fn instantiate(mapping: &HashMap<Name, UniVar>, ty: &Type) -> Type {
+pub fn instantiate(mapping: &HashMap<Name, Type>, ty: &Type) -> Type {
     match ty {
         Type::Name(name) => match mapping.get(name) {
-            Some(var) => Type::Var(Mutability::Mutable, *var),
+            Some(ty) => instantiate(mapping, ty),
             None => Type::Name(*name),
         },
 

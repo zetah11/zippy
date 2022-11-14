@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{Mutability, Type, UniVar};
+use super::{Type, UniVar};
 use crate::names::{Actual, Name, Names};
 
 pub fn pretty_type(names: &Names, subst: &HashMap<UniVar, &Type>, ty: &Type) -> String {
@@ -11,7 +11,7 @@ pub fn pretty_type(names: &Names, subst: &HashMap<UniVar, &Type>, ty: &Type) -> 
 struct Prettier<'a> {
     names: &'a Names,
     subst: &'a HashMap<UniVar, &'a Type>,
-    insts: Vec<HashMap<Name, UniVar>>,
+    insts: Vec<HashMap<Name, Type>>,
     unbound: HashMap<UniVar, String>,
     curr: usize,
 }
@@ -36,17 +36,17 @@ impl<'a> Prettier<'a> {
         's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
     ];
 
-    fn get(&self, name: &Name) -> Option<UniVar> {
+    fn get(&self, name: &Name) -> Option<&Type> {
         for inst in self.insts.iter().rev() {
             if let Some(ty) = inst.get(name) {
-                return Some(*ty);
+                return Some(ty);
             }
         }
 
         None
     }
 
-    fn push(&mut self, inst: HashMap<Name, UniVar>) {
+    fn push(&mut self, inst: HashMap<Name, Type>) {
         self.insts.push(inst);
     }
 
@@ -88,6 +88,14 @@ impl<'a> Prettier<'a> {
                 res
             }
 
+            Type::Var(_, var) => {
+                if let Some(ty) = self.subst.get(var) {
+                    self.pretty_type(ty)
+                } else {
+                    self.var(var)
+                }
+            }
+
             ty => self.pretty_arrow(ty),
         }
     }
@@ -99,6 +107,14 @@ impl<'a> Prettier<'a> {
                 let u = self.pretty_range(u);
 
                 format!("{t} -> {u}")
+            }
+
+            Type::Var(_, var) => {
+                if let Some(ty) = self.subst.get(var) {
+                    self.pretty_arrow(ty)
+                } else {
+                    self.var(var)
+                }
             }
 
             ty => self.pretty_range(ty),
@@ -115,6 +131,14 @@ impl<'a> Prettier<'a> {
                 }
             }
 
+            Type::Var(_, var) => {
+                if let Some(ty) = self.subst.get(var) {
+                    self.pretty_range(ty)
+                } else {
+                    self.var(var)
+                }
+            }
+
             ty => self.pretty_product(ty),
         }
     }
@@ -128,6 +152,14 @@ impl<'a> Prettier<'a> {
                 format!("{t} * {u}")
             }
 
+            Type::Var(_, var) => {
+                if let Some(ty) = self.subst.get(var) {
+                    self.pretty_product(ty)
+                } else {
+                    self.var(var)
+                }
+            }
+
             ty => self.pretty_base(ty),
         }
     }
@@ -135,8 +167,8 @@ impl<'a> Prettier<'a> {
     fn pretty_base(&mut self, ty: &Type) -> String {
         match ty {
             Type::Name(name) => {
-                if let Some(var) = self.get(name) {
-                    self.pretty_base(&Type::Var(Mutability::Mutable, var))
+                if let Some(ty) = self.get(name) {
+                    self.pretty_base(&ty.clone())
                 } else {
                     match &self.names.get_path(name).1 {
                         Actual::Lit(name) => name.clone(),
@@ -146,8 +178,6 @@ impl<'a> Prettier<'a> {
                 }
             }
 
-            Type::Number => "<number>".into(),
-
             Type::Var(_, var) => {
                 if let Some(ty) = self.subst.get(var) {
                     self.pretty_base(ty)
@@ -155,6 +185,8 @@ impl<'a> Prettier<'a> {
                     self.var(var)
                 }
             }
+
+            Type::Number => "<number>".into(),
 
             Type::Invalid => "<error>".into(),
 
