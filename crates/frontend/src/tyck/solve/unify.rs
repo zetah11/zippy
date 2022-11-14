@@ -1,20 +1,25 @@
 use std::collections::HashMap;
 
 use common::message::{Messages, Span};
-use common::names::Name;
-use common::thir::{Because, Mutability, Type, UniVar};
+use common::names::{Name, Names};
+use common::thir::{pretty_type, Because, Mutability, Type, UniVar};
 
-#[derive(Debug, Default)]
-pub struct Unifier {
+use super::merge;
+
+#[derive(Debug)]
+pub struct Unifier<'a> {
+    pub names: &'a Names,
+
     pub subst: HashMap<UniVar, (HashMap<Name, UniVar>, Type)>,
     pub causes: HashMap<UniVar, Because>,
     pub worklist: Vec<(Span, Type, Type)>,
     pub messages: Messages,
 }
 
-impl Unifier {
-    pub fn new() -> Self {
+impl<'a> Unifier<'a> {
+    pub fn new(names: &'a Names) -> Self {
         Self {
+            names,
             subst: HashMap::new(),
             causes: HashMap::new(),
             worklist: Vec::new(),
@@ -151,9 +156,12 @@ impl Unifier {
             (Type::Invalid, _) | (_, Type::Invalid) => {}
 
             (expected, actual) => {
+                let subst = self.subst.iter().map(|(var, (_, ty))| (*var, ty)).collect();
+                let expected = pretty_type(self.names, &subst, &expected);
+                let actual = pretty_type(self.names, &subst, &actual);
                 self.messages
                     .at(span)
-                    .tyck_incompatible(Some(format!("{expected:?}")), Some(format!("{actual:?}")));
+                    .tyck_incompatible(Some(expected), Some(actual));
             }
         }
     }
@@ -181,15 +189,4 @@ impl Unifier {
     fn set(&mut self, inst: &HashMap<Name, UniVar>, var: UniVar, ty: Type) {
         assert!(self.subst.insert(var, (inst.clone(), ty)).is_none());
     }
-}
-
-fn merge(a: &HashMap<Name, UniVar>, b: &HashMap<Name, UniVar>) -> HashMap<Name, UniVar> {
-    let mut res = HashMap::with_capacity(a.len() + b.len());
-    for (name, var) in a.iter() {
-        assert!(res.insert(*name, *var).is_none());
-    }
-    for (name, var) in b.iter() {
-        assert!(res.insert(*name, *var).is_none());
-    }
-    res
 }

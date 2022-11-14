@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
+use common::names::Name;
 pub use unify::Unifier;
 
 mod unify;
 
 use common::message::Span;
-use common::thir::{Because, Constraint};
+use common::thir::{Because, Constraint, UniVar};
 
 use super::{Type, Typer};
 
@@ -32,36 +35,8 @@ impl Typer<'_> {
     }
 
     pub fn int_type(&mut self, span: Span, because: Because, ty: Type) -> Type {
-        match ty {
-            Type::Range(lo, hi) => Type::Range(lo, hi),
-            Type::Invalid => Type::Invalid,
-
-            Type::Var(mutable, v) => {
-                if let Some((inst, ty)) = self.unifier.subst.get(&v) {
-                    let because = if let Some(cause) = self.unifier.causes.get(&v) {
-                        cause.clone()
-                    } else {
-                        because
-                    };
-
-                    self.int_type(span, because, ty.clone())
-                } else {
-                    self.constraints.push(Constraint::IntType {
-                        at: span,
-                        because,
-                        ty,
-                    });
-                    Type::Var(mutable, v)
-                }
-            }
-
-            ty => {
-                self.messages
-                    .at(span)
-                    .tyck_not_an_int(Some(format!("{ty:?}")));
-                Type::Invalid
-            }
-        }
+        let inst = HashMap::new();
+        self.check_int_type(span, because, &inst, ty)
     }
 
     pub fn tuple_type(&mut self, span: Span, ty: Type) -> (Type, Type) {
@@ -79,4 +54,61 @@ impl Typer<'_> {
         self.assignable(span, Type::mutable(var), ty);
         Type::mutable(var)
     }
+
+    fn check_int_type(
+        &mut self,
+        span: Span,
+        because: Because,
+        inst: &HashMap<Name, UniVar>,
+        ty: Type,
+    ) -> Type {
+        match ty {
+            Type::Name(name) if inst.contains_key(&name) => {
+                let var = inst.get(&name).unwrap();
+                self.check_int_type(span, because, inst, Type::mutable(*var))
+            }
+
+            Type::Range(lo, hi) => Type::Range(lo, hi),
+            Type::Invalid => Type::Invalid,
+
+            Type::Instantiated(ty, inst) => self.check_int_type(span, because, &inst, *ty),
+
+            Type::Var(mutable, v) => {
+                if let Some((other_inst, ty)) = self.unifier.subst.get(&v) {
+                    let because = if let Some(cause) = self.unifier.causes.get(&v) {
+                        cause.clone()
+                    } else {
+                        because
+                    };
+
+                    let inst = merge(inst, other_inst);
+                    self.check_int_type(span, because, &inst, ty.clone())
+                } else {
+                    self.constraints.push(Constraint::IntType {
+                        at: span,
+                        because,
+                        ty,
+                    });
+                    Type::Var(mutable, v)
+                }
+            }
+
+            ty => {
+                let pretty_type = self.pretty(&ty);
+                self.messages.at(span).tyck_not_an_int(Some(pretty_type));
+                Type::Invalid
+            }
+        }
+    }
+}
+
+fn merge(a: &HashMap<Name, UniVar>, b: &HashMap<Name, UniVar>) -> HashMap<Name, UniVar> {
+    let mut res = HashMap::with_capacity(a.len() + b.len());
+    for (name, var) in a.iter() {
+        assert!(res.insert(*name, *var).is_none());
+    }
+    for (name, var) in b.iter() {
+        assert!(res.insert(*name, *var).is_none());
+    }
+    res
 }

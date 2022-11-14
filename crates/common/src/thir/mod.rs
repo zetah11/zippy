@@ -1,9 +1,11 @@
 mod because;
 mod constraint;
 mod context;
+mod pretty;
 mod tree;
 mod types;
 
+pub use self::pretty::pretty_type;
 pub use because::Because;
 pub use constraint::Constraint;
 pub use context::{Context, TypeOrSchema};

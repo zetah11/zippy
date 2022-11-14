@@ -9,8 +9,8 @@ use log::{info, trace};
 use common::message::Messages;
 use common::names::{Name, Names};
 use common::thir::{
-    Because, Constraint, Context, Decls, Expr, ExprNode, Mutability, Pat, PatNode, Type,
-    TypeckResult, ValueDef,
+    pretty_type, Because, Constraint, Context, Decls, Expr, ExprNode, Mutability, Pat, PatNode,
+    Type, TypeckResult, ValueDef,
 };
 use common::{hir, Driver};
 
@@ -42,7 +42,7 @@ struct Typer<'a> {
     pub messages: Messages,
     names: &'a Names,
     context: Context,
-    unifier: Unifier,
+    unifier: Unifier<'a>,
     constraints: Vec<Constraint>,
 }
 
@@ -52,7 +52,7 @@ impl<'a> Typer<'a> {
             messages: Messages::new(),
             names,
             context: Context::new(),
-            unifier: Unifier::new(),
+            unifier: Unifier::new(names),
             constraints: Vec::new(),
         }
     }
@@ -134,5 +134,15 @@ impl<'a> Typer<'a> {
             }
             PatNode::Invalid | PatNode::Wildcard => {}
         }
+    }
+
+    fn pretty(&self, ty: &Type) -> String {
+        let subst = self
+            .unifier
+            .subst
+            .iter()
+            .map(|(var, (_, ty))| (*var, ty))
+            .collect();
+        pretty_type(self.names, &subst, ty)
     }
 }

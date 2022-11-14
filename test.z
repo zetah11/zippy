@@ -1,4 +1,3 @@
 -- in test.z
 fun id |T| (x: T) = x
-fun main (?: 1) = f 5
-fun f (x: 10) = id x
+fun main (?: 1) = id |10 -> 10| 11

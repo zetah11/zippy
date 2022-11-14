@@ -48,7 +48,7 @@ impl<'a> MessageAdder<'a> {
     pub fn tyck_instantiate_not_generic(&mut self, name: Option<impl Into<String>>) {
         let labels = if let Some(name) = name {
             vec![Label::primary(self.at)
-                .with_message(format!("'{}' is not a polymorphic value", name.into()))]
+                .with_message(format!("'{}' is not a polymorphic type", name.into()))]
         } else {
             vec![Label::primary(self.at)]
         };

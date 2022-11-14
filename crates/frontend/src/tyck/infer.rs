@@ -65,10 +65,10 @@ impl Typer<'_> {
                         schema.clone()
                     }
                     TypeOrSchema::Type(ty) => {
-                        let print_name: Option<String> = None;
+                        let pretty_type = self.pretty(ty);
                         self.messages
                             .at(ex.span)
-                            .tyck_instantiate_not_generic(print_name);
+                            .tyck_instantiate_not_generic(Some(pretty_type));
                         return Expr {
                             node: ExprNode::Name(name),
                             span: ex.span,
