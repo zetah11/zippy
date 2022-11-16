@@ -259,14 +259,14 @@ impl<'a> Prettier<'a> {
         let preceding = path
             .0
             .as_ref()
-            .map(|name| self.doc_name(within, name).append(self.allocator.text(".")))
+            .map(|name| self.doc_name(within, name))
             .unwrap_or_else(|| self.allocator.nil());
 
         preceding.append(match &path.1 {
-            Actual::Lit(lit) => self.allocator.text(lit),
-            Actual::Generated(id) => self.allocator.text(String::from(*id)),
+            Actual::Lit(lit) => self.allocator.text(format!(".{lit}")),
+            Actual::Generated(id) => self.allocator.text(format!(".{}", String::from(*id))),
             Actual::Root => self.allocator.text("root"),
-            Actual::Scope(id) => self.allocator.text(format!("<scope {}>", id.0)),
+            Actual::Scope(_) => self.allocator.nil(),
         })
     }
 }

@@ -18,13 +18,7 @@ pub fn elaborate(
 ) -> (mir::Types, mir::Context, mir::Decls) {
     info!("beginning elaboration");
 
-    let (mut types, mut context, res) = lower::lower(
-        driver,
-        &tyckres.subst,
-        names,
-        tyckres.context,
-        tyckres.decls,
-    );
+    let (mut types, mut context, res) = lower::lower(driver, &tyckres.subst, names, tyckres.decls);
 
     let prettier = common::mir::pretty::Prettier::new(names, &types);
     for (name, ty) in context.iter() {
