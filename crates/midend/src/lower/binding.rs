@@ -79,7 +79,10 @@ impl Lowerer<'_> {
         let ty = self.lower_type(inst, pat.data);
 
         let name = match pat.node {
-            HiPatNode::Name(name) => name,
+            HiPatNode::Name(name) => {
+                self.context.add(name, ty);
+                name
+            }
 
             HiPatNode::Tuple(a, b) => {
                 let a_span = a.span;

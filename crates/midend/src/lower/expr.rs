@@ -116,7 +116,14 @@ impl Lowerer<'_> {
                 ValueNode::Name(name)
             }
 
-            HiExprNode::Inst(..) => todo!(),
+            HiExprNode::Inst(of, args) => match of.node {
+                HiExprNode::Name(name) => {
+                    let name = self.instantiate(expr.span, inst, &name, args);
+                    ValueNode::Name(name)
+                }
+
+                _ => ValueNode::Invalid,
+            },
 
             // Typechecking should remove all annotations
             HiExprNode::Anno(..) => unreachable!(),

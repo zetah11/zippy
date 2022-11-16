@@ -1,5 +1,6 @@
 mod binding;
 mod expr;
+mod poly;
 mod types;
 
 use std::collections::HashMap;
@@ -31,7 +32,6 @@ pub fn lower(
     debug!("beginning lowering");
     let mut lowerer = Lowerer::new(names, subst);
 
-    //lowerer.lower_context(context);
     let ctx = lowerer.names.root();
     let decls = lowerer.lower_decls(ctx, decls);
 

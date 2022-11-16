@@ -92,6 +92,29 @@ impl Names {
         self.names.get_by_right(name).copied()
     }
 
+    /// Create a fresh name based on `name`, but with `target` replaced by `new` in its path.
+    /// If this has no target to replace, a fresh name will be generated and inserted after the root, meaning this
+    /// function always returns a new name.
+    pub fn rebase(&mut self, name: &Name, target: &Name, new: &Name) -> Name {
+        if name == target {
+            *new
+        } else {
+            let Path(ctx, actual) = self.get_path(name);
+
+            if let Some(ctx) = ctx {
+                let ctx = *ctx;
+                let actual = actual.clone();
+                let span = self.get_span(name);
+
+                let new_ctx = self.rebase(&ctx, target, new);
+                self.add(span, Path(Some(new_ctx), actual))
+            } else {
+                let span = self.get_span(new);
+                self.fresh(span, *name)
+            }
+        }
+    }
+
     /// Look for a top-level name, such as an entry point.
     pub fn find_in(&self, ctx: Name, name: impl Into<String>) -> Option<Name> {
         self.lookup(&Path(Some(ctx), Actual::Lit(name.into())))
