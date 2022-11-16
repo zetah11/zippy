@@ -1,6 +1,6 @@
 use common::message::Span;
 use common::mir::{
-    Branch, BranchNode, Expr, ExprNode, ExprSeq, TypeId, Value, ValueDef, ValueNode,
+    Block, Branch, BranchNode, Statement, StmtNode, TypeId, Value, ValueDef, ValueNode,
 };
 use common::names::Name;
 
@@ -26,7 +26,7 @@ impl Lowerer<'_> {
         ctx: Name,
         span: Span,
         pat: HiPat,
-        bind: ExprSeq,
+        bind: Block,
     ) {
         match pat.node {
             HiPatNode::Name(name) => {
@@ -59,7 +59,7 @@ impl Lowerer<'_> {
     /// Turn a local pattern binding into a series of simple bindings of the form `let <name> = <expr>`. Returns the
     /// name this pattern gets replaced with, and a expressions needed to bind the pattern itself. This list should be
     /// appended *after* the name of the pattern is bound.
-    pub fn destruct_local(&mut self, inst: &Inst, ctx: Name, pat: HiPat) -> (Name, Vec<Expr>) {
+    pub fn destruct_local(&mut self, inst: &Inst, ctx: Name, pat: HiPat) -> (Name, Vec<Statement>) {
         let mut after = Vec::new();
         let (name, _) = self.bind_local(inst, ctx, &mut after, pat);
         after.reverse();
@@ -73,7 +73,7 @@ impl Lowerer<'_> {
         &mut self,
         inst: &Inst,
         ctx: Name,
-        after: &mut Vec<Expr>,
+        after: &mut Vec<Statement>,
         pat: HiPat,
     ) -> (Name, TypeId) {
         let ty = self.lower_type(inst, pat.data);
@@ -90,23 +90,23 @@ impl Lowerer<'_> {
 
                 let name = self.fresh_name(pat.span, ctx, ty);
 
-                let a_bind = ExprNode::Proj {
+                let a_bind = StmtNode::Proj {
                     name: a,
                     of: name,
                     at: 0,
                 };
-                let b_bind = ExprNode::Proj {
+                let b_bind = StmtNode::Proj {
                     name: b,
                     of: name,
                     at: 1,
                 };
 
-                let a_bind = Expr {
+                let a_bind = Statement {
                     ty: a_ty,
                     span: a_span,
                     node: a_bind,
                 };
-                let b_bind = Expr {
+                let b_bind = Statement {
                     ty: b_ty,
                     span: b_span,
                     node: b_bind,
@@ -133,10 +133,10 @@ impl Lowerer<'_> {
         let ty = self.lower_type(inst, pat.data.clone());
         let target = self.fresh_name(pat.span, ctx, ty);
 
-        let binding = Expr {
+        let binding = Statement {
             ty,
             span,
-            node: ExprNode::Proj {
+            node: StmtNode::Proj {
                 name: target,
                 of,
                 at,
@@ -155,7 +155,7 @@ impl Lowerer<'_> {
             node: BranchNode::Return(vec![ret]),
         };
 
-        let bind = ExprSeq {
+        let bind = Block {
             ty,
             span,
             exprs: vec![binding],

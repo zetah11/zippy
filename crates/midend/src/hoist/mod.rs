@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use log::{debug, trace};
 
 use common::message::{Messages, Span};
-use common::mir::{BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Value, ValueNode};
+use common::mir::{Block, BranchNode, Context, Decls, Statement, StmtNode, Value, ValueNode};
 use common::names::{Name, Names};
 use common::Driver;
 
@@ -45,7 +45,7 @@ pub struct Hoist<'a, D> {
     _names: &'a mut Names,
     _context: &'a mut Context,
 
-    functions: HashMap<Name, (Vec<Name>, ExprSeq)>,
+    functions: HashMap<Name, (Vec<Name>, Block)>,
     values: HashMap<Name, Value>,
 }
 
@@ -85,21 +85,21 @@ impl<D: Driver> Hoist<'_, D> {
     fn hoist_value(
         &mut self,
         name_for: Name,
-        within: &mut Vec<Expr>,
+        within: &mut Vec<Statement>,
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
-        exprs: ExprSeq,
+        exprs: Block,
     ) {
         for expr in exprs.exprs {
             match expr.node {
-                ExprNode::Function { name, params, body } => {
+                StmtNode::Function { name, params, body } => {
                     let body = self.hoist_function(free_vars, body);
                     self.functions.insert(name, (params, body));
                 }
 
-                ExprNode::Join { .. } => todo!(),
+                StmtNode::Join { .. } => todo!(),
 
                 node => {
-                    within.push(Expr {
+                    within.push(Statement {
                         node,
                         span: expr.span,
                         ty: expr.ty,
@@ -138,13 +138,13 @@ impl<D: Driver> Hoist<'_, D> {
     fn hoist_function(
         &mut self,
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
-        exprs: ExprSeq,
-    ) -> ExprSeq {
+        exprs: Block,
+    ) -> Block {
         let mut res = Vec::with_capacity(exprs.exprs.len());
 
         for expr in exprs.exprs {
             match expr.node {
-                ExprNode::Function { name, params, body } => {
+                StmtNode::Function { name, params, body } => {
                     let invalid = free_vars
                         .get(&name)
                         .map(|free| !free.is_empty())
@@ -165,9 +165,9 @@ impl<D: Driver> Hoist<'_, D> {
                     self.functions.insert(name, (params, body));
                 }
 
-                ExprNode::Join { .. } => todo!(),
+                StmtNode::Join { .. } => todo!(),
 
-                node => res.push(Expr {
+                node => res.push(Statement {
                     node,
                     span: expr.span,
                     ty: expr.ty,
@@ -177,6 +177,6 @@ impl<D: Driver> Hoist<'_, D> {
 
         res.shrink_to_fit();
 
-        ExprSeq::new(exprs.span, exprs.ty, res, exprs.branch)
+        Block::new(exprs.span, exprs.ty, res, exprs.branch)
     }
 }

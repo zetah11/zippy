@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use im::HashSet;
 
 use common::message::Span;
-use common::mir::{BranchNode, Decls, ExprNode, ExprSeq, ValueNode};
+use common::mir::{Block, BranchNode, Decls, StmtNode, ValueNode};
 use common::names::Name;
 
 pub fn free_vars(decls: &Decls) -> HashMap<Name, Vec<(Name, Span)>> {
@@ -37,7 +37,7 @@ impl Freer {
         }
     }
 
-    fn free_in_function(&mut self, params: &[Name], body: &ExprSeq) -> Vec<(Name, Span)> {
+    fn free_in_function(&mut self, params: &[Name], body: &Block) -> Vec<(Name, Span)> {
         let mut res = Vec::new();
         let mut bound = self.global.clone();
         let mut free = HashSet::new();
@@ -46,7 +46,7 @@ impl Freer {
 
         for expr in body.exprs.iter() {
             match &expr.node {
-                ExprNode::Join { name, param, body } => {
+                StmtNode::Join { name, param, body } => {
                     bound.insert(*name);
 
                     let free_here = self.free_in_function(&[*param], body);
@@ -58,7 +58,7 @@ impl Freer {
                     }
                 }
 
-                ExprNode::Function { name, params, body } => {
+                StmtNode::Function { name, params, body } => {
                     let free_here = self.free_in_function(params, body);
 
                     for (name, span) in free_here.iter().copied() {
@@ -74,7 +74,7 @@ impl Freer {
                     bound.insert(*name);
                 }
 
-                ExprNode::Apply { names, fun, args } => {
+                StmtNode::Apply { names, fun, args } => {
                     if !bound.contains(fun) && free.insert(*fun).is_none() {
                         res.push((*fun, expr.span));
                     }
@@ -90,7 +90,7 @@ impl Freer {
                     bound.extend(names.iter().copied());
                 }
 
-                ExprNode::Tuple { name, values } => {
+                StmtNode::Tuple { name, values } => {
                     for value in values.iter() {
                         if let ValueNode::Name(name) = value.node {
                             if !bound.contains(&name) && free.insert(name).is_none() {
@@ -102,7 +102,7 @@ impl Freer {
                     bound.insert(*name);
                 }
 
-                ExprNode::Proj { name, of, at: _ } => {
+                StmtNode::Proj { name, of, at: _ } => {
                     if !bound.contains(of) && free.insert(*of).is_none() {
                         res.push((*of, expr.span));
                     }

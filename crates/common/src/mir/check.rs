@@ -3,7 +3,7 @@ use crate::names::Names;
 
 use super::pretty::Prettier;
 use super::{
-    BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value, ValueNode,
+    Block, BranchNode, Context, Decls, Statement, StmtNode, Type, TypeId, Types, Value, ValueNode,
 };
 
 pub fn check(names: &Names, types: &Types, context: &Context, decls: &Decls) -> bool {
@@ -38,7 +38,7 @@ impl<'a> MirChecker<'a> {
         }
     }
 
-    fn check_exprs(&mut self, exprs: &ExprSeq) {
+    fn check_exprs(&mut self, exprs: &Block) {
         let retty = exprs.ty;
 
         for expr in exprs.exprs.iter() {
@@ -72,10 +72,10 @@ impl<'a> MirChecker<'a> {
         }
     }
 
-    fn check_expr(&mut self, expr: &Expr) {
+    fn check_expr(&mut self, expr: &Statement) {
         match &expr.node {
-            ExprNode::Join { .. } => todo!(),
-            ExprNode::Function { name, params, body } => {
+            StmtNode::Join { .. } => todo!(),
+            StmtNode::Function { name, params, body } => {
                 let ty = self.context.get(name);
                 match self.types.get(&ty) {
                     Type::Fun(t, u) => {
@@ -114,7 +114,7 @@ impl<'a> MirChecker<'a> {
                 self.check_exprs(body);
             }
 
-            ExprNode::Apply { names, fun, args } => {
+            StmtNode::Apply { names, fun, args } => {
                 let ty = self.context.get(fun);
                 match self.types.get(&ty) {
                     Type::Fun(t, u) => {
@@ -136,7 +136,7 @@ impl<'a> MirChecker<'a> {
                 }
             }
 
-            ExprNode::Tuple { name, values } => {
+            StmtNode::Tuple { name, values } => {
                 let ty = self.context.get(name);
                 match self.types.get(&ty) {
                     Type::Product(ts) => {
@@ -152,7 +152,7 @@ impl<'a> MirChecker<'a> {
                 }
             }
 
-            ExprNode::Proj { name, of, at } => {
+            StmtNode::Proj { name, of, at } => {
                 let ty = self.context.get(of);
                 match self.types.get(&ty) {
                     Type::Product(ts) => {

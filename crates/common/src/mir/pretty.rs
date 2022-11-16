@@ -2,7 +2,7 @@ use crate::names::{Actual, Names};
 
 use super::tree::{Branch, BranchNode};
 use super::{
-    Decls, Expr, ExprNode, ExprSeq, Name, Type, TypeId, Types, Value, ValueDef, ValueNode,
+    Block, Decls, Name, Statement, StmtNode, Type, TypeId, Types, Value, ValueDef, ValueNode,
 };
 use pretty::{Arena, DocAllocator, DocBuilder};
 
@@ -36,7 +36,7 @@ impl<'a> Prettier<'a> {
     }
 
     #[must_use]
-    pub fn pretty_exprs(&'a self, expr: &ExprSeq) -> String {
+    pub fn pretty_exprs(&'a self, expr: &Block) -> String {
         let doc = self.doc_expr_seq(None, expr);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
@@ -116,7 +116,7 @@ impl<'a> Prettier<'a> {
         }
     }
 
-    fn doc_expr_seq(&'a self, within: Option<&Name>, exprs: &ExprSeq) -> DocBuilder<Arena<'a>> {
+    fn doc_expr_seq(&'a self, within: Option<&Name>, exprs: &Block) -> DocBuilder<Arena<'a>> {
         self.allocator
             .intersperse(
                 exprs
@@ -149,13 +149,13 @@ impl<'a> Prettier<'a> {
         }
     }
 
-    fn doc_expr(&'a self, within: Option<&Name>, expr: &Expr) -> DocBuilder<Arena<'a>> {
+    fn doc_expr(&'a self, within: Option<&Name>, expr: &Statement) -> DocBuilder<Arena<'a>> {
         match &expr.node {
-            ExprNode::Join { name, param, body } => self
+            StmtNode::Join { name, param, body } => self
                 .doc_fun(within, "join", name, &[*param])
                 .append(self.doc_expr_seq(Some(name), body))
                 .group(),
-            ExprNode::Function { name, params, body } => {
+            StmtNode::Function { name, params, body } => {
                 let fun = self
                     .doc_fun(within, "fun", name, params)
                     .append(self.doc_expr_seq(Some(name), body));
@@ -165,7 +165,7 @@ impl<'a> Prettier<'a> {
                         .append(self.doc_expr_seq(Some(name), body).parens()),
                 )
             }
-            ExprNode::Apply { names, fun, args } => self
+            StmtNode::Apply { names, fun, args } => self
                 .allocator
                 .text("let")
                 .append(self.allocator.space())
@@ -186,7 +186,7 @@ impl<'a> Prettier<'a> {
                         .parens(),
                 )
                 .group(),
-            ExprNode::Tuple { name, values } => self
+            StmtNode::Tuple { name, values } => self
                 .doc_let(within, name)
                 .append(
                     self.allocator
@@ -197,7 +197,7 @@ impl<'a> Prettier<'a> {
                         .parens(),
                 )
                 .group(),
-            ExprNode::Proj { name, of, at } => self
+            StmtNode::Proj { name, of, at } => self
                 .doc_let(within, name)
                 .append(self.doc_name(within, of))
                 .append(self.allocator.text("."))

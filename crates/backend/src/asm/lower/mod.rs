@@ -122,7 +122,7 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
         }
     }
 
-    fn lower_function(&mut self, params: Vec<Name>, body: mir::ExprSeq) -> lir::Procedure {
+    fn lower_function(&mut self, params: Vec<Name>, body: mir::Block) -> lir::Procedure {
         let new_params: Vec<_> = params
             .iter()
             .map(|name| {
@@ -169,7 +169,7 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
 
         for expr in body.exprs {
             match expr.node {
-                mir::ExprNode::Apply { names, fun, args } => {
+                mir::StmtNode::Apply { names, fun, args } => {
                     let new_args: Vec<_> = args
                         .iter()
                         .map(|arg| {
@@ -223,7 +223,7 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
                     id = cont;
                 }
 
-                mir::ExprNode::Tuple { name, values } => {
+                mir::StmtNode::Tuple { name, values } => {
                     let values = values
                         .into_iter()
                         .map(|value| self.lower_value(&mut insts, value))
@@ -232,7 +232,7 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
                     insts.push(lir::Instruction::Tuple(name, values));
                 }
 
-                mir::ExprNode::Proj { name, of, at } => {
+                mir::StmtNode::Proj { name, of, at } => {
                     let ty = self.context.get(&name);
 
                     let index = Constraints::offsetof(&self.types, &ty, at);
@@ -242,9 +242,9 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
                     insts.push(lir::Instruction::Index(name, of, index));
                 }
 
-                mir::ExprNode::Join { .. } => todo!(),
+                mir::StmtNode::Join { .. } => todo!(),
 
-                mir::ExprNode::Function { .. } => unreachable!(),
+                mir::StmtNode::Function { .. } => unreachable!(),
             }
         }
 

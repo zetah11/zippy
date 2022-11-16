@@ -3,12 +3,12 @@
 use common::names::Name;
 
 use super::{Irreducible, IrreducibleNode, Lowerer};
-use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq};
+use crate::mir::{Block, Branch, BranchNode, Statement, StmtNode};
 use crate::mir::{Value, ValueNode};
 use crate::Driver;
 
 impl<D: Driver> Lowerer<'_, D> {
-    pub fn promote(&mut self, ctx: Name, value: Irreducible) -> ExprSeq {
+    pub fn promote(&mut self, ctx: Name, value: Irreducible) -> Block {
         if let IrreducibleNode::Quote(exprs) = value.node {
             exprs
         } else {
@@ -16,7 +16,7 @@ impl<D: Driver> Lowerer<'_, D> {
             let Irreducible { span, ty, .. } = value;
             let res = self.make_irr(&mut exprs, ctx, value);
 
-            ExprSeq {
+            Block {
                 exprs,
                 branch: Branch {
                     node: BranchNode::Return(res),
@@ -29,7 +29,12 @@ impl<D: Driver> Lowerer<'_, D> {
         }
     }
 
-    fn make_irr(&mut self, within: &mut Vec<Expr>, ctx: Name, value: Irreducible) -> Vec<Value> {
+    fn make_irr(
+        &mut self,
+        within: &mut Vec<Statement>,
+        ctx: Name,
+        value: Irreducible,
+    ) -> Vec<Value> {
         let node = match value.node {
             IrreducibleNode::Invalid => ValueNode::Invalid,
             IrreducibleNode::Integer(i) => {
@@ -43,8 +48,8 @@ impl<D: Driver> Lowerer<'_, D> {
 
                 let body = self.promote(name, *body);
 
-                within.push(Expr {
-                    node: ExprNode::Function { name, params, body },
+                within.push(Statement {
+                    node: StmtNode::Function { name, params, body },
                     span: value.span,
                     ty: value.ty,
                 });

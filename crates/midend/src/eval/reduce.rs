@@ -1,21 +1,21 @@
 use common::names::Name;
 
-use crate::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq, Type, Value, ValueNode};
+use crate::mir::{Block, Branch, BranchNode, Statement, StmtNode, Type, Value, ValueNode};
 use crate::Driver;
 
 use super::{Env, Irreducible, IrreducibleNode, Lowerer};
 
 impl<D: Driver> Lowerer<'_, D> {
-    pub fn reduce_exprs(&mut self, env: Env, ctx: Name, exprs: ExprSeq) -> Irreducible {
+    pub fn reduce_exprs(&mut self, env: Env, ctx: Name, exprs: Block) -> Irreducible {
         let mut env = env.child();
 
         let mut new_exprs = Vec::new();
 
         for expr in exprs.exprs {
             let node = match expr.node {
-                ExprNode::Join { .. } => todo!(),
+                StmtNode::Join { .. } => todo!(),
 
-                ExprNode::Function { name, params, body } => {
+                StmtNode::Function { name, params, body } => {
                     let body_irr = self.reduce_exprs(env.clone(), ctx, body.clone());
                     env.set(
                         name,
@@ -26,10 +26,10 @@ impl<D: Driver> Lowerer<'_, D> {
                         },
                     );
 
-                    ExprNode::Function { name, params, body }
+                    StmtNode::Function { name, params, body }
                 }
 
-                ExprNode::Apply { names, fun, args } => {
+                StmtNode::Apply { names, fun, args } => {
                     let reduced_args: Vec<_> = args
                         .iter()
                         .cloned()
@@ -68,10 +68,10 @@ impl<D: Driver> Lowerer<'_, D> {
                         }
                     }
 
-                    ExprNode::Apply { names, fun, args }
+                    StmtNode::Apply { names, fun, args }
                 }
 
-                ExprNode::Tuple { name, values } => {
+                StmtNode::Tuple { name, values } => {
                     let new_values = values
                         .clone()
                         .into_iter()
@@ -86,10 +86,10 @@ impl<D: Driver> Lowerer<'_, D> {
                         },
                     );
 
-                    ExprNode::Tuple { name, values }
+                    StmtNode::Tuple { name, values }
                 }
 
-                ExprNode::Proj { name, of, at } => {
+                StmtNode::Proj { name, of, at } => {
                     if let Some(Irreducible {
                         node: IrreducibleNode::Tuple(values),
                         ..
@@ -98,11 +98,11 @@ impl<D: Driver> Lowerer<'_, D> {
                         env.set(name, values[at].clone());
                     }
 
-                    ExprNode::Proj { name, of, at }
+                    StmtNode::Proj { name, of, at }
                 }
             };
 
-            new_exprs.push(Expr {
+            new_exprs.push(Statement {
                 node,
                 span: expr.span,
                 ty: expr.ty,
@@ -151,7 +151,7 @@ impl<D: Driver> Lowerer<'_, D> {
         };
 
         Irreducible {
-            node: IrreducibleNode::Quote(ExprSeq {
+            node: IrreducibleNode::Quote(Block {
                 exprs: new_exprs,
                 branch: Branch {
                     node: branch,
@@ -191,7 +191,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     closed = closed.with(
                         *param,
                         Irreducible {
-                            node: IrreducibleNode::Quote(ExprSeq {
+                            node: IrreducibleNode::Quote(Block {
                                 exprs: vec![],
                                 branch: Branch {
                                     node: BranchNode::Return(vec![Value {
@@ -242,7 +242,7 @@ impl<D: Driver> Lowerer<'_, D> {
                 if let Some(value) = self.lookup(env, &name) {
                     return value.clone();
                 } else {
-                    IrreducibleNode::Quote(ExprSeq {
+                    IrreducibleNode::Quote(Block {
                         exprs: vec![],
                         span: value.span,
                         ty: value.ty,

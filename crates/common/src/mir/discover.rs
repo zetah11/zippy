@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::trace;
 
-use super::{BranchNode, Decls, Expr, ExprNode, ExprSeq, Value, ValueNode};
+use super::{Block, BranchNode, Decls, Statement, StmtNode, Value, ValueNode};
 use crate::names::Name;
 
 /// Get a list of all of the names reachable from the entry point.
@@ -50,7 +50,7 @@ impl MirDiscoverer {
         trace!("discovered {} names reachable from entry", self.names.len());
     }
 
-    fn discover_exprs(&mut self, exprs: &ExprSeq) {
+    fn discover_exprs(&mut self, exprs: &Block) {
         for expr in exprs.exprs.iter() {
             self.discover_expr(expr);
         }
@@ -66,24 +66,24 @@ impl MirDiscoverer {
         }
     }
 
-    fn discover_expr(&mut self, expr: &Expr) {
+    fn discover_expr(&mut self, expr: &Statement) {
         match &expr.node {
-            ExprNode::Function { body, .. } => {
+            StmtNode::Function { body, .. } => {
                 self.discover_exprs(body);
             }
 
-            ExprNode::Apply { fun, args, .. } => {
+            StmtNode::Apply { fun, args, .. } => {
                 self.worklist.push(*fun);
                 args.iter().for_each(|arg| self.discover_value(arg));
             }
 
-            ExprNode::Join { .. } => todo!(),
+            StmtNode::Join { .. } => todo!(),
 
-            ExprNode::Tuple { values, .. } => {
+            StmtNode::Tuple { values, .. } => {
                 values.iter().for_each(|value| self.discover_value(value));
             }
 
-            ExprNode::Proj { of, .. } => {
+            StmtNode::Proj { of, .. } => {
                 self.worklist.push(*of);
             }
         }

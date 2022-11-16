@@ -1,5 +1,5 @@
 use common::message::Span;
-use common::mir::{ExprSeq, TypeId};
+use common::mir::{Block, TypeId};
 use common::names::Name;
 
 #[derive(Clone, Debug)]
@@ -15,7 +15,7 @@ pub(super) enum IrreducibleNode {
     Tuple(Vec<Irreducible>),
 
     Lambda(Vec<Name>, Box<Irreducible>),
-    Quote(ExprSeq),
+    Quote(Block),
 
     Invalid,
 }

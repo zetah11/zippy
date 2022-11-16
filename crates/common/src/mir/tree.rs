@@ -9,7 +9,7 @@ pub struct Decls {
     pub defs: Vec<ValueDef>,
 
     pub values: HashMap<Name, Value>,
-    pub functions: HashMap<Name, (Vec<Name>, ExprSeq)>,
+    pub functions: HashMap<Name, (Vec<Name>, Block)>,
 }
 
 impl Decls {
@@ -26,19 +26,19 @@ impl Decls {
 pub struct ValueDef {
     pub span: Span,
     pub name: Name,
-    pub bind: ExprSeq,
+    pub bind: Block,
 }
 
 #[derive(Clone, Debug)]
-pub struct ExprSeq {
-    pub exprs: Vec<Expr>,
+pub struct Block {
+    pub exprs: Vec<Statement>,
     pub branch: Branch,
     pub span: Span,
     pub ty: TypeId,
 }
 
-impl ExprSeq {
-    pub fn new(span: Span, ty: TypeId, exprs: Vec<Expr>, branch: Branch) -> Self {
+impl Block {
+    pub fn new(span: Span, ty: TypeId, exprs: Vec<Statement>, branch: Branch) -> Self {
         Self {
             exprs,
             branch,
@@ -62,23 +62,23 @@ pub enum BranchNode {
 }
 
 #[derive(Clone, Debug)]
-pub struct Expr {
-    pub node: ExprNode,
+pub struct Statement {
+    pub node: StmtNode,
     pub span: Span,
     pub ty: TypeId,
 }
 
 #[derive(Clone, Debug)]
-pub enum ExprNode {
+pub enum StmtNode {
     Join {
         name: Name,
         param: Name,
-        body: ExprSeq,
+        body: Block,
     },
     Function {
         name: Name,
         params: Vec<Name>,
-        body: ExprSeq,
+        body: Block,
     },
     Apply {
         names: Vec<Name>,

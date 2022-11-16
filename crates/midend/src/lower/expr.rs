@@ -1,10 +1,10 @@
-use common::mir::{Branch, BranchNode, Expr, ExprNode, ExprSeq, Value, ValueNode};
+use common::mir::{Block, Branch, BranchNode, Statement, StmtNode, Value, ValueNode};
 use common::names::Name;
 
 use super::{HiExpr, HiExprNode, Inst, Lowerer};
 
 impl Lowerer<'_> {
-    pub fn lower_expr(&mut self, inst: &Inst, ctx: Name, expr: HiExpr) -> ExprSeq {
+    pub fn lower_expr(&mut self, inst: &Inst, ctx: Name, expr: HiExpr) -> Block {
         let span = expr.span;
 
         let mut exprs = Vec::new();
@@ -17,7 +17,7 @@ impl Lowerer<'_> {
             node: BranchNode::Return(vec![value]),
         };
 
-        ExprSeq {
+        Block {
             ty,
             span,
             exprs,
@@ -30,7 +30,7 @@ impl Lowerer<'_> {
         &mut self,
         inst: &Inst,
         ctx: Name,
-        within: &mut Vec<Expr>,
+        within: &mut Vec<Statement>,
         expr: HiExpr,
     ) -> Value {
         let span = expr.span;
@@ -48,11 +48,11 @@ impl Lowerer<'_> {
 
                 let name = self.fresh_name(expr.span, ctx, ty);
 
-                let expr = ExprNode::Tuple {
+                let expr = StmtNode::Tuple {
                     name,
                     values: vec![x, y],
                 };
-                let expr = Expr {
+                let expr = Statement {
                     ty,
                     span,
                     node: expr,
@@ -70,12 +70,12 @@ impl Lowerer<'_> {
                     ValueNode::Name(fun) => {
                         let name = self.fresh_name(span, ctx, ty);
 
-                        let expr = ExprNode::Apply {
+                        let expr = StmtNode::Apply {
                             names: vec![name],
                             fun,
                             args: vec![arg],
                         };
-                        let expr = Expr {
+                        let expr = Statement {
                             ty,
                             span,
                             node: expr,
@@ -100,12 +100,12 @@ impl Lowerer<'_> {
                 destructuring.extend(body.exprs);
                 body.exprs = destructuring;
 
-                let expr = ExprNode::Function {
+                let expr = StmtNode::Function {
                     name,
                     params: vec![param],
                     body,
                 };
-                let expr = Expr {
+                let expr = Statement {
                     ty,
                     span,
                     node: expr,

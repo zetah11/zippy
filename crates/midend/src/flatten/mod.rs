@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use common::message::Span;
 use common::mir::{
-    Branch, BranchNode, Context, Decls, Expr, ExprNode, ExprSeq, Type, TypeId, Types, Value,
+    Block, Branch, BranchNode, Context, Decls, Statement, StmtNode, Type, TypeId, Types, Value,
     ValueDef, ValueNode,
 };
 use common::names::{Name, Names};
@@ -52,7 +52,7 @@ impl<'a> Flattener<'a> {
         Decls::new(defs)
     }
 
-    fn flatten_def(&mut self, name: &Name, bind: ExprSeq) -> ExprSeq {
+    fn flatten_def(&mut self, name: &Name, bind: Block) -> Block {
         let ty = self.context.get(name);
         let ty = self.flatten_type(&ty);
         self.context.replace(*name, ty);
@@ -61,7 +61,7 @@ impl<'a> Flattener<'a> {
 
         for expr in bind.exprs {
             let node = match expr.node {
-                ExprNode::Tuple { name, values } => {
+                StmtNode::Tuple { name, values } => {
                     let values: Vec<_> = values
                         .into_iter()
                         .flat_map(|value| self.flatten_value(value))
@@ -79,7 +79,7 @@ impl<'a> Flattener<'a> {
                     continue;
                 }
 
-                ExprNode::Proj { name, of, at } => {
+                StmtNode::Proj { name, of, at } => {
                     let tuple = match self.mapping.get(&of) {
                         Some(tuples) => tuples,
                         None => unreachable!(),
@@ -101,7 +101,7 @@ impl<'a> Flattener<'a> {
                     continue;
                 }
 
-                ExprNode::Function { name, params, body } => {
+                StmtNode::Function { name, params, body } => {
                     let mut new_params = Vec::with_capacity(params.len());
                     for param in params {
                         new_params.extend(self.flatten_param(expr.span, param));
@@ -110,14 +110,14 @@ impl<'a> Flattener<'a> {
                     new_params.shrink_to_fit();
                     let body = self.flatten_def(&name, body);
 
-                    ExprNode::Function {
+                    StmtNode::Function {
                         name,
                         params: new_params,
                         body,
                     }
                 }
 
-                ExprNode::Apply { names, fun, args } => {
+                StmtNode::Apply { names, fun, args } => {
                     let args = args
                         .into_iter()
                         .flat_map(|arg| self.flatten_value(arg))
@@ -129,17 +129,17 @@ impl<'a> Flattener<'a> {
                         .flat_map(|name| self.flatten_param(expr.span, name))
                         .collect();
 
-                    ExprNode::Apply { names, fun, args }
+                    StmtNode::Apply { names, fun, args }
                 }
 
-                ExprNode::Join { name, param, body } => {
+                StmtNode::Join { name, param, body } => {
                     let body = self.flatten_def(&name, body);
-                    ExprNode::Join { name, param, body }
+                    StmtNode::Join { name, param, body }
                 }
             };
 
             let ty = self.flatten_type(&expr.ty);
-            exprs.push(Expr { node, ty, ..expr })
+            exprs.push(Statement { node, ty, ..expr })
         }
 
         let branch = {
@@ -175,7 +175,7 @@ impl<'a> Flattener<'a> {
 
         let ty = self.flatten_type(&bind.ty);
 
-        ExprSeq {
+        Block {
             exprs,
             branch,
             ty,
