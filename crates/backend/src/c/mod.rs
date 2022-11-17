@@ -3,9 +3,9 @@ mod statement;
 mod types;
 mod value;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use common::mir::{Context, Decls, Type, TypeId, Types};
+use common::mir::{discover, Context, Decls, Type, TypeId, Types};
 use common::names::{Name, Names};
 
 use crate::mangle::mangle;
@@ -18,7 +18,7 @@ pub fn emit(
     decls: Decls,
 ) -> String {
     let mut emitter = Emitter::new(names, types, context);
-    emitter.emit_decls(decls);
+    emitter.emit_decls(entry, decls);
 
     if let Some(entry) = entry {
         emitter.emit_entry(entry);
@@ -58,17 +58,32 @@ impl<'a> Emitter<'a> {
         self.typedefs
     }
 
-    pub fn emit_decls(&mut self, decls: Decls) {
+    pub fn emit_decls(&mut self, entry: Option<Name>, decls: Decls) {
         assert!(decls.defs.is_empty());
+
+        let reachable: HashSet<_> = if entry.is_some() {
+            discover(entry, &decls).into_iter().collect()
+        } else {
+            self.res.push_str("// (no code generated)\n");
+            return;
+        };
 
         self.res.push_str("// declarations\n");
 
         for (name, _) in decls.values.iter() {
+            if !reachable.contains(name) {
+                continue;
+            }
+
             self.define_value(name);
             self.declaration();
         }
 
         for (name, (params, _)) in decls.functions.iter() {
+            if !reachable.contains(name) {
+                continue;
+            }
+
             self.define_function(name, params);
             self.declaration();
         }
@@ -76,12 +91,20 @@ impl<'a> Emitter<'a> {
         self.res.push_str("\n// definitions\n");
 
         for (name, value) in decls.values.into_iter() {
+            if !reachable.contains(&name) {
+                continue;
+            }
+
             let value = self.emit_value(value);
             self.define_value(&name);
             self.res.push_str(&format!(" = {value};\n"));
         }
 
         for (name, (params, block)) in decls.functions.into_iter() {
+            if !reachable.contains(&name) {
+                continue;
+            }
+
             self.define_function(&name, &params);
             let lines = self.emit_block(name, block).join("\n\t");
 

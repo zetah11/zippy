@@ -45,9 +45,7 @@ impl Emitter<'_> {
                     else => unreachable!()
                 };
 
-                let name = self.fresh_typename();
-                self.typedef(&name, ty, "");
-                name
+                ty.into()
             }
 
             Type::Product(ties) => {

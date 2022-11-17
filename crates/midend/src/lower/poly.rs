@@ -73,11 +73,8 @@ impl Lowerer<'_> {
             }
 
             HiExprNode::Lam(param, body) => {
-                println!("{name_map:?}");
                 let param = self.copy_pat(name_map, old_name, new_name, param);
-                println!("{name_map:?}");
                 let body = Box::new(self.copy_expr(name_map, old_name, new_name, *body));
-                println!("{name_map:?}");
                 HiExprNode::Lam(param, body)
             }
 
