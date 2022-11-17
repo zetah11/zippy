@@ -1,3 +1,4 @@
+use common::mir::pretty::Prettier;
 use common::mir::{Block, Branch, BranchNode, Statement, StmtNode, Value, ValueNode};
 use common::names::Name;
 
@@ -40,7 +41,14 @@ impl Lowerer<'_> {
             HiExprNode::Int(i) => ValueNode::Int(i),
             HiExprNode::Name(name) => ValueNode::Name(name),
             HiExprNode::Invalid => ValueNode::Invalid,
-            HiExprNode::Hole => ValueNode::Invalid,
+            HiExprNode::Hole => {
+                let prettier = Prettier::new(self.names, &self.types);
+                self.messages
+                    .at(span)
+                    .elab_report_hole(prettier.pretty_type(&ty));
+
+                ValueNode::Invalid
+            }
 
             HiExprNode::Tuple(x, y) => {
                 let x = self.make_value(inst, ctx, within, *x);
