@@ -14,7 +14,7 @@ common = { path = "crates/common" }
 frontend = { path = "crates/frontend" }
 midend = { path = "crates/midend" }
 
-object = { version = "0.29", features = ["write_std"] }
+cc = "1.0"
 target-lexicon = "0.12"
 
 anyhow = "1.0"
