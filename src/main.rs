@@ -1,6 +1,6 @@
 mod args;
 mod console_driver;
-mod emit;
+//mod emit;
 mod input;
 mod target;
 
@@ -8,22 +8,18 @@ use std::fs::{DirBuilder, File};
 use std::io::Write;
 use std::path::Path;
 
-use backend::asm::asm;
-use backend::codegen::x64::{self, encode, pretty};
+use backend::c::emit;
 use frontend::{parse, ParseResult};
 use midend::elaborate;
 
-use clap::error::ErrorKind;
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use codespan_reporting::files::SimpleFiles;
 
 use console_driver::ConsoleDriver;
 
 use args::Arguments;
-use emit::{write_coff, write_elf};
 use input::read_file;
 use target::get_target;
-use target_lexicon::{BinaryFormat, OperatingSystem, Triple};
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -47,59 +43,12 @@ fn main() -> anyhow::Result<()> {
 
     let (types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
-    let program = asm::<x64::Constraints>(&mut driver, &types, &context, &names, entry, decls);
-
-    let code = match encode(&mut names, &target, entry, program) {
-        Ok(code) => code,
-        Err(error) => {
-            let mut cmd = Arguments::command();
-            cmd.error(ErrorKind::ValueValidation, error).exit()
-        }
-    };
-
-    println!("{}", pretty(&names, &code));
-
-    println!("{}", pretty_hex::pretty_hex(&code.result.inner.code_buffer));
+    let code = emit(&mut names, &types, &context, entry, decls);
 
     DirBuilder::new().recursive(true).create("artifacts")?;
-    match target {
-        Triple {
-            binary_format: BinaryFormat::Elf,
-            ..
-        }
-        | Triple {
-            operating_system: OperatingSystem::Linux,
-            ..
-        } => {
-            let elf = write_elf(&names, code);
-            let mut main =
-                File::create(Path::new("artifacts").join(args.path.with_extension("o")))?;
-            main.write_all(&elf)?;
-        }
 
-        Triple {
-            binary_format: BinaryFormat::Coff,
-            ..
-        }
-        | Triple {
-            operating_system: OperatingSystem::Windows,
-            ..
-        } => {
-            let coff = write_coff(&names, code);
-            let mut main =
-                File::create(Path::new("artifacts").join(args.path.with_extension("lib")))?;
-            main.write_all(&coff)?;
-        }
-
-        target => {
-            let mut cmd = Arguments::command();
-            cmd.error(
-                ErrorKind::ValueValidation,
-                format!("Unsupported output target '{target}'"),
-            )
-            .exit();
-        }
-    }
+    let mut file = File::create(Path::new("artifacts").join(args.path.with_extension("c")))?;
+    file.write_all(code.as_bytes())?;
 
     Ok(())
 }

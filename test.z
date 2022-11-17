@@ -1,5 +1,7 @@
 -- in test.z
 fun main (?: 1) = id (f 2)
 
-fun f (?: 5) : 10 = 9
+fun f (?: 5) : 10 = x
 fun id |T| (x: T) = x
+
+let x: 10 = 9

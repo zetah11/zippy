@@ -20,6 +20,8 @@ pub fn mangle(names: &Names, name: &Name) -> String {
         }
 
         let mut res = String::new();
+        res.push('Z');
+
         for part in parts.into_iter().rev() {
             res.push_str(&match part {
                 Actual::Lit(name) => format!("_n{name}"),
