@@ -1,4 +1,4 @@
 -- in test.z
 fun main (?: 1) = x
 fun id |T| (x: T) = x
-let x: 10 = id ?
+let x: 10 = id 5
