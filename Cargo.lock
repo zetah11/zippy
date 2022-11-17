@@ -136,11 +136,9 @@ version = "0.1.0"
 dependencies = [
  "bimap",
  "bitflags",
- "im",
  "log",
  "logos",
  "pretty",
- "ranges",
 ]
 
 [[package]]
@@ -172,7 +170,6 @@ dependencies = [
  "frontend",
  "log",
  "midend",
- "pretty-hex",
  "target-lexicon",
 ]
 
@@ -339,12 +336,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pretty-hex"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6fa0831dd7cc608c38a5e323422a0077678fa5744aa2be4ad91c4ece8eec8d5"
-
-[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -400,12 +391,6 @@ checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
 dependencies = [
  "rand_core",
 ]
-
-[[package]]
-name = "ranges"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f781d391cd4838df77e09fd26e33a87e0ac9bf2edf6ff770cfc65f83d50e3948"
 
 [[package]]
 name = "regex"

@@ -1,6 +1,5 @@
 mod source;
 
-mod compile;
 mod diagnostic;
 mod elab;
 mod lex;

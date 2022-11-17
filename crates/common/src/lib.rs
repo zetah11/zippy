@@ -1,5 +1,4 @@
 pub mod hir;
-pub mod lir;
 pub mod message;
 pub mod mir;
 pub mod names;
