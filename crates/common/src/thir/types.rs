@@ -15,7 +15,7 @@ pub enum Mutability {
     Mutable,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
     Name(Name),
 

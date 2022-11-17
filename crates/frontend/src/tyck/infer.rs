@@ -8,9 +8,24 @@ impl Typer<'_> {
         let (node, ty) = match ex.node {
             ExprNode::Name(name) => {
                 let ty = self.context.get(&name).clone();
-                let (ty, _) = self.context.instantiate(&ty);
+                let (ty, vars) = self.context.instantiate(&ty);
 
-                (ExprNode::Name(name), ty)
+                if vars.is_empty() {
+                    (ExprNode::Name(name), ty)
+                } else {
+                    let args = vars
+                        .into_iter()
+                        .map(|var| (ex.span, Type::mutable(var)))
+                        .collect();
+
+                    let expr = Box::new(Expr {
+                        data: ty.clone(),
+                        span: ex.span,
+                        node: ExprNode::Name(name),
+                    });
+
+                    (ExprNode::Inst(expr, args), ty)
+                }
             }
 
             ExprNode::Int(i) => {

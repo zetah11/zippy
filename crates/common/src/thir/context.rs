@@ -118,10 +118,19 @@ impl IntoIterator for Context {
 pub fn merge_insts(a: &HashMap<Name, Type>, b: &HashMap<Name, Type>) -> HashMap<Name, Type> {
     let mut res = HashMap::with_capacity(a.len() + b.len());
     for (name, ty) in a.iter() {
-        assert!(res.insert(*name, ty.clone()).is_none());
+        // hmmm.. not sure if this is right
+        if let Some(other) = res.remove(name) {
+            assert_eq!(&other, ty);
+        }
+
+        res.insert(*name, ty.clone());
     }
     for (name, ty) in b.iter() {
-        assert!(res.insert(*name, ty.clone()).is_none());
+        if let Some(other) = res.remove(name) {
+            assert_eq!(&other, ty);
+        }
+
+        res.insert(*name, ty.clone());
     }
     res
 }
