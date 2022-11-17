@@ -7,7 +7,7 @@ use super::Emitter;
 
 impl Emitter<'_> {
     /// Emit the lines of a block. Should be indented.
-    pub fn emit_block(&mut self, ctx: Name, block: Block) -> Vec<String> {
+    pub fn emit_block(&mut self, ctx: Name, write_to: Option<Name>, block: Block) -> Vec<String> {
         let mut res = Vec::new();
 
         for stmt in block.exprs {
@@ -15,11 +15,19 @@ impl Emitter<'_> {
         }
 
         match block.branch.node {
-            BranchNode::Return(rets) => match &rets[..] {
-                [] => res.push("return;".into()),
-                [value] => {
+            BranchNode::Return(rets) => match (&rets[..], write_to) {
+                ([], None) => res.push("return;".into()),
+                ([], Some(_)) => {}
+
+                ([value], None) => {
                     let value = self.emit_value(value.clone()); // oof
                     res.push(format!("return {value};"));
+                }
+
+                ([value], Some(name)) => {
+                    let value = self.emit_value(value.clone());
+                    let target = mangle(self.names, &name);
+                    res.push(format!("{target} = {value};"));
                 }
 
                 _ => {
@@ -35,7 +43,15 @@ impl Emitter<'_> {
                     let ty = self.typename(&block.branch.ty);
 
                     res.push(format!("{ty} {var} = {{ {rets} }};"));
-                    res.push(format!("return {var};"));
+
+                    match write_to {
+                        None => res.push(format!("return {var};")),
+
+                        Some(name) => {
+                            let target = mangle(self.names, &name);
+                            res.push(format!("{target} = {var};"));
+                        }
+                    }
                 }
             },
 

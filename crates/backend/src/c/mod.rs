@@ -30,6 +30,7 @@ pub fn emit(
 #[derive(Debug)]
 struct Emitter<'a> {
     res: String,
+    inits: String,
     typedefs: String,
     type_map: HashMap<TypeId, String>,
     type_name: usize,
@@ -43,6 +44,7 @@ impl<'a> Emitter<'a> {
     pub fn new(names: &'a mut Names, types: &'a Types, context: &'a Context) -> Self {
         Self {
             res: String::new(),
+            inits: String::new(),
             typedefs: String::new(),
             type_map: HashMap::new(),
             type_name: 0,
@@ -70,12 +72,12 @@ impl<'a> Emitter<'a> {
 
         self.res.push_str("// declarations\n");
 
-        for (name, _) in decls.values.iter() {
+        for (name, value) in decls.values.iter() {
             if !reachable.contains(name) {
                 continue;
             }
 
-            self.define_value(name);
+            self.define_value(value.needs_late_init(), name);
             self.declaration();
         }
 
@@ -95,9 +97,11 @@ impl<'a> Emitter<'a> {
                 continue;
             }
 
-            let value = self.emit_value(value);
-            self.define_value(&name);
-            self.res.push_str(&format!(" = {value};\n"));
+            let mutable = value.needs_late_init();
+            if let Some(value) = self.emit_static_value(name, value) {
+                self.define_value(mutable, &name);
+                self.res.push_str(&format!(" = {value};\n"));
+            }
         }
 
         for (name, (params, block)) in decls.functions.into_iter() {
@@ -106,7 +110,7 @@ impl<'a> Emitter<'a> {
             }
 
             self.define_function(&name, &params);
-            let lines = self.emit_block(name, block).join("\n\t");
+            let lines = self.emit_block(name, None, block).join("\n\t");
 
             self.res.push_str(&format!(" {{\n\t{lines}\n}}\n"));
         }
@@ -115,18 +119,34 @@ impl<'a> Emitter<'a> {
     pub fn emit_entry(&mut self, entry: Name) {
         let entry = mangle(self.names, &entry);
 
+        let needs_init = !self.inits.is_empty();
+
+        if needs_init {
+            self.res.push_str("void init(void) {\n");
+            self.res.push_str(&self.inits);
+            self.res.push_str("}\n");
+        }
+
         self.res.push_str("int main(void) {\n");
+        if needs_init {
+            self.res.push_str("\tinit();\n");
+        }
         self.res.push_str(&format!("\treturn (int){entry}(0);\n"));
         self.res.push_str("}\n");
     }
 
-    fn define_value(&mut self, name: &Name) {
+    fn define_value(&mut self, mutable: bool, name: &Name) {
         let mangled = mangle(self.names, name);
 
         let ty = self.context.get(name);
-        let ty = self.typename(&ty).to_string();
+        let ty = self.typename(&ty);
+        let pre = if mutable {
+            ty.to_string()
+        } else {
+            format!("const {ty}")
+        };
 
-        self.define(&mangled, &ty, "");
+        self.define(&mangled, &pre, "");
     }
 
     fn define_function(&mut self, name: &Name, params: &[Name]) {

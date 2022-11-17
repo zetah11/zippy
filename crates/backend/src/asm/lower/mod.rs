@@ -98,7 +98,7 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
                 self.procs.insert(name, proc);
                 self.info.add(name, lir::Info::procedure());
             } else if let Some(value) = self.decls.values.remove(&name) {
-                let value = self.lower_value(&mut Vec::new(), value);
+                let value = self.lower_static_value(&mut Vec::new(), value);
                 self.values.insert(name, value);
                 self.info.add(name, lir::Info::constant());
             }
@@ -322,6 +322,14 @@ impl<'a, Constraints: AllocConstraints> Lowerer<'a, Constraints> {
             .collect();
 
         builder.add(id, params, instructions, branch);
+    }
+
+    fn lower_static_value(
+        &mut self,
+        _within: &mut Vec<lir::Instruction>,
+        _value: mir::StaticValue,
+    ) -> lir::Value {
+        todo!()
     }
 
     fn lower_value(&mut self, within: &mut Vec<lir::Instruction>, value: mir::Value) -> lir::Value {

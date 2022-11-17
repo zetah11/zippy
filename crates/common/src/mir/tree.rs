@@ -8,7 +8,7 @@ use crate::names::Name;
 pub struct Decls {
     pub defs: Vec<ValueDef>,
 
-    pub values: HashMap<Name, Value>,
+    pub values: HashMap<Name, StaticValue>,
     pub functions: HashMap<Name, (Vec<Name>, Block)>,
 }
 
@@ -94,6 +94,29 @@ pub enum StmtNode {
         of: Name,
         at: usize,
     },
+}
+
+/// A static value is one that is alive for the entire duration of the program.
+#[derive(Clone, Debug)]
+pub struct StaticValue {
+    pub node: StaticValueNode,
+    pub span: Span,
+    pub ty: TypeId,
+}
+
+impl StaticValue {
+    pub fn needs_late_init(&self) -> bool {
+        match &self.node {
+            StaticValueNode::Int(_) => false,
+            StaticValueNode::LateInit(_) => true,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum StaticValueNode {
+    Int(i64),
+    LateInit(Block),
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

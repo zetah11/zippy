@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use log::trace;
 
+use super::tree::{StaticValue, StaticValueNode};
 use super::{Block, BranchNode, Decls, Statement, StmtNode, Value, ValueNode};
 use crate::names::Name;
 
@@ -39,20 +40,20 @@ impl MirDiscoverer {
 
             self.names.push(name);
             if let Some(&def) = defs.get(&name) {
-                self.discover_exprs(&def.bind);
+                self.discover_block(&def.bind);
             } else if let Some(value) = decls.values.get(&name) {
-                self.discover_value(value);
+                self.discover_static_value(value);
             } else if let Some((_, body)) = decls.functions.get(&name) {
-                self.discover_exprs(body);
+                self.discover_block(body);
             }
         }
 
         trace!("discovered {} names reachable from entry", self.names.len());
     }
 
-    fn discover_exprs(&mut self, exprs: &Block) {
+    fn discover_block(&mut self, exprs: &Block) {
         for expr in exprs.exprs.iter() {
-            self.discover_expr(expr);
+            self.discover_stmt(expr);
         }
 
         match &exprs.branch.node {
@@ -66,10 +67,10 @@ impl MirDiscoverer {
         }
     }
 
-    fn discover_expr(&mut self, expr: &Statement) {
+    fn discover_stmt(&mut self, expr: &Statement) {
         match &expr.node {
             StmtNode::Function { body, .. } => {
-                self.discover_exprs(body);
+                self.discover_block(body);
             }
 
             StmtNode::Apply { fun, args, .. } => {
@@ -86,6 +87,13 @@ impl MirDiscoverer {
             StmtNode::Proj { of, .. } => {
                 self.worklist.push(*of);
             }
+        }
+    }
+
+    fn discover_static_value(&mut self, value: &StaticValue) {
+        match &value.node {
+            StaticValueNode::Int(_) => {}
+            StaticValueNode::LateInit(block) => self.discover_block(block),
         }
     }
 

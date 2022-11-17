@@ -4,7 +4,10 @@ use std::collections::HashMap;
 
 pub use check::check;
 pub use discover::discover;
-pub use tree::{Block, Branch, BranchNode, Decls, Statement, StmtNode, Value, ValueDef, ValueNode};
+pub use tree::{
+    Block, Branch, BranchNode, Decls, Statement, StaticValue, StaticValueNode, StmtNode, Value,
+    ValueDef, ValueNode,
+};
 pub use types::Types;
 
 mod check;

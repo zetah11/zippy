@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use log::{debug, trace};
 
 use common::message::{Messages, Span};
-use common::mir::{Block, BranchNode, Context, Decls, Statement, StmtNode, Value, ValueNode};
+use common::mir::{
+    Block, Branch, BranchNode, Context, Decls, Statement, StaticValue, StaticValueNode, StmtNode,
+    Value, ValueNode,
+};
 use common::names::{Name, Names};
 use common::Driver;
 
@@ -46,7 +49,7 @@ pub struct Hoist<'a, D> {
     _context: &'a mut Context,
 
     functions: HashMap<Name, (Vec<Name>, Block)>,
-    values: HashMap<Name, Value>,
+    values: HashMap<Name, StaticValue>,
 }
 
 impl<D: Driver> Hoist<'_, D> {
@@ -61,22 +64,7 @@ impl<D: Driver> Hoist<'_, D> {
         }
 
         for def in decls.defs {
-            let mut init = Vec::new();
-            let bind_span = def.bind.span;
-            let bind_ty = def.bind.ty;
-            self.hoist_value(def.name, &mut init, &free_vars, def.bind);
-
-            if !init.is_empty() {
-                messages.at(bind_span).elab_requires_init();
-                self.values.insert(
-                    def.name,
-                    Value {
-                        node: ValueNode::Invalid,
-                        span: bind_span,
-                        ty: bind_ty,
-                    },
-                );
-            }
+            self.hoist_value(def.name, &free_vars, def.bind);
         }
 
         self.driver.report(messages);
@@ -85,10 +73,11 @@ impl<D: Driver> Hoist<'_, D> {
     fn hoist_value(
         &mut self,
         name_for: Name,
-        within: &mut Vec<Statement>,
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
         exprs: Block,
     ) {
+        let mut init = Vec::with_capacity(exprs.exprs.len());
+
         for expr in exprs.exprs {
             match expr.node {
                 StmtNode::Function { name, params, body } => {
@@ -99,7 +88,7 @@ impl<D: Driver> Hoist<'_, D> {
                 StmtNode::Join { .. } => todo!(),
 
                 node => {
-                    within.push(Statement {
+                    init.push(Statement {
                         node,
                         span: expr.span,
                         ty: expr.ty,
@@ -109,27 +98,50 @@ impl<D: Driver> Hoist<'_, D> {
         }
 
         let value = match exprs.branch.node {
-            BranchNode::Return(values) => {
-                if values.len() == 1 {
-                    match values[0].node {
-                        ValueNode::Int(_) | ValueNode::Invalid => values[0].clone(),
+            BranchNode::Jump(..) => todo!(),
+            BranchNode::Return(mut values) => {
+                if values.len() != 1 {
+                    // tuple shenanigans?
+                    todo!()
+                } else {
+                    let value = values.remove(0);
+                    let span = value.span;
+                    let ty = value.ty;
+                    let node = match value.node {
+                        ValueNode::Int(i) => StaticValueNode::Int(i),
+                        ValueNode::Invalid => {
+                            let node = BranchNode::Return(vec![value]);
+                            let branch = Branch { node, span, ty };
+                            StaticValueNode::LateInit(Block {
+                                exprs: init,
+                                branch,
+                                span,
+                                ty,
+                            })
+                        }
                         ValueNode::Name(name) => {
                             if let Some(function) = self.functions.get(&name) {
                                 self.functions.insert(name_for, function.clone());
                                 return;
                             } else if let Some(value) = self.values.get(&name) {
-                                value.clone()
+                                self.values.insert(name_for, value.clone());
+                                return;
                             } else {
-                                todo!()
+                                let node = BranchNode::Return(vec![value]);
+                                let branch = Branch { node, span, ty };
+                                StaticValueNode::LateInit(Block {
+                                    exprs: init,
+                                    branch,
+                                    span,
+                                    ty,
+                                })
                             }
                         }
-                    }
-                } else {
-                    todo!()
+                    };
+
+                    StaticValue { node, span, ty }
                 }
             }
-
-            BranchNode::Jump(..) => todo!(),
         };
 
         self.values.insert(name_for, value);
@@ -151,11 +163,25 @@ impl<D: Driver> Hoist<'_, D> {
                         .unwrap_or(false);
 
                     if invalid {
-                        let bind = Value {
+                        let span = expr.span;
+                        let ty = expr.ty;
+                        let value = Value {
                             node: ValueNode::Invalid,
-                            span: expr.span,
-                            ty: expr.ty,
+                            span,
+                            ty,
                         };
+
+                        let node = BranchNode::Return(vec![value]);
+                        let branch = Branch { node, span, ty };
+
+                        let node = StaticValueNode::LateInit(Block {
+                            exprs: vec![],
+                            branch,
+                            span,
+                            ty,
+                        });
+
+                        let bind = StaticValue { node, span, ty };
 
                         self.values.insert(name, bind);
                         continue;

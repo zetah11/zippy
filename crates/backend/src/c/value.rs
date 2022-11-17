@@ -1,4 +1,5 @@
-use common::mir::{Value, ValueNode};
+use common::mir::{StaticValue, StaticValueNode, Value, ValueNode};
+use common::names::Name;
 
 use super::Emitter;
 use crate::mangle::mangle;
@@ -10,5 +11,18 @@ impl Emitter<'_> {
             ValueNode::Name(name) => mangle(self.names, &name),
             ValueNode::Invalid => "0".to_owned(),
         }
+    }
+
+    pub fn emit_static_value(&mut self, ctx: Name, value: StaticValue) -> Option<String> {
+        Some(match value.node {
+            StaticValueNode::Int(i) => format!("{i}"),
+            StaticValueNode::LateInit(block) => {
+                let init = self.emit_block(ctx, Some(ctx), block);
+                let init = init.join("\n\t");
+                self.inits.push_str(&format!("\t{init}\n"));
+
+                return None;
+            }
+        })
     }
 }

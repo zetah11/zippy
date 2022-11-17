@@ -1,6 +1,6 @@
 use crate::names::{Actual, Names};
 
-use super::tree::{Branch, BranchNode};
+use super::tree::{Branch, BranchNode, StaticValue, StaticValueNode};
 use super::{
     Block, Decls, Name, Statement, StmtNode, Type, TypeId, Types, Value, ValueDef, ValueNode,
 };
@@ -37,7 +37,7 @@ impl<'a> Prettier<'a> {
 
     #[must_use]
     pub fn pretty_exprs(&'a self, expr: &Block) -> String {
-        let doc = self.doc_expr_seq(None, expr);
+        let doc = self.doc_block(None, expr);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
@@ -67,12 +67,12 @@ impl<'a> Prettier<'a> {
                 .map(|def| self.doc_valuedef(None, def))
                 .chain(decls.values.iter().map(|(name, value)| {
                     self.doc_let(None, name)
-                        .append(self.doc_value(Some(name), value))
+                        .append(self.doc_static_value(Some(name), value))
                         .nest(2)
                 }))
                 .chain(decls.functions.iter().map(|(name, (param, body))| {
                     self.doc_fun(None, "fun", name, param)
-                        .append(self.doc_expr_seq(Some(name), body))
+                        .append(self.doc_block(Some(name), body))
                         .nest(2)
                 })),
             self.allocator.hardline(),
@@ -80,7 +80,7 @@ impl<'a> Prettier<'a> {
     }
 
     fn doc_valuedef(&'a self, within: Option<&Name>, def: &ValueDef) -> DocBuilder<Arena<'a>> {
-        let bind = self.doc_expr_seq(Some(&def.name), &def.bind);
+        let bind = self.doc_block(Some(&def.name), &def.bind);
         self.allocator
             .text("let ")
             .append(self.doc_name(within, &def.name))
@@ -116,7 +116,7 @@ impl<'a> Prettier<'a> {
         }
     }
 
-    fn doc_expr_seq(&'a self, within: Option<&Name>, exprs: &Block) -> DocBuilder<Arena<'a>> {
+    fn doc_block(&'a self, within: Option<&Name>, exprs: &Block) -> DocBuilder<Arena<'a>> {
         self.allocator
             .intersperse(
                 exprs
@@ -153,16 +153,16 @@ impl<'a> Prettier<'a> {
         match &expr.node {
             StmtNode::Join { name, param, body } => self
                 .doc_fun(within, "join", name, &[*param])
-                .append(self.doc_expr_seq(Some(name), body))
+                .append(self.doc_block(Some(name), body))
                 .group(),
             StmtNode::Function { name, params, body } => {
                 let fun = self
                     .doc_fun(within, "fun", name, params)
-                    .append(self.doc_expr_seq(Some(name), body));
+                    .append(self.doc_block(Some(name), body));
 
                 fun.flat_alt(
                     self.doc_fun(within, "fun", name, params)
-                        .append(self.doc_expr_seq(Some(name), body).parens()),
+                        .append(self.doc_block(Some(name), body).parens()),
                 )
             }
             StmtNode::Apply { names, fun, args } => self
@@ -240,6 +240,17 @@ impl<'a> Prettier<'a> {
             .append(self.doc_name(within, name))
             .append(" =")
             .append(self.allocator.space())
+    }
+
+    fn doc_static_value(
+        &'a self,
+        within: Option<&Name>,
+        value: &StaticValue,
+    ) -> DocBuilder<Arena<'a>> {
+        match &value.node {
+            StaticValueNode::Int(i) => self.allocator.text(format!("{i}")),
+            StaticValueNode::LateInit(block) => self.doc_block(within, block),
+        }
     }
 
     fn doc_value(&'a self, within: Option<&Name>, value: &Value) -> DocBuilder<Arena<'a>> {
