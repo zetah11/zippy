@@ -29,11 +29,15 @@ pub fn emit(
 
 #[derive(Debug)]
 struct Emitter<'a> {
-    res: String,
+    includes: HashSet<&'static str>,
     inits: String,
+    res: String,
     typedefs: String,
+
     type_map: HashMap<TypeId, String>,
     type_name: usize,
+
+    has_invalid: bool,
 
     names: &'a mut Names,
     types: &'a Types,
@@ -43,11 +47,15 @@ struct Emitter<'a> {
 impl<'a> Emitter<'a> {
     pub fn new(names: &'a mut Names, types: &'a Types, context: &'a Context) -> Self {
         Self {
-            res: String::new(),
             inits: String::new(),
+            includes: HashSet::new(),
+            res: String::new(),
             typedefs: String::new(),
+
             type_map: HashMap::new(),
             type_name: 0,
+
+            has_invalid: false,
 
             names,
             types,
@@ -55,9 +63,16 @@ impl<'a> Emitter<'a> {
         }
     }
 
-    pub fn build(mut self) -> String {
-        self.typedefs.push_str(&self.res);
-        self.typedefs
+    pub fn build(self) -> String {
+        let mut result = String::new();
+        for include in self.includes {
+            result.push_str(&format!("#include <{include}>\n"));
+        }
+
+        result.push_str(&self.typedefs);
+        result.push_str(&self.res);
+
+        result
     }
 
     pub fn emit_decls(&mut self, entry: Option<Name>, decls: Decls) {
@@ -186,5 +201,21 @@ impl<'a> Emitter<'a> {
 
     fn define(&mut self, name: &str, pre: &str, post: &str) {
         self.res.push_str(&format!("static {pre} {name}{post}"));
+    }
+
+    fn invalid(&mut self) -> &'static str {
+        let name = "invalid";
+
+        if !self.has_invalid {
+            self.has_invalid = true;
+
+            self.includes.insert("signal.h");
+            self.res.push_str("void * invalid(void) {\n");
+            self.res.push_str("\traise(SIGABRT);\n");
+            self.res.push_str("\treturn (void *) 0;\n");
+            self.res.push_str("}\n");
+        }
+
+        name
     }
 }
