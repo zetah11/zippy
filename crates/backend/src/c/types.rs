@@ -35,12 +35,12 @@ impl Emitter<'_> {
             Type::Range(lo, hi) => {
                 let ty = range_to_type! {
                     *lo, *hi,
-                    i8 => "signed char",
                     u8 => "unsigned char",
-                    i16 => "signed short",
+                    i8 => "signed char",
                     u16 => "unsigned short",
-                    i32 => "int",
+                    i16 => "signed short",
                     u32 => "unsigned",
+                    i32 => "int",
                     i64 => "long long",
                     else => unreachable!()
                 };
