@@ -49,7 +49,7 @@ impl Emitter<'_> {
             }
 
             Type::Product(ties) => {
-                let ty = self.make_struct(ties);
+                let ty = self.make_struct(&ties.clone());
                 let name = self.fresh_typename();
 
                 self.typedef(&name, &ty, "");
@@ -57,10 +57,12 @@ impl Emitter<'_> {
             }
 
             Type::Fun(args, rets) => {
+                let args = args.clone();
+                let rets = rets.clone();
                 let ret = match &rets[..] {
                     [] => "void".into(),
                     [ret] => self.typename(ret).into(),
-                    _ => self.make_struct(rets),
+                    _ => self.make_struct(&rets),
                 };
 
                 let args: Vec<_> = args

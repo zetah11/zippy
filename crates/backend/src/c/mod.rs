@@ -12,7 +12,7 @@ use crate::mangle::mangle;
 
 pub fn emit(
     names: &mut Names,
-    types: &Types,
+    types: &mut Types,
     context: &Context,
     entry: Option<Name>,
     decls: Decls,
@@ -40,12 +40,12 @@ struct Emitter<'a> {
     has_invalid: bool,
 
     names: &'a mut Names,
-    types: &'a Types,
+    types: &'a mut Types,
     context: &'a Context,
 }
 
 impl<'a> Emitter<'a> {
-    pub fn new(names: &'a mut Names, types: &'a Types, context: &'a Context) -> Self {
+    pub fn new(names: &'a mut Names, types: &'a mut Types, context: &'a Context) -> Self {
         Self {
             inits: String::new(),
             includes: HashSet::new(),
@@ -168,20 +168,28 @@ impl<'a> Emitter<'a> {
         let mangled = mangle(self.names, name);
 
         let ty = self.context.get(name);
-        let Type::Fun(args, rets) = self.types.get(&ty) else { unreachable!(); };
+        let Type::Fun(args, mut rets) = self.types.get(&ty).clone() else { unreachable!(); };
 
         let ret = match &rets[..] {
             [] => "void".to_string(),
-            [ret] => self.typename(ret).to_string(),
-            _ => self.make_struct(rets),
+
+            [_] => {
+                let ret = rets.remove(0);
+                self.typename(&ret).to_string()
+            }
+
+            _ => {
+                let ret = self.types.add(Type::Product(rets));
+                self.typename(&ret).to_string()
+            }
         };
 
         let args: Vec<_> = args
-            .iter()
+            .into_iter()
             .zip(params.iter())
             .map(|(ty, name)| {
                 let name = mangle(self.names, name);
-                let ty = self.typename(ty);
+                let ty = self.typename(&ty);
                 format!("{ty} {name}")
             })
             .collect();

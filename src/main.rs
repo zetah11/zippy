@@ -37,9 +37,9 @@ fn main() -> anyhow::Result<()> {
         entry,
     } = parse(&mut driver, src, file);
 
-    let (types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
+    let (mut types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
-    let code = emit(&mut names, &types, &context, entry, decls);
+    let code = emit(&mut names, &mut types, &context, entry, decls);
     let _exec = compile(&args, &target, code)?;
 
     Ok(())
