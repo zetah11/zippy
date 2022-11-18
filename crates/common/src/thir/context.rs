@@ -117,19 +117,15 @@ impl IntoIterator for Context {
 
 pub fn merge_insts(a: &HashMap<Name, Type>, b: &HashMap<Name, Type>) -> HashMap<Name, Type> {
     let mut res = HashMap::with_capacity(a.len() + b.len());
-    for (name, ty) in a.iter() {
-        // hmmm.. not sure if this is right
-        if let Some(other) = res.remove(name) {
-            assert_eq!(&other, ty);
-        }
 
+    // As we merge, it might be that there are duplicates in `a` or `b`. I *think* if
+    // this happens, then the unifier must have unified the two types such that it doesn't
+    // matter which one we actually use.
+    for (name, ty) in a.iter() {
         res.insert(*name, ty.clone());
     }
-    for (name, ty) in b.iter() {
-        if let Some(other) = res.remove(name) {
-            assert_eq!(&other, ty);
-        }
 
+    for (name, ty) in b.iter() {
         res.insert(*name, ty.clone());
     }
     res

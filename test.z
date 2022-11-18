@@ -1,4 +1,4 @@
 -- in test.z
-fun main (?: 1) = x
+fun f (x: 10) = x
 fun id |T| (x: T) = x
-let x: 10 = id 5
+fun main (?: 1) = id id f 9

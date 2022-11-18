@@ -1,4 +1,5 @@
 use common::thir::{Because, TypeOrSchema};
+use log::trace;
 
 use super::{Expr, ExprNode, Type, Typer};
 
@@ -11,8 +12,11 @@ impl Typer<'_> {
                 let (ty, vars) = self.context.instantiate(&ty);
 
                 if vars.is_empty() {
+                    trace!("inferring monomorphic name");
                     (ExprNode::Name(name), ty)
                 } else {
+                    trace!("inferring polymorphic name");
+
                     let args = vars
                         .into_iter()
                         .map(|var| (ex.span, Type::mutable(var)))
@@ -29,12 +33,14 @@ impl Typer<'_> {
             }
 
             ExprNode::Int(i) => {
+                trace!("inferring int");
                 let var = self.context.fresh();
                 self.int_type(ex.span, Because::Unified(ex.span), Type::mutable(var));
                 (ExprNode::Int(i), Type::mutable(var))
             }
 
             ExprNode::Tuple(a, b) => {
+                trace!("inferring tuple");
                 let t = self.context.fresh();
                 let u = self.context.fresh();
                 let a =
@@ -48,6 +54,7 @@ impl Typer<'_> {
             }
 
             ExprNode::Lam(param, body) => {
+                trace!("inferring lambda");
                 let param = self.bind_fresh(param);
                 let body = Box::new(self.infer(*body));
 
@@ -59,13 +66,16 @@ impl Typer<'_> {
             }
 
             ExprNode::App(fun, arg) => {
+                trace!("inferring application");
                 let fun = self.infer(*fun);
                 let (t, u) = self.fun_type(ex.span, fun.data.clone());
+                trace!("checking argument of app against {}", self.pretty(&t));
                 let arg = self.check(Because::Inferred(fun.span, None), *arg, t);
                 (ExprNode::App(Box::new(fun), Box::new(arg)), u)
             }
 
             ExprNode::Inst(fun, args) => {
+                trace!("inferring instantiation");
                 let ExprNode::Name(name) = fun.node else {
                     self.messages.at(fun.span).tyck_instantiate_non_name();
                     return self.infer(*fun);
@@ -80,14 +90,15 @@ impl Typer<'_> {
                         schema.clone()
                     }
                     TypeOrSchema::Type(ty) => {
-                        let pretty_type = self.pretty(ty);
+                        let ty = ty.clone();
+                        let pretty_type = self.pretty(&ty);
                         self.messages
                             .at(ex.span)
                             .tyck_instantiate_not_generic(Some(pretty_type));
                         return Expr {
                             node: ExprNode::Name(name),
                             span: ex.span,
-                            data: ty.clone(),
+                            data: ty,
                         };
                     }
                 };
@@ -111,10 +122,14 @@ impl Typer<'_> {
             }
 
             ExprNode::Anno(ex, anno_span, ty) => {
+                trace!("inferring annotation");
                 return self.check(Because::Annotation(anno_span), *ex, ty);
             }
 
-            ExprNode::Hole => (ExprNode::Hole, Type::mutable(self.context.fresh())),
+            ExprNode::Hole => {
+                trace!("inferring hole");
+                (ExprNode::Hole, Type::mutable(self.context.fresh()))
+            }
 
             ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
         };

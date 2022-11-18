@@ -5,7 +5,7 @@ mod pretty;
 mod tree;
 mod types;
 
-pub use self::pretty::pretty_type;
+pub use self::pretty::{pretty_type, PrettyMap};
 pub use because::Because;
 pub use constraint::Constraint;
 pub use context::{merge_insts, Context, TypeOrSchema};

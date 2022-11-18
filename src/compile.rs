@@ -41,8 +41,13 @@ pub fn compile(args: &Arguments, target: &Triple, code: String) -> anyhow::Resul
     if output.status.success() {
         Ok(PathBuf::from(exec_name.as_ref()))
     } else {
-        Err(anyhow::anyhow!(
-            "compiler unsuccessful. output: '{output:?}'"
-        ))
+        let output = if output.stderr.is_empty() {
+            String::from_utf8_lossy(&output.stdout)
+        } else {
+            String::from_utf8_lossy(&output.stderr)
+        }
+        .to_string();
+
+        Err(anyhow::anyhow!("compiler unsuccessful. output:\n{output}"))
     }
 }

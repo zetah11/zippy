@@ -9,8 +9,8 @@ use log::{info, trace};
 use common::message::Messages;
 use common::names::{Name, Names};
 use common::thir::{
-    pretty_type, Because, Constraint, Context, Decls, Expr, ExprNode, Mutability, Pat, PatNode,
-    Type, TypeckResult, ValueDef,
+    Because, Constraint, Context, Decls, Expr, ExprNode, Mutability, Pat, PatNode, Type,
+    TypeckResult, ValueDef,
 };
 use common::{hir, Driver};
 
@@ -22,6 +22,8 @@ pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) 
     let mut typer = Typer::new(names);
     let decls = typer.lower(decls);
     let decls = typer.typeck(decls);
+
+    info!("solving {} constraints", typer.constraints.len());
     typer.solve();
 
     typer.messages.merge(typer.unifier.messages);
@@ -40,7 +42,6 @@ pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) 
 #[derive(Debug)]
 struct Typer<'a> {
     pub messages: Messages,
-    names: &'a Names,
     context: Context,
     unifier: Unifier<'a>,
     constraints: Vec<Constraint>,
@@ -50,7 +51,6 @@ impl<'a> Typer<'a> {
     pub fn new(names: &'a Names) -> Self {
         Self {
             messages: Messages::new(),
-            names,
             context: Context::new(),
             unifier: Unifier::new(names),
             constraints: Vec::new(),
@@ -136,13 +136,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn pretty(&self, ty: &Type) -> String {
-        let subst = self
-            .unifier
-            .subst
-            .iter()
-            .map(|(var, (_, ty))| (*var, ty))
-            .collect();
-        pretty_type(self.names, &subst, ty)
+    fn pretty(&mut self, ty: &Type) -> String {
+        self.unifier.pretty(ty)
     }
 }

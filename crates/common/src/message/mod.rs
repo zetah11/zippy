@@ -28,6 +28,14 @@ impl Messages {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.msgs.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.msgs.len()
+    }
+
     pub fn merge(&mut self, other: Messages) {
         self.msgs.extend(other.msgs);
     }

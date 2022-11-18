@@ -1,12 +1,13 @@
-use std::collections::HashMap;
-
-use common::names::Name;
-pub use unify::Unifier;
-
 mod unify;
 
+pub use unify::Unifier;
+
+use std::collections::HashMap;
+
 use common::message::Span;
+use common::names::Name;
 use common::thir::{merge_insts, Because, Constraint};
+use log::trace;
 
 use super::{Type, Typer};
 
@@ -14,6 +15,11 @@ impl Typer<'_> {
     /// Check if `from` can be given where `into` is expected (i.e. if `from` is wider than `into`), and return the
     /// widest type.
     pub fn assignable(&mut self, span: Span, into: Type, from: Type) {
+        trace!(
+            "assignability? {} <- {}",
+            self.pretty(&into),
+            self.pretty(&from)
+        );
         self.unifier.unify(span, into, from);
         let constraints: Vec<_> = self
             .unifier
@@ -71,7 +77,11 @@ impl Typer<'_> {
             Type::Range(lo, hi) => Type::Range(lo, hi),
             Type::Invalid => Type::Invalid,
 
-            Type::Instantiated(ty, inst) => self.check_int_type(span, because, &inst, *ty),
+            Type::Instantiated(ty, other_inst) => {
+                let inst = merge_insts(inst, &other_inst);
+                let ty = self.check_int_type(span, because, &inst, *ty);
+                Type::Instantiated(Box::new(ty), inst)
+            }
 
             Type::Var(mutable, v) => {
                 if let Some((other_inst, ty)) = self.unifier.subst.get(&v) {
