@@ -57,7 +57,11 @@ impl Emitter<'_> {
             }
 
             Type::Fun(args, rets) => {
-                let ret = self.make_struct(rets);
+                let ret = match &rets[..] {
+                    [] => "void".into(),
+                    [ret] => self.typename(ret).into(),
+                    _ => self.make_struct(rets),
+                };
 
                 let args: Vec<_> = args
                     .iter()
