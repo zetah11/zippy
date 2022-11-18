@@ -32,11 +32,17 @@ pub fn compile(args: &Arguments, target: &Triple, code: String) -> anyhow::Resul
         .warnings(false);
 
     let tool = build.get_compiler();
-    let _output = tool
+    let output = tool
         .to_command()
         .current_dir(artifacts)
         .arg(code_path.strip_prefix(artifacts).unwrap())
         .output()?;
 
-    Ok(PathBuf::from(exec_name.as_ref()))
+    if output.status.success() {
+        Ok(PathBuf::from(exec_name.as_ref()))
+    } else {
+        Err(anyhow::anyhow!(
+            "compiler unsuccessful. output: '{output:?}'"
+        ))
+    }
 }
