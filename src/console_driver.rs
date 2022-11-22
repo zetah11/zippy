@@ -37,7 +37,7 @@ impl ConsoleDriver {
             partial_eval: if env::var("COR_NO_EVAL").is_ok() || args.no_eval {
                 EvalAmount::None
             } else {
-                EvalAmount::Full
+                EvalAmount::Types
             },
         }
     }
