@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use common::mir::{self, pretty::Prettier, BranchNode, StmtNode};
 use log::trace;
 
-use super::{Env, Error, Frame, InstructionPlace, Interpreter, Place, Value, StateAction};
+use super::{Env, Error, Frame, InstructionPlace, Interpreter, Place, StateAction, Value};
 
 impl Interpreter<'_> {
     pub(super) fn single_step(&mut self) -> Result<(), Error> {
@@ -62,7 +62,7 @@ impl Interpreter<'_> {
         at: InstructionPlace,
     ) -> Result<(), Error> {
         let block = self.block_of_or_top_level(&place);
-        let stmt = block.exprs.get(index).unwrap().clone();
+        let stmt = block.stmts.get(index).unwrap().clone();
 
         match (stmt.node, at) {
             (StmtNode::Apply { fun, args, .. }, InstructionPlace::Execute) => {
@@ -145,7 +145,10 @@ impl Interpreter<'_> {
                         frame.env.add(param, Value::Quoted(param));
                     }
 
-                    let mut state = self.current().unwrap().split(StateAction::StoreGlobal(name));
+                    let mut state = self
+                        .current()
+                        .unwrap()
+                        .split(StateAction::StoreGlobal(name));
                     state.enter(frame);
 
                     vec![state]
@@ -182,7 +185,7 @@ impl Interpreter<'_> {
                 Place::Instruction(name, index, InstructionPlace::Bind)
             }
             Place::Instruction(name, index, InstructionPlace::Bind)
-                if index < block.exprs.len() - 1 =>
+                if index < block.stmts.len() - 1 =>
             {
                 Place::Instruction(name, index + 1, InstructionPlace::Execute)
             }

@@ -161,7 +161,7 @@ impl Lowerer<'_> {
         let bind = Block {
             ty,
             span,
-            exprs: vec![binding],
+            stmts: vec![binding],
             branch: ret,
         };
 

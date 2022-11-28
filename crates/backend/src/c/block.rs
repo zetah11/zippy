@@ -10,7 +10,7 @@ impl Emitter<'_> {
     pub fn emit_block(&mut self, ctx: Name, write_to: Option<Name>, block: Block) -> Vec<String> {
         let mut res = Vec::new();
 
-        for stmt in block.exprs {
+        for stmt in block.stmts {
             res.extend(self.emit_stmt(ctx, stmt));
         }
 

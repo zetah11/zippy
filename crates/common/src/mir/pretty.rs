@@ -120,7 +120,7 @@ impl<'a> Prettier<'a> {
         self.allocator
             .intersperse(
                 exprs
-                    .exprs
+                    .stmts
                     .iter()
                     .map(|expr| self.doc_expr(within, expr).nest(2))
                     .chain(std::iter::once(

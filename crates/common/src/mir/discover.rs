@@ -52,7 +52,7 @@ impl MirDiscoverer {
     }
 
     fn discover_block(&mut self, exprs: &Block) {
-        for expr in exprs.exprs.iter() {
+        for expr in exprs.stmts.iter() {
             self.discover_stmt(expr);
         }
 

@@ -57,9 +57,9 @@ impl<'a> Flattener<'a> {
         let ty = self.flatten_type(&ty);
         self.context.replace(*name, ty);
 
-        let mut exprs = Vec::with_capacity(bind.exprs.len());
+        let mut exprs = Vec::with_capacity(bind.stmts.len());
 
-        for expr in bind.exprs {
+        for expr in bind.stmts {
             let node = match expr.node {
                 StmtNode::Tuple { name, values } => {
                     let values: Vec<_> = values
@@ -176,7 +176,7 @@ impl<'a> Flattener<'a> {
         let ty = self.flatten_type(&bind.ty);
 
         Block {
-            exprs,
+            stmts: exprs,
             branch,
             ty,
             ..bind

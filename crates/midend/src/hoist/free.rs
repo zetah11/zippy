@@ -44,7 +44,7 @@ impl Freer {
 
         bound.extend(params.iter().copied());
 
-        for expr in body.exprs.iter() {
+        for expr in body.stmts.iter() {
             match &expr.node {
                 StmtNode::Join { name, param, body } => {
                     bound.insert(*name);

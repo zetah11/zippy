@@ -21,7 +21,7 @@ impl Lowerer<'_> {
         Block {
             ty,
             span,
-            exprs,
+            stmts: exprs,
             branch,
         }
     }
@@ -105,8 +105,8 @@ impl Lowerer<'_> {
 
                 // Insert parameter destructuring
                 let (param, mut destructuring) = self.destruct_local(inst, name, param);
-                destructuring.extend(body.exprs);
-                body.exprs = destructuring;
+                destructuring.extend(body.stmts);
+                body.stmts = destructuring;
 
                 let expr = StmtNode::Function {
                     name,

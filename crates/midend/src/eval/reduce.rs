@@ -11,7 +11,7 @@ impl<D: Driver> Lowerer<'_, D> {
 
         let mut new_exprs = Vec::new();
 
-        for expr in exprs.exprs {
+        for expr in exprs.stmts {
             let node = match expr.node {
                 StmtNode::Join { .. } => todo!(),
 
@@ -152,7 +152,7 @@ impl<D: Driver> Lowerer<'_, D> {
 
         Irreducible {
             node: IrreducibleNode::Quote(Block {
-                exprs: new_exprs,
+                stmts: new_exprs,
                 branch: Branch {
                     node: branch,
                     span: exprs.branch.span,
@@ -192,7 +192,7 @@ impl<D: Driver> Lowerer<'_, D> {
                         *param,
                         Irreducible {
                             node: IrreducibleNode::Quote(Block {
-                                exprs: vec![],
+                                stmts: vec![],
                                 branch: Branch {
                                     node: BranchNode::Return(vec![Value {
                                         node: ValueNode::Name(*param),
@@ -243,7 +243,7 @@ impl<D: Driver> Lowerer<'_, D> {
                     return value.clone();
                 } else {
                     IrreducibleNode::Quote(Block {
-                        exprs: vec![],
+                        stmts: vec![],
                         span: value.span,
                         ty: value.ty,
                         branch: Branch {

@@ -76,9 +76,9 @@ impl<D: Driver> Hoist<'_, D> {
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
         exprs: Block,
     ) {
-        let mut init = Vec::with_capacity(exprs.exprs.len());
+        let mut init = Vec::with_capacity(exprs.stmts.len());
 
-        for expr in exprs.exprs {
+        for expr in exprs.stmts {
             match expr.node {
                 StmtNode::Function { name, params, body } => {
                     let body = self.hoist_function(free_vars, body);
@@ -113,7 +113,7 @@ impl<D: Driver> Hoist<'_, D> {
                             let node = BranchNode::Return(vec![value]);
                             let branch = Branch { node, span, ty };
                             StaticValueNode::LateInit(Block {
-                                exprs: init,
+                                stmts: init,
                                 branch,
                                 span,
                                 ty,
@@ -130,7 +130,7 @@ impl<D: Driver> Hoist<'_, D> {
                                 let node = BranchNode::Return(vec![value]);
                                 let branch = Branch { node, span, ty };
                                 StaticValueNode::LateInit(Block {
-                                    exprs: init,
+                                    stmts: init,
                                     branch,
                                     span,
                                     ty,
@@ -152,9 +152,9 @@ impl<D: Driver> Hoist<'_, D> {
         free_vars: &HashMap<Name, Vec<(Name, Span)>>,
         exprs: Block,
     ) -> Block {
-        let mut res = Vec::with_capacity(exprs.exprs.len());
+        let mut res = Vec::with_capacity(exprs.stmts.len());
 
-        for expr in exprs.exprs {
+        for expr in exprs.stmts {
             match expr.node {
                 StmtNode::Function { name, params, body } => {
                     let invalid = free_vars
@@ -175,7 +175,7 @@ impl<D: Driver> Hoist<'_, D> {
                         let branch = Branch { node, span, ty };
 
                         let node = StaticValueNode::LateInit(Block {
-                            exprs: vec![],
+                            stmts: vec![],
                             branch,
                             span,
                             ty,

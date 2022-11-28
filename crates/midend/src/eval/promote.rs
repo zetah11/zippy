@@ -17,7 +17,7 @@ impl<D: Driver> Lowerer<'_, D> {
             let res = self.make_irr(&mut exprs, ctx, value);
 
             Block {
-                exprs,
+                stmts: exprs,
                 branch: Branch {
                     node: BranchNode::Return(res),
                     span,
@@ -67,7 +67,7 @@ impl<D: Driver> Lowerer<'_, D> {
             IrreducibleNode::Quote(exprs) => {
                 if let BranchNode::Return(ref values) = exprs.branch.node {
                     let values = values.clone();
-                    within.extend(exprs.exprs);
+                    within.extend(exprs.stmts);
                     return values;
                 } else {
                     unreachable!()

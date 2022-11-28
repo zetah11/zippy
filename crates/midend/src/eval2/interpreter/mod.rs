@@ -157,7 +157,7 @@ impl<'a> Interpreter<'a> {
         }
 
         match self.blocks.get(name) {
-            Some(block) if block.exprs.is_empty() => Place::Branch(*name),
+            Some(block) if block.stmts.is_empty() => Place::Branch(*name),
 
             Some(_) => Place::Instruction(*name, 0, InstructionPlace::Execute),
 

@@ -41,7 +41,7 @@ impl<'a> MirChecker<'a> {
     fn check_exprs(&mut self, exprs: &Block) {
         let retty = exprs.ty;
 
-        for expr in exprs.exprs.iter() {
+        for expr in exprs.stmts.iter() {
             self.check_expr(expr);
         }
 

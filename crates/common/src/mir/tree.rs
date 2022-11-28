@@ -31,7 +31,7 @@ pub struct ValueDef {
 
 #[derive(Clone, Debug)]
 pub struct Block {
-    pub exprs: Vec<Statement>,
+    pub stmts: Vec<Statement>,
     pub branch: Branch,
     pub span: Span,
     pub ty: TypeId,
@@ -40,7 +40,7 @@ pub struct Block {
 impl Block {
     pub fn new(span: Span, ty: TypeId, exprs: Vec<Statement>, branch: Branch) -> Self {
         Self {
-            exprs,
+            stmts: exprs,
             branch,
             span,
             ty,
