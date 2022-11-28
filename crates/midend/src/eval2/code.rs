@@ -31,4 +31,7 @@ pub enum Value {
 
     /// A function referenced by its name.
     Function(Name),
+
+    /// Some unevaluated value bound to the given name.
+    Quoted(Name),
 }

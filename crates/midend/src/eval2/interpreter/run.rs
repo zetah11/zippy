@@ -1,6 +1,6 @@
 use super::{Error, Interpreter};
 
-impl Interpreter {
+impl Interpreter<'_> {
     pub fn run(&mut self) -> Result<(), Error> {
         loop {
             match self.step() {

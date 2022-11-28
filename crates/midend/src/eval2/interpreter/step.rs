@@ -1,10 +1,11 @@
 use std::collections::hash_map::Entry;
 
-use common::mir::{BranchNode, StmtNode};
+use common::mir::{self, pretty::Prettier, BranchNode, StmtNode};
+use log::trace;
 
-use super::{Env, Error, Frame, InstructionPlace, Interpreter, Place, Value};
+use super::{Env, Error, Frame, InstructionPlace, Interpreter, Place, Value, StateAction};
 
-impl Interpreter {
+impl Interpreter<'_> {
     pub(super) fn single_step(&mut self) -> Result<(), Error> {
         let place = self.place().ok_or(Error::NothingLeft)?;
 
@@ -26,6 +27,8 @@ impl Interpreter {
 
         match &block.branch.node {
             BranchNode::Return(values) => {
+                trace!("evaluating return");
+
                 let return_values: Vec<_> = values
                     .clone()
                     .into_iter()
@@ -46,6 +49,7 @@ impl Interpreter {
             }
 
             BranchNode::Jump(..) => {
+                trace!("evaluating jump");
                 todo!()
             }
         }
@@ -62,6 +66,11 @@ impl Interpreter {
 
         match (stmt.node, at) {
             (StmtNode::Apply { fun, args, .. }, InstructionPlace::Execute) => {
+                trace!("evaluating apply {}(...)", {
+                    let prettier = Prettier::new(self.names, self.types);
+                    prettier.pretty_name(&fun)
+                });
+
                 let args: Vec<_> = args
                     .into_iter()
                     .map(|value| self.make_value(&value))
@@ -72,7 +81,18 @@ impl Interpreter {
                     env: Env::new(),
                 };
 
-                let params = self.functions.get(&fun).unwrap();
+                let Some(fun) = self.make_value(&mir::Value {
+                    ty: stmt.ty, // todo: type
+                    span: stmt.span,
+                    node: mir::ValueNode::Name(fun),
+                }) else {
+                    return Ok(())
+                };
+
+                let params = match fun {
+                    Value::Function(fun) => self.functions.get(&fun).unwrap(),
+                    _ => unreachable!(),
+                };
 
                 for (arg, param) in args.into_iter().zip(params.iter()) {
                     match arg {
@@ -89,6 +109,7 @@ impl Interpreter {
             }
 
             (StmtNode::Apply { names, .. }, InstructionPlace::Bind) => {
+                trace!("binding apply");
                 assert_eq!(names.len(), self.return_values.len());
 
                 let return_values: Vec<_> = self.return_values.drain(..).collect();
@@ -103,15 +124,41 @@ impl Interpreter {
             (StmtNode::Tuple { .. }, _) => todo!(),
 
             (StmtNode::Function { name, params, body }, InstructionPlace::Execute) => {
-                if let Entry::Vacant(e) = self.functions.entry(name) {
+                trace!("evaluating function {}", {
+                    let prettier = Prettier::new(self.names, self.types);
+                    prettier.pretty_name(&name)
+                });
+
+                let next = if let Entry::Vacant(e) = self.functions.entry(name) {
                     assert!(self.blocks.insert(name, body).is_none());
-                    e.insert(params);
-                }
+                    e.insert(params.clone());
+
+                    // Partially evaluate the function
+                    let place = self.place_of(&name);
+
+                    let mut frame = Frame {
+                        env: Env::new(),
+                        place,
+                    };
+
+                    for param in params {
+                        frame.env.add(param, Value::Quoted(param));
+                    }
+
+                    let mut state = self.current().unwrap().split(StateAction::StoreGlobal(name));
+                    state.enter(frame);
+
+                    vec![state]
+                } else {
+                    vec![]
+                };
 
                 self.next_place();
+                self.worklist.extend(next);
             }
 
             (StmtNode::Function { name, .. }, InstructionPlace::Bind) => {
+                trace!("binding function");
                 self.current_mut().unwrap().add(name, Value::Function(name));
                 self.next_place();
             }

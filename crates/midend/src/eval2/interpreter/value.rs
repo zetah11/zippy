@@ -1,8 +1,8 @@
 use common::mir;
 
-use super::{Env, Frame, Interpreter, Value};
+use super::{Env, Frame, Interpreter, StateAction, Value};
 
-impl Interpreter {
+impl Interpreter<'_> {
     /// Attempt to produce a [`Value`] from the given value. If the given value is an undefined, top-level name,
     /// this will return `None` and push that name to the worklist.
     pub fn make_value(&mut self, value: &mir::Value) -> Option<Value> {
@@ -16,7 +16,11 @@ impl Interpreter {
                 } else if self.functions.contains_key(name) {
                     Some(Value::Function(*name))
                 } else {
-                    self.worklist.push(self.current().unwrap().split());
+                    self.worklist.push(
+                        self.current()
+                            .unwrap()
+                            .split(StateAction::StoreGlobal(*name)),
+                    );
                     let place = self.place_of(name);
                     self.current_mut().unwrap().enter(Frame {
                         env: Env::new(),

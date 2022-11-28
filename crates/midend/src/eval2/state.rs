@@ -3,6 +3,16 @@ use common::names::Name;
 use super::code::{Place, Value};
 use super::env::Env;
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum StateAction {
+    /// Store the result in a global.
+    StoreGlobal(Name),
+
+    /// Do nothing in particular.
+    #[default]
+    Nothing,
+}
+
 #[derive(Debug)]
 pub struct Frame {
     /// The current location of the interpreter.
@@ -14,22 +24,25 @@ pub struct Frame {
 pub struct State {
     pub frames: Vec<Frame>,
     pub globals: Env,
+    pub action: StateAction,
 }
 
 impl State {
-    /// Create an empty [`State`].
-    pub fn new() -> Self {
+    /// Create an empty [`State`] with the given [`StateAction`]
+    pub fn new(action: StateAction) -> Self {
         Self {
             frames: Vec::new(),
             globals: Env::new(),
+            action,
         }
     }
 
-    /// Create a new [`State`] which includes the globals of this one.
-    pub fn split(&self) -> Self {
+    /// Create a new [`State`] with the given [`StateAction`] which includes the globals of this one.
+    pub fn split(&self, action: StateAction) -> Self {
         Self {
             frames: Vec::new(),
             globals: self.globals.clone(),
+            action,
         }
     }
 

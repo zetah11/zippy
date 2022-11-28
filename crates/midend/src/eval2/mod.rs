@@ -4,13 +4,13 @@ mod interpreter;
 mod result;
 mod state;
 
-use common::mir::Decls;
-use common::names::Name;
+use common::mir::{Decls, Types};
+use common::names::{Name, Names};
 
 use self::interpreter::Interpreter;
 
-pub fn evaluate(entry: Option<Name>, decls: Decls) {
-    let mut interp = Interpreter::new(decls);
+pub fn evaluate(names: &Names, types: &Types, entry: Option<Name>, decls: Decls) {
+    let mut interp = Interpreter::new(names, types, decls);
     if let Some(name) = entry {
         interp.entry(name);
     }

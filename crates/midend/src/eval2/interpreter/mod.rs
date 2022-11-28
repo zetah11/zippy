@@ -4,16 +4,16 @@ mod value;
 
 use std::collections::HashMap;
 
-use common::mir::{Block, Decls, StaticValue, StaticValueNode};
-use common::names::Name;
+use common::mir::{Block, Decls, StaticValue, StaticValueNode, Types};
+use common::names::{Name, Names};
 
 use super::code::{InstructionPlace, Place, Value};
 use super::env::Env;
 use super::result::Error;
-use super::state::{Frame, State};
+use super::state::{Frame, State, StateAction};
 
 #[derive(Debug)]
-pub struct Interpreter {
+pub struct Interpreter<'a> {
     decls: Decls,
     worklist: Vec<State>,
     return_values: Vec<Value>,
@@ -24,10 +24,13 @@ pub struct Interpreter {
 
     /// Stores the names of parameters for functions. The actual function body is in a `block`.
     functions: HashMap<Name, Vec<Name>>,
+
+    names: &'a Names,
+    types: &'a Types,
 }
 
-impl Interpreter {
-    pub fn new(decls: Decls) -> Self {
+impl<'a> Interpreter<'a> {
+    pub fn new(names: &'a Names, types: &'a Types, decls: Decls) -> Self {
         Self {
             decls,
             worklist: Vec::new(),
@@ -35,11 +38,14 @@ impl Interpreter {
 
             blocks: HashMap::new(),
             functions: HashMap::new(),
+
+            names,
+            types,
         }
     }
 
     pub fn entry(&mut self, name: Name) {
-        let mut state = State::new();
+        let mut state = State::new(StateAction::Nothing);
         let place = self.place_of(&name);
         let frame = Frame {
             env: Env::new(),
@@ -90,9 +96,19 @@ impl Interpreter {
     // Merge the two topmost states. If there's only one left, removes it from the worklist.
     fn merge_down(&mut self) {
         if self.worklist.len() < 2 {
+            // todo: do something about the state action here too?
             let _ = self.worklist.pop();
         } else {
-            let top = self.worklist.pop().unwrap();
+            let mut top = self.worklist.pop().unwrap();
+
+            match top.action {
+                StateAction::Nothing => {}
+                StateAction::StoreGlobal(name) => {
+                    assert!(self.return_values.len() == 1);
+                    top.add_global(name, self.return_values.pop().unwrap());
+                }
+            }
+
             self.worklist.last_mut().unwrap().merge(top);
         }
     }
@@ -140,6 +156,12 @@ impl Interpreter {
             self.top_level(*name);
         }
 
-        Place::Instruction(*name, 0, InstructionPlace::Execute)
+        match self.blocks.get(name) {
+            Some(block) if block.exprs.is_empty() => Place::Branch(*name),
+
+            Some(_) => Place::Instruction(*name, 0, InstructionPlace::Execute),
+
+            None => unreachable!(),
+        }
     }
 }
