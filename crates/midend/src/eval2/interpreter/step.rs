@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry;
 use common::mir::{self, pretty::Prettier, BranchNode, StmtNode};
 use log::trace;
 
-use super::{Env, Error, Frame, InstructionPlace, Interpreter, Place, StateAction, Value};
+use super::{Error, Frame, InstructionPlace, Interpreter, Place, StateAction, Value};
 
 impl Interpreter<'_> {
     pub(super) fn single_step(&mut self) -> Result<(), Error> {
@@ -29,6 +29,14 @@ impl Interpreter<'_> {
             BranchNode::Return(values) => {
                 trace!("evaluating return");
 
+                let branch = mir::Branch {
+                    node: BranchNode::Return(values.clone()),
+                    ..block.branch
+                };
+
+                let span = block.span;
+                let ty = block.ty;
+
                 let return_values: Vec<_> = values
                     .clone()
                     .into_iter()
@@ -40,11 +48,28 @@ impl Interpreter<'_> {
                 for value in return_values {
                     match value {
                         Some(value) => self.return_values.push(value),
-                        None => return Ok(()),
+                        None => {
+                            let stmts = self.stmts();
+                            let block = mir::Block {
+                                stmts,
+                                branch,
+                                span,
+                                ty,
+                            };
+
+                            let name = self.current().unwrap().current().unwrap().name;
+
+                            assert!(self.blocks.insert(name, block).is_some());
+
+                            self.return_values.clear();
+                            let _ = self.current_mut().unwrap().exit();
+                            return Ok(());
+                        }
                     }
                 }
 
                 let _ = self.current_mut().unwrap().exit();
+
                 Ok(())
             }
 
@@ -65,42 +90,55 @@ impl Interpreter<'_> {
         let stmt = block.stmts.get(index).unwrap().clone();
 
         match (stmt.node, at) {
-            (StmtNode::Apply { fun, args, .. }, InstructionPlace::Execute) => {
+            (StmtNode::Apply { fun, args, names }, InstructionPlace::Execute) => {
                 trace!("evaluating apply {}(...)", {
                     let prettier = Prettier::new(self.names, self.types);
                     prettier.pretty_name(&fun)
                 });
 
-                let args: Vec<_> = args
-                    .into_iter()
-                    .map(|value| self.make_value(&value))
-                    .collect();
-
-                let mut frame = Frame {
-                    place: Place::Instruction(fun, 0, InstructionPlace::Bind),
-                    env: Env::new(),
-                };
+                let new_args: Vec<_> = args.iter().map(|value| self.make_value(value)).collect();
 
                 let Some(fun) = self.make_value(&mir::Value {
                     ty: stmt.ty, // todo: type
                     span: stmt.span,
                     node: mir::ValueNode::Name(fun),
                 }) else {
+                    self.next_place();
+                    self.next_place();
+
+                    // mmmm
+                    self.push_stmt(mir::Statement {
+                        node: StmtNode::Apply {
+                            names,
+                            fun,
+                            args,
+                        },
+                        span: stmt.span,
+                        ty: stmt.ty,
+                    });
+
                     return Ok(())
                 };
 
-                let params = match fun {
-                    Value::Function(fun) => self.functions.get(&fun).unwrap(),
+                let (fun, params) = match fun {
+                    Value::Function(fun) => (fun, self.functions.get(&fun).unwrap()),
                     _ => unreachable!(),
                 };
 
-                for (arg, param) in args.into_iter().zip(params.iter()) {
-                    match arg {
-                        Some(arg) => {
-                            frame.env.add(*param, arg);
-                        }
+                let mut frame = Frame::new(place);
 
-                        None => return Ok(()),
+                for (arg, param) in new_args.into_iter().zip(params.iter()) {
+                    if let Some(arg) = arg {
+                        frame.env.add(*param, arg);
+                    } else {
+                        self.push_stmt(mir::Statement {
+                            node: StmtNode::Apply { names, fun, args },
+                            span: stmt.span,
+                            ty: stmt.ty,
+                        });
+
+                        self.next_place();
+                        return Ok(());
                     }
                 }
 
@@ -108,13 +146,19 @@ impl Interpreter<'_> {
                 self.current_mut().unwrap().enter(frame);
             }
 
-            (StmtNode::Apply { names, .. }, InstructionPlace::Bind) => {
+            (StmtNode::Apply { names, fun, args }, InstructionPlace::Bind) => {
                 trace!("binding apply");
-                assert_eq!(names.len(), self.return_values.len());
-
-                let return_values: Vec<_> = self.return_values.drain(..).collect();
-                for (name, value) in names.into_iter().zip(return_values) {
-                    self.current_mut().unwrap().add(name, value);
+                if names.len() == self.return_values.len() {
+                    let return_values: Vec<_> = self.return_values.drain(..).collect();
+                    for (name, value) in names.into_iter().zip(return_values) {
+                        self.current_mut().unwrap().add(name, value);
+                    }
+                } else {
+                    self.push_stmt(mir::Statement {
+                        node: StmtNode::Apply { names, fun, args },
+                        span: stmt.span,
+                        ty: stmt.ty,
+                    });
                 }
 
                 self.next_place();
@@ -134,12 +178,8 @@ impl Interpreter<'_> {
                     e.insert(params.clone());
 
                     // Partially evaluate the function
-                    let place = self.place_of(&name);
-
-                    let mut frame = Frame {
-                        env: Env::new(),
-                        place,
-                    };
+                    let place = self.place_of_top_level(&name).unwrap();
+                    let mut frame = Frame::new(place);
 
                     for param in params {
                         frame.env.add(param, Value::Quoted(param));

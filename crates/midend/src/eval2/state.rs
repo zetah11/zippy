@@ -1,3 +1,4 @@
+use common::mir::Statement;
 use common::names::Name;
 
 use super::code::{Place, Value};
@@ -16,8 +17,21 @@ pub enum StateAction {
 #[derive(Debug)]
 pub struct Frame {
     /// The current location of the interpreter.
+    pub name: Name,
     pub place: Place,
     pub env: Env,
+    pub stmts: Vec<Statement>,
+}
+
+impl Frame {
+    pub fn new(place: Place) -> Self {
+        Self {
+            name: place.name(),
+            place,
+            env: Env::new(),
+            stmts: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]

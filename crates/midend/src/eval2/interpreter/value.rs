@@ -1,6 +1,6 @@
 use common::mir;
 
-use super::{Env, Frame, Interpreter, StateAction, Value};
+use super::{Frame, Interpreter, StateAction, Value};
 
 impl Interpreter<'_> {
     /// Attempt to produce a [`Value`] from the given value. If the given value is an undefined, top-level name,
@@ -21,22 +21,16 @@ impl Interpreter<'_> {
                             .unwrap()
                             .split(StateAction::StoreGlobal(*name)),
                     );
-                    let place = self.place_of(name);
-                    self.current_mut().unwrap().enter(Frame {
-                        env: Env::new(),
-                        place,
-                    });
+                    let place = self.place_of_top_level(name)?;
+                    self.current_mut().unwrap().enter(Frame::new(place));
 
                     None
                 }
             }
 
-            mir::ValueNode::Name(name) => Some(
-                self.current()
-                    .and_then(|state| state.get(name))
-                    .unwrap()
-                    .clone(),
-            ),
+            mir::ValueNode::Name(name) => {
+                Some(self.current().and_then(|state| state.get(name))?.clone())
+            }
         }
     }
 }

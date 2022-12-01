@@ -4,11 +4,10 @@ mod value;
 
 use std::collections::HashMap;
 
-use common::mir::{Block, Decls, StaticValue, StaticValueNode, Types};
+use common::mir::{Block, Decls, Statement, StaticValue, StaticValueNode, Types};
 use common::names::{Name, Names};
 
 use super::code::{InstructionPlace, Place, Value};
-use super::env::Env;
 use super::result::Error;
 use super::state::{Frame, State, StateAction};
 
@@ -46,11 +45,11 @@ impl<'a> Interpreter<'a> {
 
     pub fn entry(&mut self, name: Name) {
         let mut state = State::new(StateAction::Nothing);
-        let place = self.place_of(&name);
-        let frame = Frame {
-            env: Env::new(),
-            place,
-        };
+        let place = self
+            .place_of_top_level(&name)
+            .expect("entry is not top level");
+
+        let frame = Frame::new(place);
 
         state.enter(frame);
         self.worklist.push(state);
@@ -72,7 +71,7 @@ impl<'a> Interpreter<'a> {
         if self.blocks.contains_key(&name) {
             self.blocks.get(&name).unwrap()
         } else {
-            self.top_level(name);
+            assert!(self.top_level(name));
             self.blocks.get(&name).unwrap()
         }
     }
@@ -103,10 +102,16 @@ impl<'a> Interpreter<'a> {
 
             match top.action {
                 StateAction::Nothing => {}
-                StateAction::StoreGlobal(name) => {
-                    assert!(self.return_values.len() == 1);
+
+                StateAction::StoreGlobal(name) if self.return_values.len() == 1 => {
                     top.add_global(name, self.return_values.pop().unwrap());
                 }
+
+                StateAction::StoreGlobal(_) if self.return_values.len() > 1 => {
+                    unreachable!();
+                }
+
+                StateAction::StoreGlobal(_) => {}
             }
 
             self.worklist.last_mut().unwrap().merge(top);
@@ -134,15 +139,20 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    fn top_level(&mut self, name: Name) {
+    /// Add a top-level by name. Returns `false` if the given name is not a top-level value.
+    #[must_use]
+    fn top_level(&mut self, name: Name) -> bool {
         if let Some(def) = self.decls.defs.iter().find(|def| def.name == name) {
             assert!(self.blocks.insert(name, def.bind.clone()).is_none());
+            true
         } else if let Some(value) = self.decls.values.get(&name) {
             self.make_static(name, value.clone());
+            true
         } else if let Some((params, block)) = self.decls.functions.get(&name) {
             self.make_function(name, params.clone(), block.clone());
+            true
         } else {
-            unreachable!();
+            false
         }
     }
 
@@ -150,18 +160,38 @@ impl<'a> Interpreter<'a> {
         Some(self.current()?.current()?.place)
     }
 
-    /// Get the place for the function or value with the given `name`. Adds it as a top-level if it hasn't already been.
-    fn place_of(&mut self, name: &Name) -> Place {
+    /// Get the place for the function or value with the given `name`, and try to add it as a top-level if it hasn't
+    /// already been. Returns `None` if the given name is not of a top-level.
+    fn place_of_top_level(&mut self, name: &Name) -> Option<Place> {
         if !self.blocks.contains_key(name) {
-            self.top_level(*name);
+            let _ = self.top_level(*name);
         }
 
-        match self.blocks.get(name) {
+        Some(match self.blocks.get(name) {
             Some(block) if block.stmts.is_empty() => Place::Branch(*name),
 
             Some(_) => Place::Instruction(*name, 0, InstructionPlace::Execute),
 
-            None => unreachable!(),
-        }
+            None => return None,
+        })
+    }
+
+    fn push_stmt(&mut self, stmt: Statement) {
+        self.current_mut()
+            .unwrap()
+            .current_mut()
+            .unwrap()
+            .stmts
+            .push(stmt);
+    }
+
+    fn stmts(&mut self) -> Vec<Statement> {
+        self.current_mut()
+            .unwrap()
+            .current_mut()
+            .unwrap()
+            .stmts
+            .drain(..)
+            .collect()
     }
 }
