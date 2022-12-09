@@ -37,4 +37,8 @@ impl Types {
     pub fn is_function(&self, ty: &TypeId) -> bool {
         matches!(self.get(ty), Type::Fun(..))
     }
+
+    pub fn is_pure(&self, _ty: &TypeId) -> bool {
+        true
+    }
 }

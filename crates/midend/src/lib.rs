@@ -54,7 +54,7 @@ pub fn elaborate(
         }
 
         EvalAmount::Types => {
-            eval2::evaluate(names, &types, entry, res);
+            eval2::evaluate(&context, names, &types, entry, res);
             todo!()
         }
 
