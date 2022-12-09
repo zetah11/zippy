@@ -4,21 +4,23 @@ use common::names::Name;
 use super::Interpreter;
 
 #[derive(Clone, Debug)]
-pub enum ReducedValue {
-    Static(Value),
-    Dynamic(Value),
+pub struct ReducedValue {
+    pub value: Value,
+
+    /// The index of the frame this value originates. If the current frame index
+    /// is equal or less, then this value is effectively "static" in that frame.
+    /// But if the current frame index is higher, then this value originates
+    /// from below us in the call stack, and so is dynamic.
+    pub frame: usize,
 }
 
 impl ReducedValue {
-    pub fn is_dynamic(&self) -> bool {
-        !self.is_static()
+    pub fn is_dynamic(&self, reference: usize) -> bool {
+        !self.is_static(reference)
     }
 
-    pub fn is_static(&self) -> bool {
-        match self {
-            Self::Static(_) => true,
-            Self::Dynamic(_) => false,
-        }
+    pub fn is_static(&self, reference: usize) -> bool {
+        self.frame >= reference
     }
 }
 
@@ -29,7 +31,18 @@ pub enum Operation {
 }
 
 impl Interpreter<'_> {
-    pub fn get_args(&self, op: &Operation) -> Vec<Value> {
+    pub(super) fn locally_static_value(&self, value: Value) -> ReducedValue {
+        ReducedValue {
+            value,
+            frame: self.frame_index(),
+        }
+    }
+
+    pub(super) fn frame_index(&self) -> usize {
+        self.frames.len()
+    }
+
+    pub(super) fn get_args(&self, op: &Operation) -> Vec<Value> {
         match op {
             Operation::Branch(branch) => match &branch.node {
                 BranchNode::Jump(_, arg) => vec![arg.clone()],
@@ -71,7 +84,7 @@ impl Interpreter<'_> {
         }
     }
 
-    pub fn get_targets(&self, op: &Operation) -> Vec<Name> {
+    pub(super) fn get_targets(&self, op: &Operation) -> Vec<Name> {
         match op {
             Operation::Branch(branch) => match &branch.node {
                 BranchNode::Jump(..) => todo!(),

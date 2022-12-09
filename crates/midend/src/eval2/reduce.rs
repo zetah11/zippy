@@ -16,12 +16,14 @@ pub struct ReduceResult {
 impl Interpreter<'_> {
     pub fn reduce_value(&self, value: &Value) -> Option<ReducedValue> {
         match &value.node {
-            ValueNode::Int(_) | ValueNode::Invalid => Some(ReducedValue::Static(value.clone())),
+            ValueNode::Int(_) | ValueNode::Invalid => {
+                Some(self.locally_static_value(value.clone()))
+            }
 
             ValueNode::Name(name) if self.globals.contains_key(name) => self
                 .globals
                 .get(name)
-                .map(|val| ReducedValue::Static(val.clone())),
+                .map(|val| self.locally_static_value(val.clone())),
 
             ValueNode::Name(name) => self.frames.last()?.get(name).cloned(),
         }
@@ -70,9 +72,10 @@ impl Interpreter<'_> {
         let mut values = Vec::new();
 
         for (arg, old) in args.1.into_iter().zip(args.0) {
-            let (value, arg) = match arg {
-                ReducedValue::Static(value) => (ReducedValue::Static(value.clone()), value),
-                ReducedValue::Dynamic(_) => (arg, old),
+            let (value, arg) = if arg.is_static(self.frame_index()) {
+                (self.locally_static_value(arg.value.clone()), arg.value)
+            } else {
+                (arg, old)
             };
 
             values.push(value);
@@ -106,60 +109,51 @@ impl Interpreter<'_> {
         span: Span,
         ty: TypeId,
     ) -> ReduceResult {
-        let (new_fun, fun_ty, static_fun) = match args.1.remove(0) {
-            ReducedValue::Static(Value {
+        let new_fun = args.1.remove(0);
+        let static_fun = new_fun.is_static(self.frame_index());
+        let (new_fun, fun_ty) = match new_fun.value {
+            Value {
                 node: ValueNode::Name(fun),
                 ty,
                 ..
-            }) => (fun, ty, true),
-            ReducedValue::Dynamic(Value {
-                node: ValueNode::Name(fun),
-                ty,
-                ..
-            }) => (fun, ty, false),
+            } => (fun, ty),
             _ => unreachable!(),
         };
 
-        let (push_inst, action) = if let Some(place) = self.place_of(&new_fun) {
-            let params = self.functions.get(&fun).unwrap();
-            assert_eq!(params.len(), args.1.len());
+        let (push_inst, action) = match (self.place_of(&new_fun), self.functions.get(&new_fun)) {
+            (Some(place), Some(params)) => {
+                assert_eq!(params.len(), args.1.len());
 
-            let mut new_env = Env::new();
+                let mut new_env = Env::new();
 
-            // If this is a pure function and all of its arguments have been provided, then
-            // the function will fully reduce.
-            let is_dynamic = !self.types.is_pure(&fun_ty)
-                || args.1.iter().any(|arg| arg.is_dynamic())
-                || !static_fun;
+                // If this is a pure function and all of its arguments have been provided, then
+                // the function will fully reduce.
+                let is_dynamic = !self.types.is_pure(&fun_ty)
+                    || args.1.iter().any(|arg| arg.is_dynamic(self.frame_index()))
+                    || !static_fun;
 
-            for (param, arg) in params.iter().zip(args.1.iter()) {
-                let arg = match arg {
-                    ReducedValue::Static(value) => value.clone(),
-                    ReducedValue::Dynamic(value) => value.clone(),
+                for (param, arg) in params.iter().zip(args.1.iter()) {
+                    new_env.add(*param, arg.clone());
+                }
+
+                let action = Action::Enter {
+                    place,
+                    env: new_env,
+                    return_names: names.clone(),
                 };
 
-                let arg = ReducedValue::Dynamic(arg);
-
-                new_env.add(*param, arg);
+                (is_dynamic, action)
             }
 
-            let action = Action::Enter {
-                place,
-                env: new_env,
-                return_names: names.clone(),
-            };
-
-            (is_dynamic, action)
-        } else {
-            (true, Action::None)
+            _ => (true, Action::None),
         };
 
         let inst = if push_inst {
             let mut inst_args = Vec::new();
 
             for (arg, old) in args.1.into_iter().zip(args.0) {
-                if let ReducedValue::Static(arg) = arg {
-                    inst_args.push(arg);
+                if arg.is_static(self.frame_index()) {
+                    inst_args.push(arg.value);
                 } else {
                     inst_args.push(old);
                 }

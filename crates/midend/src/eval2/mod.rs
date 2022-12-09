@@ -9,14 +9,15 @@ mod value;
 
 use std::collections::{HashMap, HashSet};
 
+use common::mir::pretty::Prettier;
 use common::mir::{
     Block, Branch, BranchNode, Context, Decls, Statement, StaticValue, StaticValueNode, Types,
     Value, ValueNode,
 };
 use common::names::{Name, Names};
+use log::{info, trace};
 
 use self::state::Frame;
-use self::value::ReducedValue;
 
 pub fn evaluate(
     context: &Context,
@@ -25,16 +26,24 @@ pub fn evaluate(
     entry: Option<Name>,
     decls: Decls,
 ) -> Decls {
+    info!("beginning evaluation");
+
     let mut interp = Interpreter::new(context, names, types, decls);
     interp.discover(entry);
+    trace!("discovery done");
+
     interp.run();
-    interp.collect()
+    trace!("execution done");
+
+    let res = interp.collect();
+    trace!("evaluation done");
+    res
 }
 
 #[derive(Debug)]
 struct Interpreter<'a> {
     context: &'a Context,
-    _names: &'a Names,
+    names: &'a Names,
     types: &'a Types,
     decls: Decls,
 
@@ -52,7 +61,7 @@ impl<'a> Interpreter<'a> {
     pub fn new(context: &'a Context, names: &'a Names, types: &'a Types, decls: Decls) -> Self {
         Self {
             context,
-            _names: names,
+            names,
             types,
             decls,
 
@@ -71,12 +80,23 @@ impl<'a> Interpreter<'a> {
         if let Some(entry) = entry {
             self.discover_from_entry(entry);
         } else {
+            trace!("no entry point; discovering everything");
             self.discover_all();
         }
     }
 
     pub fn run(&mut self) {
         while let Some(name) = self.worklist.pop() {
+            trace!(
+                "eval '{}'; {} name{} left",
+                {
+                    let prettier = Prettier::new(self.names, self.types);
+                    prettier.pretty_name(&name)
+                },
+                self.worklist.len() + 1,
+                if self.worklist.is_empty() { "" } else { "s" }
+            );
+
             let place = self.place_of(&name).unwrap();
             let frame = Frame::new(place);
             self.frames.push(frame);
