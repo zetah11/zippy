@@ -38,6 +38,16 @@ pub fn elaborate(
         }
     }
 
+    let res = hoist::hoist(driver, names, &mut context, res);
+    if !error {
+        error = check(names, &types, &context, &res);
+        if error {
+            eprintln!("error during hoisting");
+        } else {
+            trace!("hoisting is type-correct");
+        }
+    }
+
     let res = match driver.eval_amount() {
         EvalAmount::Full => {
             let res = eval::evaluate(driver, &mut context, names, &types, res, entry);
@@ -54,8 +64,18 @@ pub fn elaborate(
         }
 
         EvalAmount::Types => {
-            eval2::evaluate(&context, names, &types, entry, res);
-            todo!()
+            let res = eval2::evaluate(&context, names, &types, entry, res);
+
+            if !error {
+                error = check(names, &types, &context, &res);
+                if error {
+                    eprintln!("error during evaluation");
+                } else {
+                    trace!("evaluation is type-correct");
+                }
+            }
+
+            res
         }
 
         EvalAmount::None => {
@@ -63,16 +83,6 @@ pub fn elaborate(
             res
         }
     };
-
-    let res = hoist::hoist(driver, names, &mut context, res);
-    if !error {
-        error = check(names, &types, &context, &res);
-        if error {
-            eprintln!("error during hoisting");
-        } else {
-            trace!("hoisting is type-correct");
-        }
-    }
 
     trace!("done elaborating");
 

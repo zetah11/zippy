@@ -1,4 +1,3 @@
-use common::mir::pretty::Prettier;
 use common::names::Name;
 
 use super::state::Frame;
@@ -26,11 +25,6 @@ impl Place {
 }
 
 impl Interpreter<'_> {
-    /// Get the current frame. Panics if there is none.
-    pub fn get_frame(&self) -> &Frame {
-        self.frames.last().unwrap()
-    }
-
     /// Get a mutable reference to the current frame. Panics if there is none.
     pub fn get_frame_mut(&mut self) -> &mut Frame {
         self.frames.last_mut().unwrap()
@@ -59,20 +53,6 @@ impl Interpreter<'_> {
             Some(Place::Branch(*name))
         } else {
             Some(Place::Instruction(*name, 0))
-        }
-    }
-
-    fn make_top_level(&mut self, name: &Name) {
-        if let Some((params, block)) = self.decls.functions.remove(name) {
-            self.functions.insert(*name, params);
-            self.blocks.insert(*name, block);
-        } else if let Some(_value) = self.decls.values.remove(name) {
-            todo!()
-        } else {
-            panic!("'{}' is not a top-level name!", {
-                let prettier = Prettier::new(self.names, self.types);
-                prettier.pretty_name(name)
-            });
         }
     }
 }

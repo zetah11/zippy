@@ -4,6 +4,7 @@ use common::mir::Block;
 
 use super::action::Action;
 use super::place::Place;
+use super::state::Frame;
 use super::value::Operation;
 use super::{Interpreter, ReducedValue};
 
@@ -14,7 +15,49 @@ pub enum Step {
 }
 
 impl Interpreter<'_> {
-    pub(super) fn step(&mut self) -> Result<Action, Step> {
+    pub(super) fn execute(&mut self) {
+        while let Ok(action) = self.step() {
+            match action {
+                Action::Enter {
+                    place,
+                    env,
+                    return_names,
+                } => {
+                    if let Some(frame) = self.frames.last() {
+                        self.frozen.insert(frame.place.name());
+                    }
+
+                    let frame = Frame {
+                        place,
+                        env,
+                        return_names: Some(return_names),
+                    };
+
+                    self.frames.push(frame);
+                }
+
+                Action::Exit { return_values } => {
+                    let frame = self.frames.pop().unwrap();
+
+                    if let Some(return_names) = frame.return_names {
+                        assert_eq!(return_names.len(), return_values.len());
+
+                        for (name, value) in return_names.into_iter().zip(return_values) {
+                            self.bind(name, value);
+                        }
+                    }
+
+                    if let Some(new_top) = self.frames.last() {
+                        self.frozen.remove(&new_top.place.name());
+                    }
+                }
+
+                Action::None => {}
+            }
+        }
+    }
+
+    fn step(&mut self) -> Result<Action, Step> {
         let place = self.get_place().ok_or(Step::Done)?;
         let op = self.get_operation(&place).unwrap(); // todo: figure out what to do here
 

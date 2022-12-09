@@ -1,4 +1,5 @@
 mod action;
+mod discover;
 mod environment;
 mod place;
 mod reduce;
@@ -8,10 +9,12 @@ mod value;
 
 use std::collections::{HashMap, HashSet};
 
-use common::mir::{Block, Context, Decls, Statement, Types, Value};
+use common::mir::{
+    Block, Branch, BranchNode, Context, Decls, Statement, StaticValue, StaticValueNode, Types,
+    Value, ValueNode,
+};
 use common::names::{Name, Names};
 
-use self::action::Action;
 use self::state::Frame;
 use self::value::ReducedValue;
 
@@ -21,22 +24,21 @@ pub fn evaluate(
     types: &Types,
     entry: Option<Name>,
     decls: Decls,
-) {
+) -> Decls {
     let mut interp = Interpreter::new(context, names, types, decls);
-    if let Some(name) = entry {
-        interp.entry(name);
-    }
-
+    interp.discover(entry);
     interp.run();
+    interp.collect()
 }
 
 #[derive(Debug)]
 struct Interpreter<'a> {
     context: &'a Context,
-    names: &'a Names,
+    _names: &'a Names,
     types: &'a Types,
     decls: Decls,
 
+    worklist: Vec<Name>,
     frames: Vec<Frame>,
     globals: HashMap<Name, Value>,
 
@@ -50,10 +52,11 @@ impl<'a> Interpreter<'a> {
     pub fn new(context: &'a Context, names: &'a Names, types: &'a Types, decls: Decls) -> Self {
         Self {
             context,
-            names,
+            _names: names,
             types,
             decls,
 
+            worklist: Vec::new(),
             frames: Vec::new(),
             globals: HashMap::new(),
 
@@ -64,51 +67,58 @@ impl<'a> Interpreter<'a> {
         }
     }
 
-    pub fn entry(&mut self, name: Name) {
-        let place = self.place_of(&name).unwrap();
-        let frame = Frame::new(place);
-        self.frames.push(frame);
+    pub fn discover(&mut self, entry: Option<Name>) {
+        if let Some(entry) = entry {
+            self.discover_from_entry(entry);
+        } else {
+            self.discover_all();
+        }
     }
 
     pub fn run(&mut self) {
-        while let Ok(action) = self.step() {
-            match action {
-                Action::Enter {
-                    place,
-                    env,
-                    return_names,
-                } => {
-                    if let Some(frame) = self.frames.last() {
-                        self.frozen.insert(frame.place.name());
-                    }
+        while let Some(name) = self.worklist.pop() {
+            let place = self.place_of(&name).unwrap();
+            let frame = Frame::new(place);
+            self.frames.push(frame);
 
-                    let frame = Frame {
-                        place,
-                        env,
-                        return_names: Some(return_names),
-                    };
-
-                    self.frames.push(frame);
-                }
-
-                Action::Exit { return_values } => {
-                    let frame = self.frames.pop().unwrap();
-
-                    if let Some(return_names) = frame.return_names {
-                        assert_eq!(return_names.len(), return_values.len());
-
-                        for (name, value) in return_names.into_iter().zip(return_values) {
-                            self.bind(name, value);
-                        }
-                    }
-
-                    if let Some(new_top) = self.frames.last() {
-                        self.frozen.remove(&new_top.place.name());
-                    }
-                }
-
-                Action::None => {}
-            }
+            self.execute();
         }
+    }
+
+    pub fn collect(mut self) -> Decls {
+        let mut res = Decls::new(Vec::new());
+
+        for (name, value) in self.globals {
+            let Value { span, ty, .. } = value;
+
+            let node = match value.node {
+                ValueNode::Int(i) => StaticValueNode::Int(i),
+                _ => {
+                    let node = BranchNode::Return(vec![value]);
+                    let branch = Branch { node, span, ty };
+
+                    let block = Block::new(span, ty, Vec::new(), branch);
+                    StaticValueNode::LateInit(block)
+                }
+            };
+
+            let value = StaticValue { node, span, ty };
+
+            res.values.insert(name, value);
+        }
+
+        for (name, block) in self.blocks {
+            if let Some(params) = self.functions.remove(&name) {
+                res.functions.insert(name, (params, block));
+            } else {
+                res.values.entry(name).or_insert_with(|| {
+                    let Block { span, ty, .. } = block;
+                    let node = StaticValueNode::LateInit(block);
+                    StaticValue { node, span, ty }
+                });
+            };
+        }
+
+        res
     }
 }
