@@ -7,8 +7,8 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use codespan_reporting::term::{self, Config, DisplayStyle};
 use console::{style, Term};
 
-use common::message::{self, Messages};
-use common::{Driver, EvalAmount};
+use zippy_common::message::{self, Messages};
+use zippy_common::{Driver, EvalAmount};
 
 use super::args::Arguments;
 

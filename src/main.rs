@@ -4,9 +4,9 @@ mod console_driver;
 mod input;
 mod target;
 
-use backend::c::emit;
-use frontend::{parse, ParseResult};
-use midend::elaborate;
+use zippy_backend::c::emit;
+use zippy_frontend::{parse, ParseResult};
+use zippy_midend::elaborate;
 
 use clap::Parser;
 use codespan_reporting::files::SimpleFiles;
