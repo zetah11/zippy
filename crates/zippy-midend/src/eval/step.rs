@@ -34,6 +34,7 @@ impl<D: Driver> Interpreter<'_, D> {
                         place,
                         env,
                         return_names: Some(return_names),
+                        frame_index: self.new_frame_index(),
                     };
 
                     self.frames.push(frame);

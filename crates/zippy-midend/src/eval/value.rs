@@ -40,7 +40,16 @@ impl<D: Driver> Interpreter<'_, D> {
     }
 
     pub(super) fn frame_index(&self) -> usize {
-        self.frames.len()
+        self.frames
+            .last()
+            .map(|frame| frame.frame_index)
+            .unwrap_or(self.index)
+    }
+
+    pub(super) fn new_frame_index(&mut self) -> usize {
+        let id = self.index;
+        self.index += 1;
+        id
     }
 
     pub(super) fn get_args(&self, op: &Operation) -> Vec<Value> {

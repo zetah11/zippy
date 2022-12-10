@@ -40,7 +40,7 @@
 //! ```
 //!
 //! which is of course wrong. Because of this, values also keep track of a
-//! *frame index*, which says where a value originated, which lets us decide
+//! *frame index*, which says where a value originated and which lets us decide
 //! whether or not to use the reduced or unreduced form of a value while
 //! rewriting.
 
@@ -103,6 +103,7 @@ struct Interpreter<'a, D> {
     worklist: Vec<Name>,
     frames: Vec<Frame>,
     globals: HashMap<Name, Value>,
+    index: usize,
 
     blocks: HashMap<Name, Block>,
     functions: HashMap<Name, Vec<Name>>,
@@ -129,6 +130,7 @@ impl<'a, D: Driver> Interpreter<'a, D> {
             worklist: Vec::new(),
             frames: Vec::new(),
             globals: HashMap::new(),
+            index: 0,
 
             blocks: HashMap::new(),
             functions: HashMap::new(),
@@ -162,7 +164,7 @@ impl<'a, D: Driver> Interpreter<'a, D> {
             self.driver.report_eval(at);
 
             let place = self.place_of(&name).unwrap();
-            let frame = Frame::new(place);
+            let frame = self.new_frame(place);
             self.frames.push(frame);
 
             self.execute();
