@@ -1,4 +1,4 @@
-# corollary
+# zippy
 
 a smol functional/imperative programming language. currently, the big selling
 points are statically typed effects (& effect handlers) with partial evaluation.
@@ -9,12 +9,12 @@ generating is working more or less as it should for range types, higher-order fu
 
 in a powershell terminal:
 
-    corollary $ cat .\test.z
+    zippy $ cat .\test.z
     -- in test.z
     fun main (?: 1) = x
     fun id |T| (x: T) = x
     let x: 10 = id 5
-    corollary $ cargo r -q -- test.z
-    corollary $ .\artifacts\test.exe
-    corollary $ echo $LASTEXITCODE  
+    zippy $ cargo r -q -- test.z
+    zippy $ .\artifacts\test.exe
+    zippy $ echo $LASTEXITCODE  
     5

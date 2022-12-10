@@ -83,15 +83,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'corollary', full",
+            "name": "Debug executable 'zippy', full",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=corollary",
-                    "--package=corollary"
+                    "--bin=zippy",
+                    "--package=zippy"
                 ],
                 "filter": {
-                    "name": "corollary",
+                    "name": "zippy",
                     "kind": "bin"
                 }
             },
@@ -103,16 +103,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'corollary'",
+            "name": "Debug unit tests in executable 'zippy'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=corollary",
-                    "--package=corollary"
+                    "--bin=zippy",
+                    "--package=zippy"
                 ],
                 "filter": {
-                    "name": "corollary",
+                    "name": "zippy",
                     "kind": "bin"
                 }
             },
