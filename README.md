@@ -7,14 +7,9 @@ also modular implicits, potentially.
 as of now, a very basic core works. lexing through typing through code
 generating is working more or less as it should for range types, higher-order functions (though not closures just yet :]), and tuples.
 
-in a powershell terminal:
-
-    zippy $ cat .\test.z
-    -- in test.z
-    fun main (?: 1) = x
+    $ cat test.z
+    fun main (?: 1) : 10 = one_of (id id 5, 6)
     fun id |T| (x: T) = x
-    let x: 10 = id 5
-    zippy $ cargo r -q -- test.z
-    zippy $ .\artifacts\test.exe
-    zippy $ echo $LASTEXITCODE  
-    5
+    fun one_of |T| (x: T, y: T) = x
+    $ zc run test.z
+    Error: program quit with code 5
