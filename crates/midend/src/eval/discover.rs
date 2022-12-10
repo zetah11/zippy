@@ -1,9 +1,10 @@
 use common::mir::{Block, BranchNode, StaticValueNode, StmtNode, Value, ValueNode};
 use common::names::Name;
+use common::Driver;
 
 use super::Interpreter;
 
-impl Interpreter<'_> {
+impl<D: Driver> Interpreter<'_, D> {
     /// Find all the blocks and values reachable from the entry point, and
     /// construct a worklist of items to be partially evaluated.
     pub fn discover_from_entry(&mut self, entry: Name) {

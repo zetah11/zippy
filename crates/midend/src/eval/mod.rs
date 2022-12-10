@@ -1,203 +1,159 @@
-mod check;
-mod irreducible;
-mod promote;
+mod action;
+mod discover;
+mod environment;
+mod place;
 mod reduce;
+mod state;
+mod step;
+mod value;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use im::HashMap;
-use log::{debug, trace};
-
-use common::message::Messages;
 use common::mir::pretty::Prettier;
-use common::mir::{Context, Decls, Types, ValueDef};
+use common::mir::{
+    Block, Branch, BranchNode, Context, Decls, Statement, StaticValue, StaticValueNode, Types,
+    Value, ValueNode,
+};
 use common::names::{Name, Names};
 use common::Driver;
+use log::{info, trace};
 
-use self::irreducible::{Irreducible, IrreducibleNode};
+use self::state::Frame;
 
 pub fn evaluate(
     driver: &mut impl Driver,
-    context: &mut Context,
-    names: &mut Names,
+    context: &Context,
+    names: &Names,
     types: &Types,
-    decls: Decls,
     entry: Option<Name>,
+    decls: Decls,
 ) -> Decls {
-    debug!("beginning evaluation");
+    info!("beginning evaluation");
 
-    let (res, messages) = if let Some(entry) = entry {
-        let mut lowerer = Lowerer::new(driver, context, names, types);
-        lowerer.discover(decls, entry);
-        let res = lowerer.reduce_from();
+    let mut interp = Interpreter::new(driver, context, names, types, decls);
+    interp.discover(entry);
+    trace!("discovery done");
 
-        (res, lowerer.messages)
-    } else {
-        (Decls::default(), Messages::new())
-    };
+    interp.run();
+    trace!("execution done");
 
-    driver.report(messages);
-
-    trace!("done evaluating");
-
+    let res = interp.collect();
+    trace!("evaluation done");
     res
 }
 
-#[derive(Clone, Debug, Default)]
-struct Env {
-    map: HashMap<Name, Irreducible>,
-    parent: Option<Box<Env>>,
-}
-
-impl Env {
-    fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-            parent: None,
-        }
-    }
-
-    fn child(&self) -> Self {
-        Self {
-            map: HashMap::new(),
-            parent: Some(Box::new(self.clone())),
-        }
-    }
-
-    fn lookup(&self, name: &Name) -> Option<&Irreducible> {
-        self.map
-            .get(name)
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.lookup(name)))
-    }
-
-    fn set(&mut self, name: Name, value: Irreducible) {
-        self.map.insert(name, value);
-    }
-
-    /// Create a child environment where the given name is bound to the given value.
-    fn with(&self, name: Name, value: Irreducible) -> Self {
-        Self {
-            map: self.map.update(name, value),
-            parent: Some(Box::new(self.clone())),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Behaviour {
-    Discover,
-    FullEval,
-}
-
 #[derive(Debug)]
-struct Lowerer<'a, Driver> {
-    env: Env,
-    names: &'a mut Names,
+struct Interpreter<'a, D> {
+    driver: &'a mut D,
+
+    context: &'a Context,
+    names: &'a Names,
     types: &'a Types,
-    context: &'a mut Context,
-
-    behaviour: Behaviour,
-
-    driver: &'a mut Driver,
-    messages: Messages,
+    decls: Decls,
 
     worklist: Vec<Name>,
+    frames: Vec<Frame>,
+    globals: HashMap<Name, Value>,
+
+    blocks: HashMap<Name, Block>,
+    functions: HashMap<Name, Vec<Name>>,
+    redoing: HashMap<Name, Vec<Statement>>,
+    frozen: HashSet<Name>,
 }
 
-impl<'a, D: Driver> Lowerer<'a, D> {
-    fn new(
+impl<'a, D: Driver> Interpreter<'a, D> {
+    pub fn new(
         driver: &'a mut D,
-        context: &'a mut Context,
-        names: &'a mut Names,
+        context: &'a Context,
+        names: &'a Names,
         types: &'a Types,
+        decls: Decls,
     ) -> Self {
         Self {
-            env: Env::new(),
+            driver,
+
+            context,
             names,
             types,
-            context,
-
-            behaviour: Behaviour::FullEval,
-
-            driver,
-            messages: Messages::new(),
+            decls,
 
             worklist: Vec::new(),
+            frames: Vec::new(),
+            globals: HashMap::new(),
+
+            blocks: HashMap::new(),
+            functions: HashMap::new(),
+            redoing: HashMap::new(),
+            frozen: HashSet::new(),
         }
     }
 
-    fn discover(&mut self, decls: Decls, entry: Name) {
-        debug!("name discovery");
-
-        let old_behaviour = self.behaviour;
-        self.behaviour = Behaviour::Discover;
-
-        let mut value_defs: std::collections::HashMap<_, _> =
-            decls.defs.into_iter().map(|def| (def.name, def)).collect();
-
-        self.worklist.push(entry);
-        let mut index = 0;
-
-        while index < self.worklist.len() {
-            trace!("{} names left", self.worklist.len() - index);
-
-            let name = self.worklist[index];
-            index += 1;
-
-            if let Some(def) = value_defs.remove(&name) {
-                let bind = self.reduce_exprs(self.env.clone(), name, def.bind);
-                self.env.set(def.name, bind);
-            }
+    pub fn discover(&mut self, entry: Option<Name>) {
+        if let Some(entry) = entry {
+            self.discover_from_entry(entry);
+        } else {
+            trace!("no entry point; discovering everything");
+            self.discover_all();
         }
-
-        self.behaviour = old_behaviour;
     }
 
-    fn reduce_from(&mut self) -> Decls {
-        debug!("reduction");
-
-        let mut defs = Vec::new();
-        let mut value_names = HashSet::new();
-
+    pub fn run(&mut self) {
         while let Some(name) = self.worklist.pop() {
-            trace!("{} names left", self.worklist.len() + 1);
+            let at = {
+                let prettier = Prettier::new(self.names, self.types);
+                prettier.pretty_name(&name)
+            };
 
-            if !value_names.contains(&name) && self.env.lookup(&name).is_some() {
-                self.driver.report_eval({
-                    let prettier = Prettier::new(self.names, self.types);
-                    prettier.pretty_name(&name)
-                });
+            trace!(
+                "eval top-level; {} name{} left",
+                self.worklist.len() + 1,
+                if self.worklist.is_empty() { "" } else { "s" }
+            );
 
-                let bind = self.env.lookup(&name).unwrap().clone();
-                let bind = self.reduce_irr(self.env.clone(), name, bind);
+            self.driver.report_eval(at);
 
-                // overwrite with new and improved
-                self.env.set(name, bind.clone());
+            let place = self.place_of(&name).unwrap();
+            let frame = Frame::new(place);
+            self.frames.push(frame);
 
-                defs.push(ValueDef {
-                    name,
-                    span: bind.span,
-                    bind: self.promote(name, bind),
-                });
-
-                value_names.insert(name);
-            }
+            self.execute();
         }
-
-        self.driver.done_eval();
-
-        Decls::new(defs)
     }
 
-    fn lookup<'b, 'c, 'd>(&'b mut self, env: &'c Env, name: &'d Name) -> Option<&'c Irreducible> {
-        match self.behaviour {
-            Behaviour::FullEval => env.lookup(name),
-            Behaviour::Discover => {
-                if !self.worklist.contains(name) {
-                    self.worklist.push(*name);
+    pub fn collect(mut self) -> Decls {
+        let mut res = Decls::new(Vec::new());
+
+        for (name, value) in self.globals {
+            let Value { span, ty, .. } = value;
+
+            let node = match value.node {
+                ValueNode::Int(i) => StaticValueNode::Int(i),
+                _ => {
+                    let node = BranchNode::Return(vec![value]);
+                    let branch = Branch { node, span, ty };
+
+                    let block = Block::new(span, ty, Vec::new(), branch);
+                    StaticValueNode::LateInit(block)
                 }
-                None
-            }
+            };
+
+            let value = StaticValue { node, span, ty };
+
+            res.values.insert(name, value);
         }
+
+        for (name, block) in self.blocks {
+            if let Some(params) = self.functions.remove(&name) {
+                res.functions.insert(name, (params, block));
+            } else {
+                res.values.entry(name).or_insert_with(|| {
+                    let Block { span, ty, .. } = block;
+                    let node = StaticValueNode::LateInit(block);
+                    StaticValue { node, span, ty }
+                });
+            };
+        }
+
+        res
     }
 }

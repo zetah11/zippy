@@ -1,5 +1,4 @@
 mod eval;
-mod eval2;
 mod flatten;
 mod hoist;
 mod lower;
@@ -50,21 +49,7 @@ pub fn elaborate(
 
     let res = match driver.eval_amount() {
         EvalAmount::Full => {
-            let res = eval::evaluate(driver, &mut context, names, &types, res, entry);
-
-            if !error {
-                error = check(names, &types, &context, &res);
-                if error {
-                    eprintln!("error during evaluation");
-                } else {
-                    trace!("evaluation is type-correct");
-                }
-            }
-            res
-        }
-
-        EvalAmount::Types => {
-            let res = eval2::evaluate(&context, names, &types, entry, res);
+            let res = eval::evaluate(driver, &context, names, &types, entry, res);
 
             if !error {
                 error = check(names, &types, &context, &res);
@@ -78,7 +63,7 @@ pub fn elaborate(
             res
         }
 
-        EvalAmount::None => {
+        EvalAmount::Types | EvalAmount::None => {
             debug!("skipped evaluation");
             res
         }

@@ -1,269 +1,184 @@
+use common::message::Span;
+use common::mir::{Branch, BranchNode, Statement, StmtNode, TypeId, Value, ValueNode};
 use common::names::Name;
+use common::Driver;
 
-use crate::mir::{Block, Branch, BranchNode, Statement, StmtNode, Type, Value, ValueNode};
-use crate::Driver;
+use super::action::Action;
+use super::environment::Env;
+use super::value::{Operation, ReducedValue};
+use super::Interpreter;
 
-use super::{Env, Irreducible, IrreducibleNode, Lowerer};
+pub struct ReduceResult {
+    pub action: Action,
+    pub values: Option<Vec<ReducedValue>>,
+    pub operation: Option<Operation>,
+}
 
-impl<D: Driver> Lowerer<'_, D> {
-    pub fn reduce_exprs(&mut self, env: Env, ctx: Name, exprs: Block) -> Irreducible {
-        let mut env = env.child();
+impl<D: Driver> Interpreter<'_, D> {
+    pub fn reduce_value(&self, value: &Value) -> Option<ReducedValue> {
+        match &value.node {
+            ValueNode::Int(_) | ValueNode::Invalid => {
+                Some(self.locally_static_value(value.clone()))
+            }
 
-        let mut new_exprs = Vec::new();
+            ValueNode::Name(name) if self.globals.contains_key(name) => self
+                .globals
+                .get(name)
+                .map(|val| self.locally_static_value(val.clone())),
 
-        for expr in exprs.stmts {
-            let node = match expr.node {
-                StmtNode::Join { .. } => todo!(),
+            ValueNode::Name(name) => self.frames.last()?.get(name).cloned(),
+        }
+    }
 
-                StmtNode::Function { name, params, body } => {
-                    let body_irr = self.reduce_exprs(env.clone(), ctx, body.clone());
-                    env.set(
-                        name,
-                        Irreducible {
-                            node: IrreducibleNode::Lambda(params.clone(), Box::new(body_irr)),
-                            span: expr.span,
-                            ty: expr.ty,
-                        },
-                    );
+    pub fn reduce_op(&mut self, op: Operation, args: Vec<ReducedValue>) -> ReduceResult {
+        match op {
+            Operation::Branch(branch) => self.reduce_branch(branch, args),
+            Operation::Statement(stmt) => self.reduce_stmt(stmt, args),
+        }
+    }
 
-                    StmtNode::Function { name, params, body }
-                }
+    fn reduce_branch(&mut self, branch: Branch, args: Vec<ReducedValue>) -> ReduceResult {
+        match branch.node {
+            BranchNode::Jump(..) => todo!(),
+            BranchNode::Return(unreduced_args) => {
+                self.reduce_return((unreduced_args, args), branch.span, branch.ty)
+            }
+        }
+    }
 
-                StmtNode::Apply { names, fun, args } => {
-                    let reduced_args: Vec<_> = args
-                        .iter()
-                        .cloned()
-                        .map(|arg| self.reduce_value(&env, arg))
-                        .collect();
+    fn reduce_stmt(&mut self, stmt: Statement, args: Vec<ReducedValue>) -> ReduceResult {
+        match stmt.node {
+            StmtNode::Function { .. } => todo!(),
+            StmtNode::Join { .. } => todo!(),
+            StmtNode::Tuple { .. } => todo!(),
+            StmtNode::Proj { .. } => todo!(),
 
-                    if let Some(Irreducible {
-                        node: IrreducibleNode::Lambda(params, body),
-                        ..
-                    }) = self.lookup(&env, &fun)
-                    {
-                        let mut child_env = env.clone();
-                        for (param, arg) in params.iter().zip(reduced_args) {
-                            child_env = child_env.with(*param, arg);
-                        }
+            StmtNode::Apply {
+                names,
+                fun,
+                args: unreduced_args,
+            } => self.reduce_call(names, fun, (unreduced_args, args), stmt.span, stmt.ty),
+        }
+    }
 
-                        let result = self.reduce_irr(child_env, ctx, *body.clone());
-                        match result.node {
-                            IrreducibleNode::Tuple(values) => {
-                                assert!(names.len() == values.len());
-                                for (name, value) in names.iter().zip(values) {
-                                    env.set(*name, value);
-                                }
-                            }
+    /// Partially evaluate a return. This will always produce an operation (the
+    /// least a function can do is return :)
+    fn reduce_return(
+        &mut self,
+        args: (Vec<Value>, Vec<ReducedValue>),
+        span: Span,
+        ty: TypeId,
+    ) -> ReduceResult {
+        let mut inst_args = Vec::new();
+        let mut values = Vec::new();
 
-                            IrreducibleNode::Invalid => {
-                                for name in names.iter() {
-                                    env.set(*name, result.clone());
-                                }
-                            }
-
-                            _ => {
-                                assert!(names.len() == 1);
-                                env.set(names[0], result);
-                            }
-                        }
-                    }
-
-                    StmtNode::Apply { names, fun, args }
-                }
-
-                StmtNode::Tuple { name, values } => {
-                    let new_values = values
-                        .clone()
-                        .into_iter()
-                        .map(|value| self.reduce_value(&env, value))
-                        .collect();
-                    env.set(
-                        name,
-                        Irreducible {
-                            node: IrreducibleNode::Tuple(new_values),
-                            span: expr.span,
-                            ty: expr.ty,
-                        },
-                    );
-
-                    StmtNode::Tuple { name, values }
-                }
-
-                StmtNode::Proj { name, of, at } => {
-                    if let Some(Irreducible {
-                        node: IrreducibleNode::Tuple(values),
-                        ..
-                    }) = self.lookup(&env, &of)
-                    {
-                        env.set(name, values[at].clone());
-                    }
-
-                    StmtNode::Proj { name, of, at }
-                }
+        for (arg, old) in args.1.into_iter().zip(args.0) {
+            let (value, arg) = if arg.is_static(self.frame_index()) {
+                (self.locally_static_value(arg.value.clone()), arg.value)
+            } else {
+                (arg, old)
             };
 
-            new_exprs.push(Statement {
-                node,
-                span: expr.span,
-                ty: expr.ty,
-            })
+            values.push(value);
+            inst_args.push(arg);
         }
 
-        let branch = match exprs.branch.node {
-            BranchNode::Return(values) => 'branch: {
-                let mut tup = Vec::with_capacity(values.len());
-                for value in values.iter() {
-                    match &value.node {
-                        ValueNode::Int(i) => tup.push(Irreducible {
-                            node: IrreducibleNode::Integer(*i),
-                            span: value.span,
-                            ty: value.ty,
-                        }),
-
-                        ValueNode::Invalid => tup.push(Irreducible {
-                            node: IrreducibleNode::Invalid,
-                            span: value.span,
-                            ty: value.ty,
-                        }),
-
-                        ValueNode::Name(name) => {
-                            if let Some(value) = self.lookup(&env, name) {
-                                tup.push(value.clone());
-                            } else {
-                                break 'branch BranchNode::Return(values);
-                            }
-                        }
-                    }
-                }
-
-                if tup.len() == 1 {
-                    return tup.remove(0);
-                } else {
-                    return Irreducible {
-                        node: IrreducibleNode::Tuple(tup),
-                        span: exprs.branch.span,
-                        ty: exprs.branch.ty,
-                    };
-                }
-            }
-
-            BranchNode::Jump(to, arg) => BranchNode::Jump(to, arg),
+        let branch = Branch {
+            node: BranchNode::Return(inst_args),
+            span,
+            ty,
         };
 
-        Irreducible {
-            node: IrreducibleNode::Quote(Block {
-                stmts: new_exprs,
-                branch: Branch {
-                    node: branch,
-                    span: exprs.branch.span,
-                    ty: exprs.branch.ty,
-                },
-                span: exprs.span,
-                ty: exprs.ty,
-            }),
-            span: exprs.span,
-            ty: exprs.ty,
+        ReduceResult {
+            action: Action::Exit {
+                return_values: values,
+            },
+            values: None,
+            operation: Some(Operation::Branch(branch)),
         }
     }
 
-    pub fn reduce_irr(&mut self, env: Env, ctx: Name, irr: Irreducible) -> Irreducible {
-        let node = match irr.node {
-            IrreducibleNode::Quote(exprs) => return self.reduce_exprs(env, ctx, exprs),
-            IrreducibleNode::Lambda(params, body) => {
-                let t = match self.types.get(&irr.ty) {
-                    Type::Fun(t, _) => t.clone(),
-                    Type::Invalid => vec![irr.ty; params.len()],
-                    _ => unreachable!(),
+    /// Partially evaluate a call. If the provided function is unknown, the
+    /// instruction is left mostly as is. Otherwise, a call is made. If all of
+    /// the arguments (including the function) are statically known and all
+    /// effects are handled, no instruction will be produced.
+    fn reduce_call(
+        &mut self,
+        names: Vec<Name>,
+        fun: Name,
+        mut args: (Vec<Value>, Vec<ReducedValue>),
+        span: Span,
+        ty: TypeId,
+    ) -> ReduceResult {
+        let new_fun = args.1.remove(0);
+        let static_fun = new_fun.is_static(self.frame_index());
+        let (new_fun, fun_ty) = match new_fun.value {
+            Value {
+                node: ValueNode::Name(fun),
+                ty,
+                ..
+            } => (fun, ty),
+            _ => unreachable!(),
+        };
+
+        let (push_inst, action) = match (self.place_of(&new_fun), self.functions.get(&new_fun)) {
+            (Some(place), Some(params)) => {
+                assert_eq!(params.len(), args.1.len());
+
+                let mut new_env = Env::new();
+
+                // If this is a pure function and all of its arguments have been provided, then
+                // the function will fully reduce.
+                let is_dynamic = !self.types.is_pure(&fun_ty)
+                    || args.1.iter().any(|arg| arg.is_dynamic(self.frame_index()))
+                    || !static_fun;
+
+                for (param, arg) in params.iter().zip(args.1.iter()) {
+                    new_env.add(*param, arg.clone());
+                }
+
+                let action = Action::Enter {
+                    place,
+                    env: new_env,
+                    return_names: names.clone(),
                 };
 
-                let new_names: Vec<_> = t
-                    .iter()
-                    .copied()
-                    .map(|t| {
-                        let name = self.names.fresh(irr.span, ctx);
-                        self.context.add(name, t);
-                        name
-                    })
-                    .collect();
-
-                let mut closed = env;
-                for (param, ty) in params.iter().zip(t) {
-                    closed = closed.with(
-                        *param,
-                        Irreducible {
-                            node: IrreducibleNode::Quote(Block {
-                                stmts: vec![],
-                                branch: Branch {
-                                    node: BranchNode::Return(vec![Value {
-                                        node: ValueNode::Name(*param),
-                                        span: irr.span,
-                                        ty,
-                                    }]),
-                                    span: irr.span,
-                                    ty,
-                                },
-                                span: irr.span,
-                                ty,
-                            }),
-                            span: irr.span,
-                            ty,
-                        },
-                    );
-                }
-
-                let body = self.reduce_irr(closed, ctx, *body);
-                IrreducibleNode::Lambda(new_names, Box::new(body))
+                (is_dynamic, action)
             }
 
-            IrreducibleNode::Tuple(irrs) => {
-                let irrs = irrs
-                    .into_iter()
-                    .map(|irr| self.reduce_irr(env.clone(), ctx, irr))
-                    .collect();
-                IrreducibleNode::Tuple(irrs)
-            }
-
-            IrreducibleNode::Integer(i) => IrreducibleNode::Integer(i),
-            IrreducibleNode::Invalid => IrreducibleNode::Invalid,
+            _ => (true, Action::None),
         };
 
-        Irreducible {
-            node,
-            span: irr.span,
-            ty: irr.ty,
-        }
-    }
+        let inst = if push_inst {
+            let mut inst_args = Vec::new();
 
-    fn reduce_value(&mut self, env: &Env, value: Value) -> Irreducible {
-        let node = match value.node {
-            ValueNode::Invalid => IrreducibleNode::Invalid,
-            ValueNode::Int(i) => IrreducibleNode::Integer(i),
-            ValueNode::Name(name) => {
-                if let Some(value) = self.lookup(env, &name) {
-                    return value.clone();
+            for (arg, old) in args.1.into_iter().zip(args.0) {
+                if arg.is_static(self.frame_index()) {
+                    inst_args.push(arg.value);
                 } else {
-                    IrreducibleNode::Quote(Block {
-                        stmts: vec![],
-                        span: value.span,
-                        ty: value.ty,
-                        branch: Branch {
-                            node: BranchNode::Return(vec![Value {
-                                node: ValueNode::Name(name),
-                                span: value.span,
-                                ty: value.ty,
-                            }]),
-                            span: value.span,
-                            ty: value.ty,
-                        },
-                    })
+                    inst_args.push(old);
                 }
             }
+
+            let fun = if static_fun { new_fun } else { fun };
+
+            Some(Statement {
+                node: StmtNode::Apply {
+                    names,
+                    fun,
+                    args: inst_args,
+                },
+                span,
+                ty,
+            })
+        } else {
+            None
         };
 
-        Irreducible {
-            node,
-            span: value.span,
-            ty: value.ty,
+        ReduceResult {
+            action,
+            operation: inst.map(Operation::Statement),
+            values: None,
         }
     }
 }

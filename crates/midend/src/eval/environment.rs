@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common::names::Name;
+use common::Driver;
 
 use super::value::ReducedValue;
 use super::Interpreter;
@@ -26,7 +27,7 @@ impl Env {
     }
 }
 
-impl Interpreter<'_> {
+impl<D: Driver> Interpreter<'_, D> {
     /// Bind the given name to a value. Panics if there is no stack frame to
     /// bind it in, or if the name has already been added in the current stack
     /// frame.

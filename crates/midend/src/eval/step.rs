@@ -1,6 +1,7 @@
 use std::ops::Add;
 
 use common::mir::Block;
+use common::Driver;
 use log::trace;
 
 use super::action::Action;
@@ -15,7 +16,7 @@ pub enum Step {
     Done,
 }
 
-impl Interpreter<'_> {
+impl<D: Driver> Interpreter<'_, D> {
     pub(super) fn execute(&mut self) {
         while let Ok(action) = self.step() {
             match action {

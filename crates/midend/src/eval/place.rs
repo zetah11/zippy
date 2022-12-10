@@ -1,4 +1,5 @@
 use common::names::Name;
+use common::Driver;
 
 use super::state::Frame;
 use super::value::Operation;
@@ -24,7 +25,7 @@ impl Place {
     }
 }
 
-impl Interpreter<'_> {
+impl<D: Driver> Interpreter<'_, D> {
     /// Get a mutable reference to the current frame. Panics if there is none.
     pub fn get_frame_mut(&mut self) -> &mut Frame {
         self.frames.last_mut().unwrap()

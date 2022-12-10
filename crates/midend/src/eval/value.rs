@@ -1,5 +1,6 @@
 use common::mir::{Branch, BranchNode, Statement, StmtNode, Value, ValueNode};
 use common::names::Name;
+use common::Driver;
 
 use super::Interpreter;
 
@@ -30,7 +31,7 @@ pub enum Operation {
     Statement(Statement),
 }
 
-impl Interpreter<'_> {
+impl<D: Driver> Interpreter<'_, D> {
     pub(super) fn locally_static_value(&self, value: Value) -> ReducedValue {
         ReducedValue {
             value,
