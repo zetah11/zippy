@@ -1,3 +1,49 @@
+//! # Partial evaluation
+//!
+//! This module implements the partial evaluator. Its main job is to evaluate
+//! all of the pure fragments of a program. It's called a partial evaluator
+//! because it needs to do its job even when we only know parts of the input
+//! data. For example, it may try to evaluate a function without any knowledge
+//! of what its parameters will contain. This means that the partial evaluator
+//! will sometimes reduce a call or a function body down to a single value,
+//! while it may other times be unable to do anything. When it is able to reduce
+//! and simplify functions and blocks, it will "re-write" them to the more
+//! simplified case (in the extreme case, to a single `return`). If it can't
+//! make any progress, the block will be left as is.
+//!
+//! This partial evaluator is vaguely modelled after rustc's const evaluator.
+//! The bird's eye view is that we have a function `execute` which repeatedly
+//! calls a `step` function until there is no more to do. `step` will fetch the
+//! current instruction, reduce its arguments as best it can, evaluate the
+//! actual operation, and then bind the resulting values to any names. When
+//! evaluating the operation, it might not be able to do anything, in which case
+//! it will emit a (possibly reduced) copy of itself. When we have fully
+//! evaluated all the instructions (statements and branch) in a block, it
+//! collects all the emitted instructions, and replaces the current block with
+//! them.
+//!
+//! Because it is doing this rewriting at the same time as we are evaluating
+//! things, some care needs to be applied to make sure we keep track of what is
+//! "static" data and what is "dynamic" data. Take for instance this program:
+//!
+//! ```zippy
+//! fun id (x: 10) = x
+//! fun first (x: 10, y: 10) = x
+//! fun main (?: 1) = first (id 5, id 6)
+//! ```
+//!
+//! The program calls `id` twice, with two different arguments. If we "naively"
+//! replaced the variable `x` in its body, we might incorrectly reducing it to
+//!
+//! ```zippy
+//! fun id (x: 10) = 6
+//! ```
+//!
+//! which is of course wrong. Because of this, values also keep track of a
+//! *frame index*, which says where a value originated, which lets us decide
+//! whether or not to use the reduced or unreduced form of a value while
+//! rewriting.
+
 mod action;
 mod discover;
 mod environment;
