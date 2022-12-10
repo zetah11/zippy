@@ -85,6 +85,9 @@ pub fn evaluate(
 
     let res = interp.collect();
     trace!("evaluation done");
+
+    driver.done_eval();
+
     res
 }
 

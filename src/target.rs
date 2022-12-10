@@ -7,7 +7,7 @@ use target_lexicon::Triple;
 use crate::args::Arguments;
 
 pub fn get_target(args: &Arguments) -> Triple {
-    let target = match args.target {
+    let target = match args.options().target {
         Some(ref target) => Triple::from_str(target),
         None => Ok(Triple::host()),
     };

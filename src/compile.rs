@@ -13,14 +13,15 @@ pub fn compile(args: &Arguments, target: &Triple, code: String) -> anyhow::Resul
 
     DirBuilder::new().recursive(true).create(artifacts)?;
 
-    let code_path = artifacts.join(args.path.with_extension("c"));
+    let path = &args.options().path;
+    let code_path = artifacts.join(path.with_extension("c"));
 
     {
         let mut file = File::create(&code_path)?;
         file.write_all(code.as_bytes())?;
     }
 
-    let exec_name = args.path.with_extension("exe");
+    let exec_name = path.with_extension("exe");
     let exec_name = exec_name.to_string_lossy();
 
     let mut build = Build::new();
@@ -39,7 +40,7 @@ pub fn compile(args: &Arguments, target: &Triple, code: String) -> anyhow::Resul
         .output()?;
 
     if output.status.success() {
-        Ok(PathBuf::from(exec_name.as_ref()))
+        Ok(artifacts.join(exec_name.as_ref()))
     } else {
         let output = if output.stderr.is_empty() {
             String::from_utf8_lossy(&output.stdout)

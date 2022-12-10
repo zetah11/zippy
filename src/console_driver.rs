@@ -24,6 +24,7 @@ pub struct ConsoleDriver {
 
 impl ConsoleDriver {
     pub fn new(args: &Arguments, files: SimpleFiles<String, String>) -> Self {
+        let opts = args.options();
         Self {
             files,
             writer: StandardStream::stderr(ColorChoice::Auto),
@@ -33,8 +34,8 @@ impl ConsoleDriver {
                 ..Default::default()
             },
 
-            preserve_output: env::var("COR_PRESERVE_OUTPUT").is_ok() || args.preserve_output,
-            partial_eval: if env::var("COR_NO_EVAL").is_ok() || args.no_eval {
+            preserve_output: env::var("COR_PRESERVE_OUTPUT").is_ok() || opts.preserve_output,
+            partial_eval: if env::var("COR_NO_EVAL").is_ok() || opts.no_eval {
                 EvalAmount::None
             } else {
                 EvalAmount::Full
