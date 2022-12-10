@@ -9,7 +9,7 @@ pub use self::pretty::{pretty_type, PrettyMap};
 pub use because::Because;
 pub use constraint::Constraint;
 pub use context::{merge_insts, Context, TypeOrSchema};
-pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
+pub use tree::{Decls, Expr, ExprNode, Pat, PatNode, TypeDef, ValueDef};
 pub use types::{Mutability, Type, UniVar};
 
 use std::collections::HashMap;

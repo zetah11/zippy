@@ -201,7 +201,7 @@ impl<'a> Unifier<'a> {
 
     fn occurs(var: &UniVar, ty: &Type) -> bool {
         match ty {
-            Type::Invalid | Type::Number => false,
+            Type::Invalid | Type::Number | Type::Type => false,
             Type::Range(_, _) => false,
             Type::Name(_) => false,
             Type::Fun(t, u) => Self::occurs(var, t) || Self::occurs(var, u),

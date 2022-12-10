@@ -6,6 +6,7 @@ use crate::names::Name;
 #[derive(Debug)]
 pub struct Decls<Data = ()> {
     pub values: Vec<ValueDef<Data>>,
+    pub types: Vec<TypeDef<Data>>,
 }
 
 #[derive(Debug)]
@@ -15,6 +16,14 @@ pub struct ValueDef<Data = ()> {
     pub pat: Pat<Data>,
     pub anno: Type,
     pub bind: Expr<Data>,
+}
+
+#[derive(Debug)]
+pub struct TypeDef<Data = ()> {
+    pub span: Span,
+    pub pat: Pat<Data>,
+    pub anno: Type,
+    pub bind: Type,
 }
 
 #[derive(Clone, Debug)]

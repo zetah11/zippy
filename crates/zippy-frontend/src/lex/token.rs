@@ -8,6 +8,9 @@ pub enum FreeToken<'src> {
     #[token("let")]
     Let,
 
+    #[token("type")]
+    Type,
+
     #[token("upto")]
     Upto,
 

@@ -48,6 +48,7 @@ impl Lowerer<'_> {
                 Some(self.types.add(Type::Fun(vec![t], vec![u])))
             }
 
+            HiType::Type => unreachable!(),
             HiType::Number => unreachable!(),
             HiType::Invalid => Some(self.types.add(Type::Invalid)),
         }

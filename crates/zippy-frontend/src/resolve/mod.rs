@@ -3,6 +3,7 @@
 mod declare_decl;
 mod declare_expr;
 mod declare_pat;
+mod declare_type;
 mod resolve_decl;
 mod resolve_expr;
 mod resolve_pat;

@@ -31,6 +31,16 @@ impl BindIdGenerator {
 #[derive(Debug)]
 pub struct Decls<Name = String> {
     pub values: Vec<ValueDef<Name>>,
+    pub types: Vec<TypeDef<Name>>,
+}
+
+#[derive(Debug)]
+pub struct TypeDef<Name = String> {
+    pub span: Span,
+    pub id: BindId,
+    pub pat: Pat<Name>,
+    pub anno: Type<Name>,
+    pub bind: Type<Name>,
 }
 
 #[derive(Debug)]
@@ -93,6 +103,7 @@ pub enum TypeNode<Name> {
     Range(i64, i64),
     Fun(Box<Type<Name>>, Box<Type<Name>>),
     Prod(Box<Type<Name>>, Box<Type<Name>>),
+    Type,
     Wildcard,
     Invalid,
 }

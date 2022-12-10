@@ -9,12 +9,17 @@ impl Typer<'_> {
 
     fn lower_decls(&mut self, decls: hir::Decls<Name>) -> thir::Decls {
         let mut values = Vec::with_capacity(decls.values.len());
+        let mut types = Vec::with_capacity(decls.types.len());
 
         for def in decls.values {
             values.push(self.lower_value_def(def));
         }
 
-        thir::Decls { values }
+        for def in decls.types {
+            types.push(self.lower_type_def(def));
+        }
+
+        thir::Decls { values, types }
     }
 
     fn lower_value_def(&mut self, def: hir::ValueDef<Name>) -> thir::ValueDef {
@@ -26,6 +31,20 @@ impl Typer<'_> {
         thir::ValueDef {
             span: def.span,
             implicits: def.implicits,
+            pat,
+            anno,
+            bind,
+        }
+    }
+
+    fn lower_type_def(&mut self, def: hir::TypeDef<Name>) -> thir::TypeDef {
+        let pat = self.lower_pat(def.pat);
+        let _ = def.id;
+        let anno = self.lower_type(def.anno);
+        let bind = self.lower_type(def.bind);
+
+        thir::TypeDef {
+            span: def.span,
             pat,
             anno,
             bind,
@@ -114,6 +133,7 @@ impl Typer<'_> {
                 let u = Box::new(self.lower_type(*u));
                 thir::Type::Product(t, u)
             }
+            hir::TypeNode::Type => thir::Type::Type,
             hir::TypeNode::Wildcard => thir::Type::mutable(self.context.fresh()),
             hir::TypeNode::Invalid => thir::Type::Invalid,
         }

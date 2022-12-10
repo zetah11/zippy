@@ -27,19 +27,48 @@ impl Unconcretifier {
 
     fn unconc_decls(&mut self, decls: Vec<cst::Decl>) -> hir::Decls {
         let mut values = Vec::with_capacity(decls.len());
+        let mut types = Vec::new();
 
         for decl in decls {
             match decl.node {
-                cst::DeclNode::ValueDecl { pat, anno, bind } => {
+                cst::DeclNode::TypeDecl { pat, bind } => {
+                    let (pat, insts) = self.unconc_pat(pat);
+
+                    if let Some(ex) = insts.first() {
+                        self.msgs.at(ex.span).parse_types_take_no_implicits();
+                    }
+
+                    let anno = hir::Type {
+                        node: hir::TypeNode::Wildcard,
+                        span: pat.span,
+                    };
+
+                    let bind = if let Some(ty) = bind {
+                        self.unconc_type(ty)
+                    } else {
+                        hir::Type {
+                            node: hir::TypeNode::Type,
+                            span: pat.span,
+                        }
+                    };
+
+                    types.push(hir::TypeDef {
+                        span: decl.span,
+                        id: self.bind_id.fresh(),
+                        anno,
+                        bind,
+                        pat,
+                    });
+                }
+
+                cst::DeclNode::ValueDecl { pat, bind } => {
                     let (pat, insts) = self.unconc_pat(pat);
                     let implicits = self.unconc_insts(insts);
 
-                    let anno =
-                        anno.map(|anno| self.unconc_type(anno))
-                            .unwrap_or_else(|| hir::Type {
-                                node: hir::TypeNode::Wildcard,
-                                span: pat.span,
-                            });
+                    let anno = hir::Type {
+                        node: hir::TypeNode::Wildcard,
+                        span: pat.span,
+                    };
 
                     let bind = if let Some(bind) = bind {
                         self.unconc_expr(bind)
@@ -133,7 +162,9 @@ impl Unconcretifier {
             }
         }
 
-        hir::Decls { values }
+        values.shrink_to_fit();
+
+        hir::Decls { values, types }
     }
 
     fn unconc_expr(&mut self, expr: cst::Expr) -> hir::Expr {
@@ -227,6 +258,11 @@ impl Unconcretifier {
             }
             cst::ExprNode::Wildcard => hir::ExprNode::Hole,
             cst::ExprNode::Invalid => hir::ExprNode::Invalid,
+
+            cst::ExprNode::Type => {
+                self.msgs.at(expr.span).parse_expected_expr();
+                hir::ExprNode::Invalid
+            }
         };
 
         hir::Expr {
@@ -333,6 +369,8 @@ impl Unconcretifier {
             }
 
             cst::ExprNode::Group(typ) => return self.unconc_type(*typ),
+
+            cst::ExprNode::Type => hir::TypeNode::Type,
 
             cst::ExprNode::Wildcard => hir::TypeNode::Wildcard,
 

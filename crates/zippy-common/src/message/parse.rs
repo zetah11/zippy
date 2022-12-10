@@ -3,11 +3,13 @@ use super::{Diagnostic, Label, MessageAdder};
 const BASE_EXPR: &str = "EP00";
 const DECLARATION: &str = "EP01";
 const DISALLOWED_IMPLICITS: &str = "EP08";
+const EXPR: &str = "EP10";
 const GENERIC_LAMBDA: &str = "EP09";
 const NOT_A_PAT: &str = "EP02";
 const NOT_A_TYPE: &str = "EP03";
 const NOT_A_TYPE_NAME: &str = "EP07";
 const RANGE_NOT_AN_INT: &str = "EP04";
+const TYPE_IMPLICITS: &str = "EP11";
 const UNCLOSED_GROUP: &str = "EP05";
 const UNCLOSED_IMPLICITS: &str = "EP06";
 
@@ -20,6 +22,17 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(BASE_EXPR)
                 .with_message("expected a simple expression")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn parse_expected_expr(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(EXPR)
+                .with_message("expected an expression")
                 .with_labels(labels),
         );
     }
@@ -38,7 +51,8 @@ impl<'a> MessageAdder<'a> {
     }
 
     pub fn parse_expected_declaration(&mut self) {
-        let labels = vec![Label::primary(self.at).with_message("expected a 'let'-binding")];
+        let labels =
+            vec![Label::primary(self.at).with_message("expected a value or type definition")];
 
         self.add(
             Diagnostic::error()
@@ -101,6 +115,17 @@ impl<'a> MessageAdder<'a> {
             Diagnostic::error()
                 .with_code(RANGE_NOT_AN_INT)
                 .with_message("range types can only contain integer literals")
+                .with_labels(labels),
+        );
+    }
+
+    pub fn parse_types_take_no_implicits(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(TYPE_IMPLICITS)
+                .with_message("types cannot have implicit arguments")
                 .with_labels(labels),
         );
     }

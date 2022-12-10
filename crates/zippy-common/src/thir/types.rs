@@ -27,6 +27,7 @@ pub enum Type {
     Instantiated(Box<Type>, HashMap<Name, Type>),
     Var(Mutability, UniVar),
     Number,
+    Type,
 
     Invalid,
 }
@@ -66,6 +67,7 @@ impl Type {
             Type::Var(_, var) => Type::Var(mutability, *var),
 
             Type::Number => Type::Number,
+            Type::Type => Type::Type,
             Type::Invalid => Type::Invalid,
         }
     }
@@ -105,6 +107,7 @@ pub fn instantiate(mapping: &HashMap<Name, Type>, ty: &Type) -> Type {
 
         Type::Range(lo, hi) => Type::Range(*lo, *hi),
         Type::Number => Type::Number,
+        Type::Type => Type::Type,
         Type::Var(mutable, var) => Type::Var(*mutable, *var),
         Type::Invalid => Type::Invalid,
     }

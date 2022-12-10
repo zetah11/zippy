@@ -194,6 +194,7 @@ where
         Token::Number(0),
         Token::Question,
         Token::GroupOpen,
+        Token::Type,
     ];
 
     /// ```abnf
@@ -208,6 +209,7 @@ where
                 Token::Name(name) => ExprNode::Name(name),
                 Token::Number(num) => ExprNode::Int(num),
                 Token::Question => ExprNode::Wildcard,
+                Token::Type => ExprNode::Type,
                 Token::GroupOpen => {
                     let expr = if self.peek(Self::OP_NAME_STARTS) {
                         self.op_name()

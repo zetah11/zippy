@@ -13,6 +13,7 @@ use zippy_common::Driver;
 pub enum Token {
     Fun,
     Let,
+    Type,
     Upto,
 
     GroupOpen,
@@ -50,6 +51,7 @@ impl Token {
         match self {
             Self::Fun
             | Self::Let
+            | Self::Type
             | Self::Upto
             | Self::GroupOpen
             | Self::Pipe
@@ -82,6 +84,7 @@ impl Token {
 
             Self::Fun
             | Self::Let
+            | Self::Type
             | Self::GroupOpen
             | Self::Question
             | Self::Name(_)
@@ -134,6 +137,7 @@ impl<'src> Lexer<'src> {
             let tok = match tok {
                 FreeToken::Fun => Token::Fun,
                 FreeToken::Let => Token::Let,
+                FreeToken::Type => Token::Type,
                 FreeToken::Upto => Token::Upto,
                 FreeToken::LParen => Token::GroupOpen,
                 FreeToken::RParen => Token::GroupClose,

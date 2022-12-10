@@ -213,6 +213,7 @@ impl<'a> Prettier<'a> {
             }
 
             Type::Number => "<number>".into(),
+            Type::Type => "type".into(),
 
             Type::Invalid => "<error>".into(),
 

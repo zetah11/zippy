@@ -26,6 +26,7 @@ impl Resolver {
             }
 
             TypeNode::Range(lo, hi) => TypeNode::Range(lo, hi),
+            TypeNode::Type => TypeNode::Type,
             TypeNode::Wildcard => TypeNode::Wildcard,
             TypeNode::Invalid => TypeNode::Invalid,
         };

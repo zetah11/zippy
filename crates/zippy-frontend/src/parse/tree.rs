@@ -12,7 +12,6 @@ pub struct Decl {
 pub enum DeclNode {
     ValueDecl {
         pat: Expr,
-        anno: Option<Expr>,
         bind: Option<Expr>,
     },
 
@@ -21,6 +20,11 @@ pub enum DeclNode {
         implicits: Option<Expr>,
         args: Vec<Expr>,
         anno: Option<Expr>,
+        bind: Option<Expr>,
+    },
+
+    TypeDecl {
+        pat: Expr,
         bind: Option<Expr>,
     },
 }
@@ -52,6 +56,7 @@ pub enum ExprNode {
     Anno(Box<Expr>, Box<Expr>),
 
     Wildcard,
+    Type,
 
     Invalid,
 }

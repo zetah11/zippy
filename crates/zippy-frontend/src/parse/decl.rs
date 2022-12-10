@@ -1,6 +1,6 @@
 use zippy_common::message::Span;
 
-use super::tree::{Decl, DeclNode, Expr, ExprNode};
+use super::tree::{Decl, DeclNode};
 use super::Parser;
 use crate::lex::Token;
 
@@ -61,18 +61,35 @@ where
     }
 
     /// Tokens that may start a `decl`.
-    const DECL_STARTS: &'static [Token] = &[Token::GroupOpen, Token::Fun, Token::Let];
+    const DECL_STARTS: &'static [Token] = &[Token::GroupOpen, Token::Fun, Token::Let, Token::Type];
 
     /// ```abnf
-    /// decl = let-decl / fun-decl
+    /// decl = type-decl / let-decl / fun-decl
     /// ```
     fn decl(&mut self) -> Decl {
-        if let Some(span) = self.matches(Token::Let) {
+        if let Some(span) = self.matches(Token::Type) {
+            self.type_decl(span)
+        } else if let Some(span) = self.matches(Token::Let) {
             self.let_decl(span)
         } else if let Some(span) = self.matches(Token::Fun) {
             self.fun_decl(span)
         } else {
             unreachable!()
+        }
+    }
+
+    /// ```abnf
+    /// type-decl = "type" small-expr ["=" expr]
+    /// ```
+    fn type_decl(&mut self, type_span: Span) -> Decl {
+        let pat = self.parse_small_expr();
+        let bind = self.consume(Token::Equal).then(|| self.parse_expr());
+
+        let span = bind.as_ref().map(|bind| bind.span).unwrap_or(pat.span);
+
+        Decl {
+            node: DeclNode::TypeDecl { pat, bind },
+            span: type_span + span,
         }
     }
 
@@ -84,17 +101,9 @@ where
         let bind = self.consume(Token::Equal).then(|| self.parse_expr());
 
         let span = bind.as_ref().map(|bind| bind.span).unwrap_or(pat.span);
-        let anno_span = pat.span;
 
         Decl {
-            node: DeclNode::ValueDecl {
-                pat,
-                anno: Some(Expr {
-                    node: ExprNode::Wildcard,
-                    span: anno_span,
-                }),
-                bind,
-            },
+            node: DeclNode::ValueDecl { pat, bind },
             span: let_span + span,
         }
     }

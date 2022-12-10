@@ -3,6 +3,7 @@ mod check;
 mod infer;
 mod lower;
 mod solve;
+mod types;
 
 use log::{info, trace};
 
@@ -58,6 +59,12 @@ impl<'a> Typer<'a> {
     }
 
     pub fn typeck(&mut self, decls: Decls) -> Decls<Type> {
+        let types = Vec::with_capacity(decls.types.len());
+        for def in decls.types.into_iter() {
+            let _kind = self.infer_type(&def.bind);
+            todo!()
+        }
+
         let mut pats = Vec::with_capacity(decls.values.len());
         for def in decls.values.iter() {
             pats.push(self.bind_def(def));
@@ -69,7 +76,7 @@ impl<'a> Typer<'a> {
             values.push(def);
         }
 
-        Decls { values }
+        Decls { values, types }
     }
 
     pub fn solve(&mut self) {
