@@ -1,5 +1,7 @@
 mod bind;
 mod check;
+//mod components;
+mod dependency;
 mod infer;
 mod lower;
 mod solve;
@@ -22,6 +24,28 @@ pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) 
 
     let mut typer = Typer::new(names);
     let decls = typer.lower(decls);
+
+    let deps = dependency::Dependencies::find(&decls);
+    for (name, deps) in deps {
+        fn pretty(names: &Names, name: &Name) -> String {
+            match &names.get_path(name).1 {
+                zippy_common::names::Actual::Lit(s) => s.clone(),
+                zippy_common::names::Actual::Generated(g) => g.to_string("_t"),
+                zippy_common::names::Actual::Root => "root".into(),
+                zippy_common::names::Actual::Scope(s) => s.to_string(),
+            }
+        }
+
+        println!(
+            "{}: [{}]",
+            pretty(names, &name),
+            deps.into_iter()
+                .map(|name| pretty(names, &name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+
     let decls = typer.typeck(decls);
 
     info!("solving {} constraints", typer.constraints.len());
