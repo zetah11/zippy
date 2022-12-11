@@ -1,6 +1,6 @@
 mod bind;
 mod check;
-//mod components;
+mod components;
 mod dependency;
 mod infer;
 mod lower;
@@ -25,8 +25,9 @@ pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) 
     let mut typer = Typer::new(names);
     let decls = typer.lower(decls);
 
-    let deps = dependency::Dependencies::find(&decls);
-    for (name, deps) in deps {
+    let components = components::Components::find(&decls);
+
+    for defs in components {
         fn pretty(names: &Names, name: &Name) -> String {
             match &names.get_path(name).1 {
                 zippy_common::names::Actual::Lit(s) => s.clone(),
@@ -37,9 +38,8 @@ pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) 
         }
 
         println!(
-            "{}: [{}]",
-            pretty(names, &name),
-            deps.into_iter()
+            "[{}]",
+            defs.into_iter()
                 .map(|name| pretty(names, &name))
                 .collect::<Vec<_>>()
                 .join(", ")
