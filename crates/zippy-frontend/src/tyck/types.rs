@@ -1,28 +1,30 @@
+use zippy_common::message::Span;
 use zippy_common::thir::Type;
 
 use super::Typer;
 
 impl Typer<'_> {
     /// Infer the kind of a type.
-    pub fn infer_type(&mut self, ty: &Type) -> Type {
+    pub fn infer_type(&mut self, at: Span, ty: &Type) -> Type {
         match ty {
             Type::Name(_) => todo!(),
 
             Type::Fun(t, u) | Type::Product(t, u) => {
-                self.check_type(t, Type::Type);
-                self.check_type(u, Type::Type);
+                self.check_type(at, t, Type::Type);
+                self.check_type(at, u, Type::Type);
                 Type::Type
             }
 
             Type::Range(..) => Type::Type,
             Type::Number | Type::Invalid | Type::Type => Type::Type,
 
-            Type::Var(..) => todo!(),
+            Type::Var(..) => Type::mutable(self.context.fresh()),
             Type::Instantiated(..) => todo!(),
         }
     }
 
-    fn check_type(&mut self, _ty: &Type, _kind: Type) {
-        todo!()
+    pub fn check_type(&mut self, at: Span, ty: &Type, kind: Type) {
+        let inferred = self.infer_type(at, ty);
+        self.assignable(at, kind, inferred);
     }
 }

@@ -7,31 +7,25 @@
 
 use std::collections::{HashMap, HashSet};
 
-use zippy_common::names::Name;
 use zippy_common::thir::Decls;
 
-use super::dependency::Dependencies;
-
-/// A strongly connected component is a set of names which are all part of a
-/// dependency cycle, meaning that a name directly or indirectly refers to
-/// itself.
-pub type Component = HashSet<Name>;
+use super::dependency::{DefIndex, Dependencies};
 
 #[derive(Debug)]
 pub struct Components {
     index: usize,
 
-    indicies: HashMap<Name, usize>,
-    lowlinks: HashMap<Name, usize>,
+    indicies: HashMap<DefIndex, usize>,
+    lowlinks: HashMap<DefIndex, usize>,
 
-    stack: Vec<Name>,
-    on_stack: HashSet<Name>,
+    stack: Vec<DefIndex>,
+    on_stack: HashSet<DefIndex>,
 
-    components: Vec<Component>,
+    components: Vec<HashSet<DefIndex>>,
 }
 
 impl Components {
-    pub fn find(decls: &Decls) -> Vec<Component> {
+    pub fn find(decls: &Decls) -> Vec<HashSet<DefIndex>> {
         let graph = Dependencies::find(decls);
         let mut finder = Self {
             index: 0,
@@ -51,7 +45,7 @@ impl Components {
         finder.components
     }
 
-    fn connect(&mut self, graph: &HashMap<Name, HashSet<Name>>, vertex: Name) {
+    fn connect(&mut self, graph: &HashMap<DefIndex, HashSet<DefIndex>>, vertex: DefIndex) {
         self.indicies.insert(vertex, self.index);
         self.lowlinks.insert(vertex, self.index);
         self.index += 1;

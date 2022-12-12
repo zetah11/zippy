@@ -9,7 +9,7 @@ pub struct Decls<Data = ()> {
     pub types: Vec<TypeDef<Data>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ValueDef<Data = ()> {
     pub span: Span,
     pub implicits: Vec<(Name, Span)>,
@@ -18,7 +18,7 @@ pub struct ValueDef<Data = ()> {
     pub bind: Expr<Data>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TypeDef<Data = ()> {
     pub span: Span,
     pub pat: Pat<Data>,

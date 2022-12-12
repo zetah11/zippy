@@ -7,27 +7,49 @@ use std::collections::{HashMap, HashSet};
 use zippy_common::names::Name;
 use zippy_common::thir::{Decls, Expr, ExprNode, Pat, PatNode, Type, TypeDef, ValueDef};
 
+/// A [`DefIndex`] is an index into either the `values` or the `types` list in a
+/// [`Decls`].
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DefIndex {
+    Value(usize),
+    Type(usize),
+}
+
 #[derive(Debug, Default)]
 pub struct Dependencies {
     deps: HashMap<Name, HashSet<Name>>,
+    map: HashMap<Name, DefIndex>,
 }
 
 impl Dependencies {
-    pub fn find(decls: &Decls) -> HashMap<Name, HashSet<Name>> {
+    pub fn find(decls: &Decls) -> HashMap<DefIndex, HashSet<DefIndex>> {
         let mut finder = Self::default();
 
-        for def in decls.types.iter() {
-            finder.search_type(def);
+        for (index, def) in decls.types.iter().enumerate() {
+            finder.search_type(def, index);
         }
 
-        for def in decls.values.iter() {
-            finder.search_value(def);
+        for (index, def) in decls.values.iter().enumerate() {
+            finder.search_value(def, index);
         }
 
-        finder.deps
+        finder
+            .deps
+            .into_iter()
+            .map(|(key, values)| {
+                let key = finder.map.get(&key).unwrap();
+                let values = values
+                    .into_iter()
+                    .map(|name| finder.map.get(&name).unwrap())
+                    .copied()
+                    .collect();
+
+                (*key, values)
+            })
+            .collect()
     }
 
-    fn search_type(&mut self, def: &TypeDef) {
+    fn search_type(&mut self, def: &TypeDef, index: usize) {
         let (defined, refers) = pat_defines(&def.pat);
 
         let in_anno = type_refers(&defined, &def.anno);
@@ -39,10 +61,12 @@ impl Dependencies {
                 .entry(name)
                 .or_default()
                 .extend(res.iter().copied());
+
+            self.map.insert(name, DefIndex::Type(index));
         }
     }
 
-    fn search_value(&mut self, def: &ValueDef) {
+    fn search_value(&mut self, def: &ValueDef, index: usize) {
         let (defined, refers) = pat_defines(&def.pat);
         let shadowed = defined
             .iter()
@@ -59,6 +83,8 @@ impl Dependencies {
                 .entry(name)
                 .or_default()
                 .extend(res.iter().copied());
+
+            self.map.insert(name, DefIndex::Value(index));
         }
     }
 }
