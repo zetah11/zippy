@@ -100,21 +100,14 @@ impl Context {
 }
 
 pub struct ContextIter {
-    names: std::collections::hash_map::IntoIter<Name, TypeOrSchema>,
+    types: std::collections::hash_map::IntoIter<Name, Type>,
 }
 
 impl Iterator for ContextIter {
     type Item = (Name, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
-        for (name, ts) in self.names.by_ref() {
-            match ts {
-                TypeOrSchema::Schema(..) => continue,
-                TypeOrSchema::Type(ty) => return Some((name, ty)),
-            }
-        }
-
-        None
+        self.types.next()
     }
 }
 
@@ -124,7 +117,7 @@ impl IntoIterator for Context {
 
     fn into_iter(self) -> Self::IntoIter {
         ContextIter {
-            names: self.names.into_iter(),
+            types: self.types.into_iter(),
         }
     }
 }

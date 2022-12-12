@@ -13,6 +13,7 @@ use zippy_common::names::{Name, Names};
 use zippy_common::thir::{self, UniVar};
 use zippy_common::Driver;
 
+type HiContext = thir::Context;
 type HiType = thir::Type;
 type HiPat = thir::Pat<HiType>;
 type HiPatNode = thir::PatNode<HiType>;
@@ -26,11 +27,13 @@ type Inst = HashMap<Name, HiType>;
 pub fn lower(
     driver: &mut impl Driver,
     subst: &HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
+    context: HiContext,
     names: &mut Names,
     decls: HiDecls,
 ) -> (Types, Context, Decls) {
     debug!("beginning lowering");
     let mut lowerer = Lowerer::new(names, subst);
+    lowerer.lower_context(context);
 
     let ctx = lowerer.names.root();
     let decls = lowerer.lower_decls(ctx, decls);
@@ -50,6 +53,7 @@ struct Lowerer<'a> {
     messages: Messages,
     context: Context,
     templates: HashMap<Name, HiValueDef>,
+    named_types: HashMap<Name, TypeId>,
 
     values: Vec<ValueDef>,
 }
@@ -66,8 +70,17 @@ impl<'a> Lowerer<'a> {
             messages: Messages::new(),
             context: Context::new(),
             templates: HashMap::new(),
+            named_types: HashMap::new(),
 
             values: Vec::new(),
+        }
+    }
+
+    fn lower_context(&mut self, context: HiContext) {
+        let inst = HashMap::new();
+        for (name, ty) in context.into_iter() {
+            let ty = self.lower_type(&inst, ty);
+            assert!(self.named_types.insert(name, ty).is_none());
         }
     }
 

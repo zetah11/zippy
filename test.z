@@ -1,6 +1,8 @@
-type Small = 0 upto 10
-type Big   = 0 upto 256
+fun main (?: Unit) : Small = one_of (swap (id id 5, 6))
 
-fun main (?: 1) : Small = one_of (id (id |Big|) 5, 6)
 fun id |T| (x: T) = x
 fun one_of |T| (x: T, y: T) = y
+fun swap |T, U| (x: T, y: U) = y, x
+
+type Unit = 1
+type Small = 0 upto 10

@@ -10,9 +10,10 @@ impl Lowerer<'_> {
 
     pub fn try_lower_type(&mut self, inst: &Inst, ty: HiType) -> Option<TypeId> {
         match ty {
-            HiType::Name(name) => match inst.get(&name) {
-                Some(ty) => self.try_lower_type(inst, ty.clone()),
-                None => unreachable!(),
+            HiType::Name(name) => match (inst.get(&name), self.named_types.get(&name)) {
+                (Some(ty), None) => self.try_lower_type(inst, ty.clone()),
+                (None, Some(ty)) => Some(*ty),
+                _ => unreachable!(),
             },
 
             HiType::Instantiated(ty, other_inst) => {
