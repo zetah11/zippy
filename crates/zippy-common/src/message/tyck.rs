@@ -10,6 +10,7 @@ const NO_PROGRESS: &str = "ET02";
 const NOT_A_FUN: &str = "ET03";
 const NOT_AN_INT: &str = "ET04";
 const RECURSIVE: &str = "ET06";
+const TUPLE_TYPE: &str = "ET10";
 
 impl<'a> MessageAdder<'a> {
     pub fn tyck_ambiguous(&mut self) {
@@ -154,5 +155,16 @@ impl<'a> MessageAdder<'a> {
                 .with_labels(labels)
                 .with_notes(notes),
         )
+    }
+
+    pub fn tyck_tuple_type(&mut self) {
+        let labels = vec![Label::primary(self.at)];
+
+        self.add(
+            Diagnostic::error()
+                .with_code(TUPLE_TYPE)
+                .with_message("tuple destructuring is not currently supported for types")
+                .with_labels(labels),
+        );
     }
 }

@@ -115,4 +115,23 @@ impl Typer<'_> {
             data: ty,
         }
     }
+
+    pub fn save_type(&mut self, pat: &Pat, ty: &Type) {
+        match &pat.node {
+            PatNode::Name(name) => {
+                self.context.add_type(*name, ty.clone());
+            }
+
+            PatNode::Anno(pat, _) => self.save_type(pat, ty),
+
+            PatNode::Tuple(a, b) => {
+                self.messages.at(pat.span).tyck_tuple_type();
+                self.save_type(a, &Type::Invalid);
+                self.save_type(b, &Type::Invalid);
+            }
+
+            PatNode::Wildcard => {}
+            PatNode::Invalid => {}
+        }
+    }
 }

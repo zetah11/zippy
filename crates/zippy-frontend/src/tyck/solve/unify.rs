@@ -80,8 +80,8 @@ impl<'a> Unifier<'a> {
 
             (Type::Name(n), Type::Name(m)) => {
                 if n != m {
-                    let n: Option<String> = None;
-                    let m: Option<String> = None;
+                    let n: Option<String> = Some(self.pretty(&Type::Name(n)));
+                    let m: Option<String> = Some(self.pretty(&Type::Name(m)));
                     self.messages.at(span).tyck_incompatible(n, m);
                 }
             }
@@ -185,6 +185,8 @@ impl<'a> Unifier<'a> {
 
                 self.unify_within(left_inst, &new, span, t, *u)
             }
+
+            (Type::Type, Type::Type) => {}
 
             (Type::Invalid, _) | (_, Type::Invalid) => {}
 

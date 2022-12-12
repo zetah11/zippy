@@ -74,6 +74,11 @@ impl Typer<'_> {
                 self.check_int_type(span, because, inst, ty.clone())
             }
 
+            Type::Name(name) if self.context.has_type(&name) => {
+                let ty = self.context.get_type(&name).unwrap();
+                self.check_int_type(span, because, inst, ty.clone())
+            }
+
             Type::Range(lo, hi) => Type::Range(lo, hi),
             Type::Invalid => Type::Invalid,
 

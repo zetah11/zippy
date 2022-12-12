@@ -100,6 +100,7 @@ impl<'a> Typer<'a> {
             let mut val_pats = Vec::with_capacity(these_values.len());
 
             for def in these_types.iter() {
+                self.save_type(&def.pat, &def.bind);
                 type_pats.push(self.bind_type_def(def));
             }
 

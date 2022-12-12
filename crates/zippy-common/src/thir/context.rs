@@ -12,6 +12,7 @@ pub enum TypeOrSchema {
 #[derive(Debug, Default)]
 pub struct Context {
     names: HashMap<Name, TypeOrSchema>,
+    types: HashMap<Name, Type>,
     curr_var: usize,
 }
 
@@ -19,6 +20,7 @@ impl Context {
     pub fn new() -> Self {
         Self {
             names: HashMap::new(),
+            types: HashMap::new(),
             curr_var: 0,
         }
     }
@@ -34,8 +36,20 @@ impl Context {
             .is_none());
     }
 
+    pub fn add_type(&mut self, name: Name, ty: Type) {
+        assert!(self.types.insert(name, ty).is_none());
+    }
+
     pub fn get(&self, name: &Name) -> &TypeOrSchema {
         self.names.get(name).unwrap()
+    }
+
+    pub fn get_type(&self, name: &Name) -> Option<&Type> {
+        self.types.get(name)
+    }
+
+    pub fn has_type(&self, name: &Name) -> bool {
+        self.types.contains_key(name)
     }
 
     pub fn fresh(&mut self) -> UniVar {
