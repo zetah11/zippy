@@ -170,7 +170,7 @@ impl Unconcretifier {
     fn unconc_expr(&mut self, expr: cst::Expr) -> hir::Expr {
         let node = match expr.node {
             cst::ExprNode::Name(name) => hir::ExprNode::Name(name),
-            cst::ExprNode::Int(i) => hir::ExprNode::Int(i as i64), // uhhh
+            cst::ExprNode::Num(i) => hir::ExprNode::Num(i),
             cst::ExprNode::Group(expr) => return self.unconc_expr(*expr),
             cst::ExprNode::Range(span, lo, hi) => {
                 let lo = Box::new(self.unconc_expr(*lo));
@@ -331,16 +331,16 @@ impl Unconcretifier {
                 let hi = self.unconc_expr(*hi);
 
                 match (lo.node, hi.node) {
-                    (hir::ExprNode::Int(lo), hir::ExprNode::Int(hi)) => {
+                    (hir::ExprNode::Num(lo), hir::ExprNode::Num(hi)) => {
                         hir::TypeNode::Range(lo, hi)
                     }
 
-                    (hir::ExprNode::Int(_), _) => {
+                    (hir::ExprNode::Num(_), _) => {
                         self.msgs.at(hi.span).parse_range_not_an_int();
                         hir::TypeNode::Invalid
                     }
 
-                    (_, hir::ExprNode::Int(_)) => {
+                    (_, hir::ExprNode::Num(_)) => {
                         self.msgs.at(lo.span).parse_range_not_an_int();
                         hir::TypeNode::Invalid
                     }
@@ -354,7 +354,7 @@ impl Unconcretifier {
 
             cst::ExprNode::Name(name) => hir::TypeNode::Name(name),
 
-            cst::ExprNode::Int(v) => hir::TypeNode::Range(0, v as i64),
+            cst::ExprNode::Num(v) => hir::TypeNode::Range(Default::default(), v),
 
             cst::ExprNode::Fun(_, t, u) => {
                 let t = Box::new(self.unconc_type(*t));

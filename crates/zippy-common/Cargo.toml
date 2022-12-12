@@ -12,3 +12,4 @@ logos = "0.12"
 pretty = "0.11"
 
 log = "0.4"
+num-rational = "0.4.1"

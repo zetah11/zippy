@@ -1,13 +1,14 @@
 use zippy_common::mir::{Type, TypeId};
+use zippy_common::Number;
 
 use super::Emitter;
 
 macro_rules! within {
     ($v:expr, $w:expr, $t:ty) => {
-        $v >= <$t>::MIN as i64
-            && $v <= <$t>::MAX as i64
-            && $w >= <$t>::MIN as i64
-            && $w <= <$t>::MAX as i64
+        $v >= Number::from_integer(<$t>::MIN.into())
+            && $v <= Number::from_integer(<$t>::MAX.into())
+            && $w >= Number::from_integer(<$t>::MIN.into())
+            && $w <= Number::from_integer(<$t>::MAX.into())
     };
 }
 

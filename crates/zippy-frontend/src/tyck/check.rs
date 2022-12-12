@@ -8,9 +8,9 @@ impl Typer<'_> {
     pub fn check(&mut self, because: Because, ex: Expr, ty: Type) -> Expr<Type> {
         let pretty = self.pretty(&ty);
         let (node, ty) = match ex.node {
-            ExprNode::Int(v) => {
+            ExprNode::Num(v) => {
                 trace!("checking int against {}", pretty);
-                (ExprNode::Int(v), self.int_type(ex.span, because, ty))
+                (ExprNode::Num(v), self.int_type(ex.span, because, ty))
             }
 
             ExprNode::Lam(param, body) => {

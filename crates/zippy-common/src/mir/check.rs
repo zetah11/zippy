@@ -176,7 +176,7 @@ impl<'a> MirChecker<'a> {
         self.check_type(value.span, expected, actual);
 
         match &value.node {
-            ValueNode::Int(_) => match self.types.get(&actual) {
+            ValueNode::Num(_) => match self.types.get(&actual) {
                 Type::Range(..) | Type::Invalid => {}
                 _ => unreachable!(),
             },

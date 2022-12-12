@@ -22,8 +22,11 @@ impl Arguments {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    #[command(visible_alias = "r")]
     Run(Options),
+    #[command(visible_alias = "b")]
     Build(Options),
+    #[command(visible_alias = "c")]
     Check(Options),
 }
 

@@ -38,11 +38,11 @@ impl<D: Driver> Interpreter<'_, D> {
             self.blocks.get(name)
         } else if let Some(value) = self.decls.values.remove(name) {
             match value.node {
-                StaticValueNode::Int(i) => {
+                StaticValueNode::Num(i) => {
                     self.globals.insert(
                         *name,
                         Value {
-                            node: ValueNode::Int(i),
+                            node: ValueNode::Num(i),
                             span: value.span,
                             ty: value.ty,
                         },
@@ -65,7 +65,7 @@ fn visit_block(worklist: &mut Vec<Name>, block: &Block) {
     fn name_of_value(value: &Value) -> Option<Name> {
         match &value.node {
             ValueNode::Name(name) => Some(*name),
-            ValueNode::Int(_) | ValueNode::Invalid => None,
+            ValueNode::Num(_) | ValueNode::Invalid => None,
         }
     }
 

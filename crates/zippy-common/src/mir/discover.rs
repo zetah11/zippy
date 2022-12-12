@@ -92,14 +92,14 @@ impl MirDiscoverer {
 
     fn discover_static_value(&mut self, value: &StaticValue) {
         match &value.node {
-            StaticValueNode::Int(_) => {}
+            StaticValueNode::Num(_) => {}
             StaticValueNode::LateInit(block) => self.discover_block(block),
         }
     }
 
     fn discover_value(&mut self, value: &Value) {
         match &value.node {
-            ValueNode::Int(_) | ValueNode::Invalid => {}
+            ValueNode::Num(_) | ValueNode::Invalid => {}
             ValueNode::Name(name) => self.worklist.push(*name),
         }
     }

@@ -50,7 +50,7 @@ impl Lowerer<'_> {
         bind: HiExpr,
     ) -> HiExpr {
         let node = match bind.node {
-            node @ (HiExprNode::Int(_) | HiExprNode::Hole | HiExprNode::Invalid) => node,
+            node @ (HiExprNode::Num(_) | HiExprNode::Hole | HiExprNode::Invalid) => node,
 
             HiExprNode::Name(name) => {
                 if let Some(new_name) = name_map.get(&name) {

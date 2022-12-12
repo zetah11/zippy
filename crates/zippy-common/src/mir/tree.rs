@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use super::TypeId;
 use crate::message::Span;
 use crate::names::Name;
+use crate::Number;
 
 #[derive(Debug, Default)]
 pub struct Decls {
@@ -107,7 +108,7 @@ pub struct StaticValue {
 impl StaticValue {
     pub fn needs_late_init(&self) -> bool {
         match &self.node {
-            StaticValueNode::Int(_) => false,
+            StaticValueNode::Num(_) => false,
             StaticValueNode::LateInit(_) => true,
         }
     }
@@ -115,7 +116,7 @@ impl StaticValue {
 
 #[derive(Clone, Debug)]
 pub enum StaticValueNode {
-    Int(i64),
+    Num(Number),
     LateInit(Block),
 }
 
@@ -128,7 +129,7 @@ pub struct Value {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ValueNode {
-    Int(i64),
+    Num(Number),
     Name(Name),
     Invalid,
 }

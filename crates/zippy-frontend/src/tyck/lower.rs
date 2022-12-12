@@ -54,7 +54,7 @@ impl Typer<'_> {
     fn lower_expr(&mut self, ex: hir::Expr<Name>) -> thir::Expr {
         let node = match ex.node {
             hir::ExprNode::Name(name) => thir::ExprNode::Name(name),
-            hir::ExprNode::Int(v) => thir::ExprNode::Int(v),
+            hir::ExprNode::Num(v) => thir::ExprNode::Num(v),
             hir::ExprNode::Lam(_, param, body) => {
                 let param = self.lower_pat(param);
                 let body = Box::new(self.lower_expr(*body));

@@ -16,13 +16,14 @@ mod tree;
 mod types;
 
 use crate::names::Name;
+use crate::Number;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct TypeId(usize);
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
-    Range(i64, i64),
+    Range(Number, Number),
     Fun(Vec<TypeId>, Vec<TypeId>),
     Product(Vec<TypeId>),
     Invalid,

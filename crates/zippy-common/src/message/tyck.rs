@@ -1,4 +1,5 @@
 use super::{Diagnostic, Label, MessageAdder};
+use crate::Number;
 
 const AMBIGUOUS: &str = "ET05";
 const INCOMPATIBLE_TYPES: &str = "ET00";
@@ -84,7 +85,11 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
-    pub fn tyck_narrow_range(&mut self, (lo1, hi1): (i64, i64), (lo2, hi2): (i64, i64)) {
+    pub fn tyck_narrow_range(
+        &mut self,
+        (lo1, hi1): (Number, Number),
+        (lo2, hi2): (Number, Number),
+    ) {
         let labels = vec![Label::primary(self.at).with_message(format!(
             "expected a type narrower than '{lo1} .. {hi1}', but '{lo2} .. {hi2}' is wider"
         ))];

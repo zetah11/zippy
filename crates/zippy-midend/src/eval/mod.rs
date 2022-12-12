@@ -56,6 +56,7 @@ mod value;
 use std::collections::{HashMap, HashSet};
 
 use log::{info, trace};
+use zippy_common::message::Messages;
 use zippy_common::mir::pretty::Prettier;
 use zippy_common::mir::{
     Block, Branch, BranchNode, Context, Decls, Statement, StaticValue, StaticValueNode, Types,
@@ -83,10 +84,11 @@ pub fn evaluate(
     interp.run();
     trace!("execution done");
 
-    let res = interp.collect();
+    let (res, messages) = interp.collect();
     trace!("evaluation done");
 
     driver.done_eval();
+    driver.report(messages);
 
     res
 }
@@ -109,6 +111,8 @@ struct Interpreter<'a, D> {
     functions: HashMap<Name, Vec<Name>>,
     redoing: HashMap<Name, Vec<Statement>>,
     frozen: HashSet<Name>,
+
+    messages: Messages,
 }
 
 impl<'a, D: Driver> Interpreter<'a, D> {
@@ -136,6 +140,8 @@ impl<'a, D: Driver> Interpreter<'a, D> {
             functions: HashMap::new(),
             redoing: HashMap::new(),
             frozen: HashSet::new(),
+
+            messages: Messages::new(),
         }
     }
 
@@ -171,14 +177,14 @@ impl<'a, D: Driver> Interpreter<'a, D> {
         }
     }
 
-    pub fn collect(mut self) -> Decls {
+    pub fn collect(mut self) -> (Decls, Messages) {
         let mut res = Decls::new(Vec::new());
 
         for (name, value) in self.globals {
             let Value { span, ty, .. } = value;
 
             let node = match value.node {
-                ValueNode::Int(i) => StaticValueNode::Int(i),
+                ValueNode::Num(i) => StaticValueNode::Num(i),
                 _ => {
                     let node = BranchNode::Return(vec![value]);
                     let branch = Branch { node, span, ty };
@@ -205,6 +211,6 @@ impl<'a, D: Driver> Interpreter<'a, D> {
             };
         }
 
-        res
+        (res, self.messages)
     }
 }

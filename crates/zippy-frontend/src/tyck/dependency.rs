@@ -134,7 +134,7 @@ fn type_refers(shadowed: &HashSet<Name>, ty: &Type) -> HashSet<Name> {
 
 fn expr_refers(shadowed: &HashSet<Name>, ex: &Expr) -> HashSet<Name> {
     match &ex.node {
-        ExprNode::Invalid | ExprNode::Int(_) | ExprNode::Hole => HashSet::new(),
+        ExprNode::Invalid | ExprNode::Num(_) | ExprNode::Hole => HashSet::new(),
 
         ExprNode::Name(name) if shadowed.contains(name) => HashSet::new(),
         ExprNode::Name(name) => HashSet::from([*name]),

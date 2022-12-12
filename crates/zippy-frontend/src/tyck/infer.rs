@@ -32,11 +32,11 @@ impl Typer<'_> {
                 }
             }
 
-            ExprNode::Int(i) => {
+            ExprNode::Num(i) => {
                 trace!("inferring int");
                 let var = self.context.fresh();
                 self.int_type(ex.span, Because::Unified(ex.span), Type::mutable(var));
-                (ExprNode::Int(i), Type::mutable(var))
+                (ExprNode::Num(i), Type::mutable(var))
             }
 
             ExprNode::Tuple(a, b) => {

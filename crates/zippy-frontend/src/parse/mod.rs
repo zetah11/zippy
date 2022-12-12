@@ -1,5 +1,6 @@
 pub mod tree;
 
+mod convert;
 mod decl;
 mod expr;
 mod matcher;

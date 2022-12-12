@@ -8,7 +8,7 @@ impl Resolver {
         let node = match expr.node {
             ExprNode::Hole => ExprNode::Hole,
             ExprNode::Invalid => ExprNode::Invalid,
-            ExprNode::Int(v) => ExprNode::Int(v),
+            ExprNode::Num(v) => ExprNode::Num(v),
             ExprNode::Name(name) => match self.lookup_name(expr.span, Actual::Lit(name)) {
                 Some(name) => ExprNode::Name(name),
                 None => ExprNode::Invalid,

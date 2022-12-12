@@ -38,7 +38,7 @@ impl Lowerer<'_> {
         let ty = self.lower_type(inst, expr.data);
 
         let node = match expr.node {
-            HiExprNode::Int(i) => ValueNode::Int(i),
+            HiExprNode::Num(i) => ValueNode::Num(i),
             HiExprNode::Name(name) => ValueNode::Name(name),
             HiExprNode::Invalid => ValueNode::Invalid,
             HiExprNode::Hole => {
@@ -94,7 +94,7 @@ impl Lowerer<'_> {
                     }
 
                     ValueNode::Invalid => ValueNode::Invalid,
-                    ValueNode::Int(_) => ValueNode::Invalid,
+                    ValueNode::Num(_) => ValueNode::Invalid,
                 }
             }
 

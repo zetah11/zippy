@@ -17,7 +17,7 @@ pub struct ReduceResult {
 impl<D: Driver> Interpreter<'_, D> {
     pub fn reduce_value(&self, value: &Value) -> Option<ReducedValue> {
         match &value.node {
-            ValueNode::Int(_) | ValueNode::Invalid => {
+            ValueNode::Num(_) | ValueNode::Invalid => {
                 Some(self.locally_static_value(value.clone()))
             }
 

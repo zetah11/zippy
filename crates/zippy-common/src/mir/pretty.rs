@@ -248,14 +248,14 @@ impl<'a> Prettier<'a> {
         value: &StaticValue,
     ) -> DocBuilder<Arena<'a>> {
         match &value.node {
-            StaticValueNode::Int(i) => self.allocator.text(format!("{i}")),
+            StaticValueNode::Num(n) => self.allocator.text(format!("{n}")),
             StaticValueNode::LateInit(block) => self.doc_block(within, block),
         }
     }
 
     fn doc_value(&'a self, within: Option<&Name>, value: &Value) -> DocBuilder<Arena<'a>> {
         match &value.node {
-            ValueNode::Int(i) => self.allocator.text(format!("{i}")),
+            ValueNode::Num(n) => self.allocator.text(format!("{n}")),
             ValueNode::Name(name) => self.doc_name(within, name),
             ValueNode::Invalid => self.allocator.text("<error>"),
         }

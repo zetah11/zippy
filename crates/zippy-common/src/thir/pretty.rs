@@ -150,7 +150,7 @@ impl<'a> Prettier<'a> {
     fn pretty_range(&mut self, ty: &Type) -> String {
         match ty {
             Type::Range(lo, hi) => {
-                if *lo == 0 {
+                if lo == &Default::default() {
                     format!("{hi}")
                 } else {
                     format!("{lo} upto {hi}")

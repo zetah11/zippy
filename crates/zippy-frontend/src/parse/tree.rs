@@ -1,4 +1,5 @@
 use zippy_common::message::Span;
+use zippy_common::Number;
 
 pub type Name = String;
 
@@ -38,7 +39,7 @@ pub struct Expr {
 #[derive(Clone, Debug)]
 pub enum ExprNode {
     Name(Name),
-    Int(u64),
+    Num(Number),
 
     Group(Box<Expr>),
 

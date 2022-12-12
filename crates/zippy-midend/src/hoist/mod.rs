@@ -108,7 +108,7 @@ impl<D: Driver> Hoist<'_, D> {
                     let span = value.span;
                     let ty = value.ty;
                     let node = match value.node {
-                        ValueNode::Int(i) => StaticValueNode::Int(i),
+                        ValueNode::Num(i) => StaticValueNode::Num(i),
                         ValueNode::Invalid => {
                             let node = BranchNode::Return(vec![value]);
                             let branch = Branch { node, span, ty };

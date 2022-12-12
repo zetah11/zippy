@@ -1,13 +1,12 @@
-mod convert;
 mod token;
 
 use log::{info, trace};
 use logos::Logos;
 
-use convert::parse_dec;
-use token::FreeToken;
 use zippy_common::message::{File, Messages, Span};
 use zippy_common::Driver;
+
+use self::token::FreeToken;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
@@ -32,7 +31,7 @@ pub enum Token {
     Colon,
 
     Name(String),
-    Number(u64),
+    Number(String),
 
     Invalid,
 }
@@ -150,7 +149,7 @@ impl<'src> Lexer<'src> {
                 FreeToken::Equal => Token::Equal,
                 FreeToken::Colon => Token::Colon,
                 FreeToken::Name(name) => Token::Name(name.into()),
-                FreeToken::DecNumber(num) => Token::Number(parse_dec(num)),
+                FreeToken::DecNumber(num) => Token::Number(num.into()),
 
                 FreeToken::Newline(indent) => {
                     self.last_newline = Some((indent, span));

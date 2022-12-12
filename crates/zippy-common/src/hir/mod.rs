@@ -1,6 +1,7 @@
 use std::fmt::{self, Display};
 
 use crate::message::Span;
+use crate::Number;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct BindId(pub(crate) usize);
@@ -62,7 +63,7 @@ pub struct Expr<Name = String> {
 #[derive(Debug)]
 pub enum ExprNode<Name> {
     Name(Name),
-    Int(i64),
+    Num(Number),
 
     Lam(BindId, Pat<Name>, Box<Expr<Name>>),
     App(Box<Expr<Name>>, Box<Expr<Name>>),
@@ -100,7 +101,7 @@ pub struct Type<Name = String> {
 #[derive(Debug)]
 pub enum TypeNode<Name> {
     Name(Name),
-    Range(i64, i64),
+    Range(Number, Number),
     Fun(Box<Type<Name>>, Box<Type<Name>>),
     Prod(Box<Type<Name>>, Box<Type<Name>>),
     Type,

@@ -1,5 +1,6 @@
 use zippy_common::message::Span;
 
+use super::convert::parse_dec;
 use super::tree::{BinOp, Expr, ExprNode};
 use super::Parser;
 use crate::lex::Token;
@@ -191,7 +192,7 @@ where
     /// in order to prevent `app_expr` from consuming too many invalid tokens.
     pub const BASE_EXPR_STARTS: &'static [Token] = &[
         Token::Name(String::new()),
-        Token::Number(0),
+        Token::Number(String::new()),
         Token::Question,
         Token::GroupOpen,
         Token::Type,
@@ -207,7 +208,7 @@ where
         if let Some((tok, span)) = self.prev.take() {
             let node = match tok {
                 Token::Name(name) => ExprNode::Name(name),
-                Token::Number(num) => ExprNode::Int(num),
+                Token::Number(num) => ExprNode::Num(parse_dec(&num)),
                 Token::Question => ExprNode::Wildcard,
                 Token::Type => ExprNode::Type,
                 Token::GroupOpen => {

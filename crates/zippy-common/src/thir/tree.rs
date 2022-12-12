@@ -2,6 +2,7 @@ pub use super::Type;
 
 use crate::message::Span;
 use crate::names::Name;
+use crate::Number;
 
 #[derive(Debug)]
 pub struct Decls<Data = ()> {
@@ -36,7 +37,7 @@ pub struct Expr<Data = ()> {
 #[derive(Clone, Debug)]
 pub enum ExprNode<Data> {
     Name(Name),
-    Int(i64),
+    Num(Number),
 
     Lam(Pat<Data>, Box<Expr<Data>>),
     App(Box<Expr<Data>>, Box<Expr<Data>>),

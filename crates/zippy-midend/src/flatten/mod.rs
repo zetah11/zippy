@@ -251,7 +251,7 @@ impl<'a> Flattener<'a> {
                 (None, None) => ValueNode::Name(name),
                 (Some(_), Some(_)) => unreachable!(),
             },
-            ValueNode::Int(i) => ValueNode::Int(i),
+            ValueNode::Num(i) => ValueNode::Num(i),
             ValueNode::Invalid => ValueNode::Invalid,
         };
 
