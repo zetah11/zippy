@@ -58,16 +58,6 @@ impl<'a> Unifier<'a> {
         actual: Type,
     ) {
         match (expected, actual) {
-            (Type::Range(lo1, hi1), Type::Range(lo2, hi2)) => {
-                if !(lo1 <= lo2 && hi1 >= hi2) {
-                    self.messages
-                        .at(span)
-                        .tyck_narrow_range((lo1, hi1), (lo2, hi2));
-                }
-            }
-
-            (Type::Number, Type::Range(..)) => {}
-
             (Type::Name(n), u) if left_inst.contains_key(&n) => {
                 let t = left_inst.get(&n).unwrap();
                 self.unify_within(left_inst, right_inst, span, t.clone(), u)
@@ -85,6 +75,12 @@ impl<'a> Unifier<'a> {
                     self.messages.at(span).tyck_incompatible(n, m);
                 }
             }
+
+            (Type::Range(lo1, hi1), Type::Range(lo2, hi2)) => {
+                todo!()
+            }
+
+            (Type::Number, Type::Range(..)) => {}
 
             (Type::Fun(t1, u1), Type::Fun(t2, u2)) => {
                 self.unify_within(left_inst, right_inst, span, *t1, *t2);

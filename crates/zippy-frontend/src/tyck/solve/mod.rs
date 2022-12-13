@@ -79,6 +79,7 @@ impl Typer<'_> {
                 self.check_int_type(span, because, inst, ty.clone())
             }
 
+            Type::Number => Type::Number,
             Type::Range(lo, hi) => Type::Range(lo, hi),
             Type::Invalid => Type::Invalid,
 

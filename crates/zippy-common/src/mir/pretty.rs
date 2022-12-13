@@ -53,7 +53,7 @@ impl<'a> Prettier<'a> {
 
     #[must_use]
     pub fn pretty_type(&'a self, ty: &TypeId) -> String {
-        let doc = self.doc_type(ty);
+        let doc = self.doc_type(None, ty);
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
@@ -89,13 +89,16 @@ impl<'a> Prettier<'a> {
             .nest(2)
     }
 
-    fn doc_type(&'a self, ty: &TypeId) -> DocBuilder<Arena<'a>> {
+    fn doc_type(&'a self, within: Option<&Name>, ty: &TypeId) -> DocBuilder<Arena<'a>> {
         match self.types.get(ty) {
-            Type::Range(lo, hi) => self.allocator.text(format!("{lo} upto {hi}")),
+            Type::Range(lo, hi) => self
+                .doc_name(within, lo)
+                .append(self.allocator.text(" upto "))
+                .append(self.doc_name(within, hi)),
             Type::Fun(t, u) => self
                 .allocator
                 .intersperse(
-                    t.iter().map(|ty| self.doc_type(ty)),
+                    t.iter().map(|ty| self.doc_type(within, ty)),
                     self.allocator.text(", "),
                 )
                 .parens()
@@ -103,13 +106,13 @@ impl<'a> Prettier<'a> {
                 .append(
                     self.allocator
                         .intersperse(
-                            u.iter().map(|ty| self.doc_type(ty)),
+                            u.iter().map(|ty| self.doc_type(within, ty)),
                             self.allocator.text(", "),
                         )
                         .parens(),
                 ),
             Type::Product(ts) => self.allocator.intersperse(
-                ts.iter().map(|t| self.doc_type(t).parens()),
+                ts.iter().map(|t| self.doc_type(within, t).parens()),
                 self.allocator.text(" * "),
             ),
             Type::Invalid => self.allocator.text("<error>"),

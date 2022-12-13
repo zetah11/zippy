@@ -19,13 +19,19 @@ use zippy_common::{hir, Driver};
 
 use self::components::Components;
 use self::dependency::DefIndex;
+use self::lower::Lowerer;
 use self::solve::Unifier;
 
-pub fn typeck(driver: &mut impl Driver, names: &Names, decls: hir::Decls<Name>) -> TypeckResult {
+pub fn typeck(
+    driver: &mut impl Driver,
+    names: &mut Names,
+    decls: hir::Decls<Name>,
+) -> TypeckResult {
     info!("beginning typechecking");
 
-    let mut typer = Typer::new(names);
-    let decls = typer.lower(decls);
+    let (decls, context) = Lowerer::new(names).lower(decls);
+
+    let mut typer = Typer::new(names, context);
     let decls = typer.typeck(decls);
 
     typer.messages.merge(typer.unifier.messages);
@@ -50,10 +56,10 @@ struct Typer<'a> {
 }
 
 impl<'a> Typer<'a> {
-    pub fn new(names: &'a Names) -> Self {
+    pub fn new(names: &'a Names, context: Context) -> Self {
         Self {
             messages: Messages::new(),
-            context: Context::new(),
+            context,
             unifier: Unifier::new(names),
             constraints: Vec::new(),
         }

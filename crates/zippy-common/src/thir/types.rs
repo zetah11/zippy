@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::names::Name;
-use crate::Number;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct UniVar(pub(super) usize);
@@ -20,7 +19,9 @@ pub enum Mutability {
 pub enum Type {
     Name(Name),
 
-    Range(Number, Number),
+    /// A range is represented as a pair of names, where the names are the
+    /// actual expression.
+    Range(Name, Name),
     Fun(Box<Type>, Box<Type>),
 
     Product(Box<Type>, Box<Type>),
@@ -46,7 +47,7 @@ impl Type {
         match self {
             Type::Name(name) => Type::Name(*name),
 
-            Type::Range(lo, hi) => Type::Range(lo.clone(), hi.clone()),
+            Type::Range(lo, hi) => Type::Range(*lo, *hi),
 
             Type::Fun(t, u) => {
                 let t = Box::new(t.make_mutability(mutability));
@@ -106,7 +107,7 @@ pub fn instantiate(mapping: &HashMap<Name, Type>, ty: &Type) -> Type {
             Type::Instantiated(ty, prev_mapping.clone())
         }
 
-        Type::Range(lo, hi) => Type::Range(lo.clone(), hi.clone()),
+        Type::Range(lo, hi) => Type::Range(*lo, *hi),
         Type::Number => Type::Number,
         Type::Type => Type::Type,
         Type::Var(mutable, var) => Type::Var(*mutable, *var),

@@ -324,37 +324,30 @@ impl Unconcretifier {
             .collect()
     }
 
-    fn unconc_type(&mut self, typ: cst::Expr) -> hir::Type {
-        let node = match typ.node {
+    fn unconc_type(&mut self, ty: cst::Expr) -> hir::Type {
+        let node = match ty.node {
             cst::ExprNode::Range(_, lo, hi) => {
                 let lo = self.unconc_expr(*lo);
                 let hi = self.unconc_expr(*hi);
 
-                match (lo.node, hi.node) {
-                    (hir::ExprNode::Num(lo), hir::ExprNode::Num(hi)) => {
-                        hir::TypeNode::Range(lo, hi)
-                    }
-
-                    (hir::ExprNode::Num(_), _) => {
-                        self.msgs.at(hi.span).parse_range_not_an_int();
-                        hir::TypeNode::Invalid
-                    }
-
-                    (_, hir::ExprNode::Num(_)) => {
-                        self.msgs.at(lo.span).parse_range_not_an_int();
-                        hir::TypeNode::Invalid
-                    }
-
-                    _ => {
-                        self.msgs.at(lo.span + hi.span).parse_range_not_an_int();
-                        hir::TypeNode::Invalid
-                    }
-                }
+                hir::TypeNode::Range(Box::new(lo), Box::new(hi))
             }
 
             cst::ExprNode::Name(name) => hir::TypeNode::Name(name),
 
-            cst::ExprNode::Num(v) => hir::TypeNode::Range(Default::default(), v),
+            cst::ExprNode::Num(v) => {
+                let lo = hir::Expr {
+                    node: hir::ExprNode::Num(Default::default()),
+                    span: ty.span,
+                };
+
+                let hi = hir::Expr {
+                    node: hir::ExprNode::Num(v),
+                    span: ty.span,
+                };
+
+                hir::TypeNode::Range(Box::new(lo), Box::new(hi))
+            }
 
             cst::ExprNode::Fun(_, t, u) => {
                 let t = Box::new(self.unconc_type(*t));
@@ -375,14 +368,14 @@ impl Unconcretifier {
             cst::ExprNode::Wildcard => hir::TypeNode::Wildcard,
 
             _ => {
-                self.msgs.at(typ.span).parse_not_a_type();
+                self.msgs.at(ty.span).parse_not_a_type();
                 hir::TypeNode::Invalid
             }
         };
 
         hir::Type {
             node,
-            span: typ.span,
+            span: ty.span,
         }
     }
 }

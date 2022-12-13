@@ -21,10 +21,10 @@ pub fn parse(driver: &mut impl Driver, source: String, file: usize) -> ParseResu
     let decls = parse::parse(driver, tokens, file);
     let ResolveRes {
         decls,
-        names,
+        mut names,
         entry,
     } = resolve::resolve(driver, decls);
-    let tyckres = tyck::typeck(driver, &names, decls);
+    let tyckres = tyck::typeck(driver, &mut names, decls);
 
     ParseResult {
         checked: tyckres,

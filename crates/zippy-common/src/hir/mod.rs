@@ -29,13 +29,13 @@ impl BindIdGenerator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Decls<Name = String> {
     pub values: Vec<ValueDef<Name>>,
     pub types: Vec<TypeDef<Name>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TypeDef<Name = String> {
     pub span: Span,
     pub id: BindId,
@@ -44,7 +44,7 @@ pub struct TypeDef<Name = String> {
     pub bind: Type<Name>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ValueDef<Name = String> {
     pub span: Span,
     pub id: BindId,
@@ -54,13 +54,13 @@ pub struct ValueDef<Name = String> {
     pub bind: Expr<Name>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Expr<Name = String> {
     pub node: ExprNode<Name>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ExprNode<Name> {
     Name(Name),
     Num(Number),
@@ -77,13 +77,13 @@ pub enum ExprNode<Name> {
     Invalid,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Pat<Name = String> {
     pub node: PatNode<Name>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum PatNode<Name> {
     Name(Name),
     Tuple(Box<Pat<Name>>, Box<Pat<Name>>),
@@ -92,16 +92,16 @@ pub enum PatNode<Name> {
     Invalid,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Type<Name = String> {
     pub node: TypeNode<Name>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum TypeNode<Name> {
     Name(Name),
-    Range(Number, Number),
+    Range(Box<Expr<Name>>, Box<Expr<Name>>),
     Fun(Box<Type<Name>>, Box<Type<Name>>),
     Prod(Box<Type<Name>>, Box<Type<Name>>),
     Type,

@@ -25,7 +25,12 @@ impl Resolver {
                 TypeNode::Fun(t, u)
             }
 
-            TypeNode::Range(lo, hi) => TypeNode::Range(lo, hi),
+            TypeNode::Range(lo, hi) => {
+                let lo = Box::new(self.resolve_expr(*lo));
+                let hi = Box::new(self.resolve_expr(*hi));
+
+                TypeNode::Range(lo, hi)
+            }
             TypeNode::Type => TypeNode::Type,
             TypeNode::Wildcard => TypeNode::Wildcard,
             TypeNode::Invalid => TypeNode::Invalid,

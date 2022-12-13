@@ -1,4 +1,5 @@
 use zippy_common::mir::{Type, TypeId};
+use zippy_common::names::Name;
 use zippy_common::Number;
 
 use super::Emitter;
@@ -31,8 +32,20 @@ impl Emitter<'_> {
         self.type_map.get(ty).unwrap()
     }
 
+    pub fn make_struct(&mut self, of: &[TypeId]) -> String {
+        let ties: Vec<_> = of
+            .iter()
+            .enumerate()
+            .map(|(ndx, ty)| format!("{} f{ndx};", self.typename(ty)))
+            .collect();
+
+        format!("struct {{\n\t{}\n}}", ties.join("\n\t"))
+    }
+
     fn make_typename(&mut self, ty: &TypeId) -> String {
         match self.types.get(ty) {
+            Type::Range(lo, hi) => self.make_integer_type(*lo, *hi),
+            /*
             Type::Range(lo, hi) => {
                 let ty = range_to_type! {
                     *lo, *hi,
@@ -48,7 +61,7 @@ impl Emitter<'_> {
 
                 ty.into()
             }
-
+            */
             Type::Product(ties) => {
                 let ty = self.make_struct(&ties.clone());
                 let name = self.fresh_typename();
@@ -87,14 +100,8 @@ impl Emitter<'_> {
         }
     }
 
-    pub fn make_struct(&mut self, of: &[TypeId]) -> String {
-        let ties: Vec<_> = of
-            .iter()
-            .enumerate()
-            .map(|(ndx, ty)| format!("{} f{ndx};", self.typename(ty)))
-            .collect();
-
-        format!("struct {{\n\t{}\n}}", ties.join("\n\t"))
+    fn make_integer_type(&mut self, lo: Name, hi: Name) -> String {
+        todo!()
     }
 
     fn typedef(&mut self, name: &str, pre: &str, post: &str) {

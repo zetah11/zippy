@@ -150,11 +150,7 @@ impl<'a> Prettier<'a> {
     fn pretty_range(&mut self, ty: &Type) -> String {
         match ty {
             Type::Range(lo, hi) => {
-                if lo == &Default::default() {
-                    format!("{hi}")
-                } else {
-                    format!("{lo} upto {hi}")
-                }
+                format!("{} upto {}", self.pretty_name(lo), self.pretty_name(hi))
             }
 
             Type::Var(_, var) => {
@@ -192,17 +188,7 @@ impl<'a> Prettier<'a> {
 
     fn pretty_base(&mut self, ty: &Type) -> String {
         match ty {
-            Type::Name(name) => {
-                if let Some(ty) = self.get(name) {
-                    self.pretty_base(&ty.clone())
-                } else {
-                    match &self.names.get_path(name).1 {
-                        Actual::Lit(name) => name.clone(),
-                        Actual::Generated(name) => name.to_string("T"),
-                        _ => unreachable!(),
-                    }
-                }
-            }
+            Type::Name(name) => self.pretty_name(name),
 
             Type::Var(_, var) => {
                 if let Some(ty) = self.subst.get(var) {
@@ -218,6 +204,18 @@ impl<'a> Prettier<'a> {
             Type::Invalid => "<error>".into(),
 
             ty => format!("({})", self.pretty_type(ty)),
+        }
+    }
+
+    fn pretty_name(&mut self, name: &Name) -> String {
+        if let Some(ty) = self.get(name) {
+            self.pretty_base(&ty.clone())
+        } else {
+            match &self.names.get_path(name).1 {
+                Actual::Lit(name) => name.clone(),
+                Actual::Generated(name) => name.to_string("T"),
+                _ => unreachable!(),
+            }
         }
     }
 }

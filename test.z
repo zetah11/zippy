@@ -5,5 +5,6 @@ fun id |T| (x: T) = x
 fun one_of |T| (x: T, y: T) = y
 fun swap |T, U| (x: T, y: U) = y, x
 
-type Unit = 1
+let one: 0 upto 10 = 10
+type Unit = 0 upto one
 type Small = 0 upto 10
