@@ -5,8 +5,8 @@ pub mod names;
 pub mod sizes;
 pub mod thir;
 
-pub use num_rational::BigRational as Number;
+pub use malachite::Rational as Number;
 
-pub use driver::{Driver, EvalAmount};
+pub use self::driver::{Driver, EvalAmount};
 
 mod driver;
