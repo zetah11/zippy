@@ -18,13 +18,8 @@ pub fn elaborate(
 ) -> (mir::Types, mir::Context, mir::Decls) {
     info!("beginning elaboration");
 
-    let (mut types, mut context, res) = lower::lower(
-        driver,
-        &tyckres.subst,
-        tyckres.context,
-        names,
-        tyckres.decls,
-    );
+    let (mut types, mut context, res) =
+        lower::lower(driver, &tyckres.subst, tyckres.defs, names, tyckres.decls);
 
     let mut error = check(names, &types, &context, &res);
     if error {

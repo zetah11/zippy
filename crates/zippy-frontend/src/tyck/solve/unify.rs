@@ -3,12 +3,15 @@ use std::collections::HashMap;
 use log::trace;
 use zippy_common::message::{Messages, Span};
 use zippy_common::names::{Name, Names};
-use zippy_common::thir::{merge_insts, pretty_type, Because, Mutability, PrettyMap, Type, UniVar};
+use zippy_common::thir::{
+    merge_insts, pretty_type, Because, Definitions, Mutability, PrettyMap, Type, UniVar,
+};
 
 #[derive(Debug)]
 pub struct Unifier<'a> {
     pub names: &'a Names,
 
+    pub defs: Definitions,
     pub subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     pub causes: HashMap<UniVar, Because>,
     pub worklist: Vec<(Span, Type, Type)>,
@@ -21,6 +24,7 @@ impl<'a> Unifier<'a> {
     pub fn new(names: &'a Names) -> Self {
         Self {
             names,
+            defs: Definitions::new(),
             subst: HashMap::new(),
             causes: HashMap::new(),
             worklist: Vec::new(),
@@ -66,6 +70,11 @@ impl<'a> Unifier<'a> {
             (t, Type::Name(m)) if right_inst.contains_key(&m) => {
                 let u = right_inst.get(&m).unwrap();
                 self.unify_within(left_inst, right_inst, span, t, u.clone())
+            }
+
+            (Type::Name(n), u) if self.defs.has(&n) => {
+                let t = self.defs.get(&n).unwrap().clone();
+                self.unify_within(left_inst, right_inst, span, t, u)
             }
 
             (Type::Name(n), Type::Name(m)) => {

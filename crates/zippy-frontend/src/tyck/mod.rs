@@ -41,6 +41,7 @@ pub fn typeck(
 
     TypeckResult {
         decls,
+        defs: typer.unifier.defs,
         context: typer.context,
         subst: typer.unifier.subst,
         constraints: typer.constraints,
