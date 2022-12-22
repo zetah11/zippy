@@ -1,32 +1,43 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use log::trace;
 
 use super::tree::{StaticValue, StaticValueNode};
-use super::{Block, BranchNode, Decls, Statement, StmtNode, Value, ValueNode};
+use super::{Block, BranchNode, Decls, Statement, StmtNode, Type, TypeId, Types, Value, ValueNode};
 use crate::names::Name;
 
-/// Get a list of all of the names reachable from the entry point.
-pub fn discover(entry: Option<Name>, decls: &Decls) -> Vec<Name> {
-    let mut discoverer = MirDiscoverer::new(entry);
+/// Get a list of all of the names reachable from the entry point, as well as
+/// all of the names which are directly used by types.
+pub fn discover(types: &Types, entry: Option<Name>, decls: &Decls) -> (Vec<Name>, HashSet<Name>) {
+    let mut discoverer = MirDiscoverer::new(types, entry);
     discoverer.discover_decls(decls);
-    discoverer.names
+    (discoverer.names, discoverer.in_types)
 }
 
 #[derive(Debug)]
-struct MirDiscoverer {
+struct MirDiscoverer<'a> {
+    types: &'a Types,
+
     worklist: Vec<Name>,
     names: Vec<Name>,
+
+    in_types: HashSet<Name>,
+    visited_types: HashSet<TypeId>,
 }
 
-impl MirDiscoverer {
-    pub fn new(entry: Option<Name>) -> Self {
+impl<'a> MirDiscoverer<'a> {
+    pub fn new(types: &'a Types, entry: Option<Name>) -> Self {
         Self {
+            types,
+
             worklist: match entry {
                 Some(entry) => vec![entry],
                 None => Vec::new(),
             },
             names: Vec::new(),
+
+            in_types: HashSet::new(),
+            visited_types: HashSet::new(),
         }
     }
 
@@ -52,9 +63,13 @@ impl MirDiscoverer {
     }
 
     fn discover_block(&mut self, exprs: &Block) {
+        self.discover_type(&exprs.ty);
+
         for expr in exprs.stmts.iter() {
             self.discover_stmt(expr);
         }
+
+        self.discover_type(&exprs.branch.ty);
 
         match &exprs.branch.node {
             BranchNode::Return(values) => {
@@ -68,6 +83,8 @@ impl MirDiscoverer {
     }
 
     fn discover_stmt(&mut self, expr: &Statement) {
+        self.discover_type(&expr.ty);
+
         match &expr.node {
             StmtNode::Function { body, .. } => {
                 self.discover_block(body);
@@ -95,6 +112,8 @@ impl MirDiscoverer {
     }
 
     fn discover_static_value(&mut self, value: &StaticValue) {
+        self.discover_type(&value.ty);
+
         match &value.node {
             StaticValueNode::Num(_) => {}
             StaticValueNode::LateInit(block) => self.discover_block(block),
@@ -102,9 +121,38 @@ impl MirDiscoverer {
     }
 
     fn discover_value(&mut self, value: &Value) {
+        self.discover_type(&value.ty);
+
         match &value.node {
             ValueNode::Num(_) | ValueNode::Invalid => {}
             ValueNode::Name(name) => self.worklist.push(*name),
+        }
+    }
+
+    fn discover_type(&mut self, ty: &TypeId) {
+        if !self.visited_types.insert(*ty) {
+            return;
+        }
+
+        match self.types.get(ty) {
+            Type::Fun(ts, us) => {
+                for ty in ts.iter().chain(us.iter()) {
+                    self.discover_type(ty);
+                }
+            }
+
+            Type::Product(ts) => {
+                for ty in ts.iter() {
+                    self.discover_type(ty);
+                }
+            }
+
+            Type::Range(lo, hi) => {
+                self.worklist.extend([*lo, *hi]);
+                self.in_types.extend([*lo, *hi]);
+            }
+
+            Type::Invalid => {}
         }
     }
 }

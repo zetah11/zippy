@@ -5,7 +5,7 @@ mod value;
 
 use std::collections::{HashMap, HashSet};
 
-use zippy_common::mir::{discover, Context, Decls, Type, TypeId, Types};
+use zippy_common::mir::{discover, Context, Decls, StaticValue, Type, TypeId, Types};
 use zippy_common::names::{Name, Names};
 
 use crate::mangle::mangle;
@@ -36,6 +36,7 @@ struct Emitter<'a> {
 
     type_map: HashMap<TypeId, String>,
     type_name: usize,
+    values: HashMap<Name, StaticValue>,
 
     has_invalid: bool,
 
@@ -54,6 +55,7 @@ impl<'a> Emitter<'a> {
 
             type_map: HashMap::new(),
             type_name: 0,
+            values: HashMap::new(),
 
             has_invalid: false,
 
@@ -78,16 +80,22 @@ impl<'a> Emitter<'a> {
     pub fn emit_decls(&mut self, entry: Option<Name>, decls: Decls) {
         assert!(decls.defs.is_empty());
 
-        let reachable: HashSet<_> = if entry.is_some() {
-            discover(entry, &decls).into_iter().collect()
+        let (reachable, in_types) = if entry.is_some() {
+            discover(self.types, entry, &decls)
         } else {
             self.res.push_str("// (no code generated)\n");
             return;
         };
 
+        let reachable: HashSet<_> = reachable.into_iter().collect();
+
         self.res.push_str("// declarations\n");
 
         for (name, value) in decls.values.iter() {
+            if in_types.contains(name) {
+                assert!(self.values.insert(*name, value.clone()).is_none());
+            }
+
             if !reachable.contains(name) {
                 continue;
             }

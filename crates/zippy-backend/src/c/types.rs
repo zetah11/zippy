@@ -1,4 +1,4 @@
-use zippy_common::mir::{Type, TypeId};
+use zippy_common::mir::{StaticValueNode, Type, TypeId};
 use zippy_common::names::Name;
 use zippy_common::Number;
 
@@ -6,10 +6,7 @@ use super::Emitter;
 
 macro_rules! within {
     ($v:expr, $w:expr, $t:ty) => {
-        $v >= Number::from_integer(<$t>::MIN.into())
-            && $v <= Number::from_integer(<$t>::MAX.into())
-            && $w >= Number::from_integer(<$t>::MIN.into())
-            && $w <= Number::from_integer(<$t>::MAX.into())
+        $v >= <$t>::MIN && $v <= <$t>::MAX && $w >= <$t>::MIN && $w <= <$t>::MAX
     };
 }
 
@@ -45,23 +42,7 @@ impl Emitter<'_> {
     fn make_typename(&mut self, ty: &TypeId) -> String {
         match self.types.get(ty) {
             Type::Range(lo, hi) => self.make_integer_type(*lo, *hi),
-            /*
-            Type::Range(lo, hi) => {
-                let ty = range_to_type! {
-                    *lo, *hi,
-                    u8 => "unsigned char",
-                    i8 => "signed char",
-                    u16 => "unsigned short",
-                    i16 => "signed short",
-                    u32 => "unsigned",
-                    i32 => "int",
-                    i64 => "long long",
-                    else => unreachable!()
-                };
 
-                ty.into()
-            }
-            */
             Type::Product(ties) => {
                 let ty = self.make_struct(&ties.clone());
                 let name = self.fresh_typename();
@@ -101,7 +82,42 @@ impl Emitter<'_> {
     }
 
     fn make_integer_type(&mut self, lo: Name, hi: Name) -> String {
-        todo!()
+        let (lo, _) = self.get_bounds(&lo);
+        let (_, hi) = self.get_bounds(&hi);
+
+        let ty = range_to_type! {
+            lo.clone(), hi.clone(),
+            u8 => "unsigned char",
+            i8 => "signed char",
+            u16 => "unsigned short",
+            i16 => "signed short",
+            u32 => "unsigned",
+            i32 => "int",
+            i64 => "long long",
+            else => unreachable!()
+        };
+
+        ty.into()
+    }
+
+    fn get_bounds(&self, name: &Name) -> (&Number, &Number) {
+        let value = self.values.get(name).unwrap();
+
+        match &value.node {
+            StaticValueNode::Num(value) => (value, value),
+            StaticValueNode::LateInit(block) => {
+                let ty = self.types.get(&block.ty);
+                match ty {
+                    Type::Range(lo, hi) => {
+                        let (lo, _) = self.get_bounds(lo);
+                        let (_, hi) = self.get_bounds(hi);
+                        (lo, hi)
+                    }
+                    Type::Invalid => todo!(),
+                    Type::Fun(..) | Type::Product(..) => unreachable!(),
+                }
+            }
+        }
     }
 
     fn typedef(&mut self, name: &str, pre: &str, post: &str) {
