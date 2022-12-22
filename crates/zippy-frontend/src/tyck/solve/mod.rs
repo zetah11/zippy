@@ -7,25 +7,32 @@ use std::collections::HashMap;
 use log::trace;
 use zippy_common::message::Span;
 use zippy_common::names::Name;
-use zippy_common::thir::{merge_insts, Because, Constraint};
+use zippy_common::thir::{merge_insts, Because, CoercionId, Constraint};
 
 use super::{Type, Typer};
 
 impl Typer<'_> {
     /// Check if `from` can be given where `into` is expected (i.e. if `from` is wider than `into`), and return the
     /// widest type.
-    pub fn assignable(&mut self, span: Span, into: Type, from: Type) {
+    #[must_use]
+    pub fn assignable(&mut self, span: Span, into: Type, from: Type) -> CoercionId {
         trace!(
             "assignability? {} <- {}",
             self.pretty(&into),
             self.pretty(&from)
         );
-        self.unifier.unify(span, into, from);
+        let id = self.unifier.coercions.fresh();
+        self.assignable_coercion(span, into, from, id);
+        id
+    }
+
+    pub fn assignable_coercion(&mut self, span: Span, into: Type, from: Type, id: CoercionId) {
+        self.unifier.unify(id, span, into, from);
         let constraints: Vec<_> = self
             .unifier
             .worklist
             .drain(..)
-            .map(|(at, into, from)| Constraint::Assignable { at, into, from })
+            .map(|(at, into, from, id)| Constraint::Assignable { at, into, from, id })
             .collect();
         self.constraints.extend(constraints);
     }
@@ -35,7 +42,8 @@ impl Typer<'_> {
         let u = self.context.fresh();
         let expect = Type::Fun(Box::new(Type::mutable(t)), Box::new(Type::mutable(u)));
 
-        self.assignable(span, expect, ty);
+        // ignore the coercion since we're just unifying with vars
+        let _ = self.assignable(span, expect, ty);
 
         (Type::mutable(t), Type::mutable(u))
     }
@@ -50,14 +58,14 @@ impl Typer<'_> {
         let u = self.context.fresh();
         let expect = Type::Product(Box::new(Type::mutable(t)), Box::new(Type::mutable(u)));
 
-        self.assignable(span, expect, ty);
+        let _ = self.assignable(span, expect, ty);
 
         (Type::mutable(t), Type::mutable(u))
     }
 
     pub fn hole_type(&mut self, span: Span, ty: Type) -> Type {
         let var = self.context.fresh();
-        self.assignable(span, Type::mutable(var), ty);
+        let _ = self.assignable(span, Type::mutable(var), ty);
         Type::mutable(var)
     }
 

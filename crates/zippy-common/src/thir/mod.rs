@@ -1,4 +1,5 @@
 mod because;
+mod coerce;
 mod constraint;
 mod context;
 mod defs;
@@ -7,6 +8,7 @@ mod tree;
 mod types;
 
 pub use self::because::Because;
+pub use self::coerce::{Coercion, CoercionId, Coercions};
 pub use self::constraint::Constraint;
 pub use self::context::{merge_insts, Context, TypeOrSchema};
 pub use self::defs::Definitions;
@@ -20,6 +22,7 @@ use crate::names::Name;
 
 #[derive(Debug)]
 pub struct TypeckResult {
+    pub coercions: Coercions,
     pub context: Context,
     pub defs: Definitions,
     pub decls: Decls<Type>,

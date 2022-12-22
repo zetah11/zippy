@@ -133,6 +133,41 @@ impl Lowerer<'_> {
                 _ => ValueNode::Invalid,
             },
 
+            HiExprNode::Coerce(expr, id) => {
+                let coercion = self.coercions.get(&id);
+                let value = self.make_value(inst, ctx, within, *expr);
+
+                let Some(_coercion) = coercion else { return value; };
+
+                match value.node {
+                    ValueNode::Name(name) => {
+                        let target = self.fresh_name(span, ctx, ty);
+                        let from = value.ty;
+                        let into = ty;
+
+                        let stmt = StmtNode::Coerce {
+                            name: target,
+                            of: name,
+                            from,
+                            to: into,
+                        };
+
+                        let stmt = Statement {
+                            ty,
+                            span,
+                            node: stmt,
+                        };
+
+                        within.push(stmt);
+
+                        ValueNode::Name(target)
+                    }
+
+                    ValueNode::Invalid => ValueNode::Invalid,
+                    ValueNode::Num(_) => unreachable!(),
+                }
+            }
+
             // Typechecking should remove all annotations
             HiExprNode::Anno(..) => unreachable!(),
         };

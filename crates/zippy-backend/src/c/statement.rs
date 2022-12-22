@@ -75,6 +75,15 @@ impl Emitter<'_> {
                 res.push(format!("{ty} {mangled} = {of}.f{at};"));
             }
 
+            StmtNode::Coerce { name, of, to, .. } => {
+                let of = mangle(self.names, &of);
+                let mangled = mangle(self.names, &name);
+
+                let ty = self.typename(&to);
+
+                res.push(format!("{ty} {mangled} = ({ty}) {of};"));
+            }
+
             StmtNode::Join { .. } => todo!(),
 
             // Hoisting should remove these

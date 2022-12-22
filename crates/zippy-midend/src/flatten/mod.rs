@@ -132,6 +132,11 @@ impl<'a> Flattener<'a> {
                     StmtNode::Apply { names, fun, args }
                 }
 
+                StmtNode::Coerce { name, of, from, to } => {
+                    let of = self.flatten_name(of);
+                    StmtNode::Coerce { name, of, from, to }
+                }
+
                 StmtNode::Join { name, param, body } => {
                     let body = self.flatten_def(&name, body);
                     StmtNode::Join { name, param, body }

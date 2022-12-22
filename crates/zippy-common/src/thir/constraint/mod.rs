@@ -1,4 +1,5 @@
 use super::because::Because;
+use super::coerce::CoercionId;
 use super::Type;
 use crate::message::Span;
 
@@ -14,5 +15,6 @@ pub enum Constraint {
         at: Span,
         into: Type,
         from: Type,
+        id: CoercionId,
     },
 }

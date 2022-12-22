@@ -7,6 +7,7 @@ impl Typer<'_> {
     /// Check that an expression conforms to a given type.
     pub fn check(&mut self, because: Because, ex: Expr, ty: Type) -> Expr<Type> {
         let pretty = self.pretty(&ty);
+        let span = ex.span;
         let (node, ty) = match ex.node {
             ExprNode::Num(v) => {
                 trace!("checking int against {}", pretty);
@@ -44,14 +45,14 @@ impl Typer<'_> {
             _ => {
                 trace!("subsumption");
                 let ex = self.infer(ex);
-                self.assignable(ex.span, ty, ex.data.clone());
-                return ex;
+                let id = self.assignable(ex.span, ty.clone(), ex.data.clone());
+                (ExprNode::Coerce(Box::new(ex), id), ty)
             }
         };
 
         Expr {
             node,
-            span: ex.span,
+            span,
             data: ty,
         }
     }

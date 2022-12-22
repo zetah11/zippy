@@ -1,5 +1,6 @@
 pub use super::Type;
 
+use super::CoercionId;
 use crate::message::Span;
 use crate::names::Name;
 use crate::Number;
@@ -44,6 +45,7 @@ pub enum ExprNode<Data> {
     Inst(Box<Expr<Data>>, Vec<(Span, Type)>),
 
     Anno(Box<Expr<Data>>, Span, Type),
+    Coerce(Box<Expr<Data>>, CoercionId),
 
     Tuple(Box<Expr<Data>>, Box<Expr<Data>>),
 
@@ -63,6 +65,7 @@ pub enum PatNode<Data> {
     Name(Name),
     Tuple(Box<Pat<Data>>, Box<Pat<Data>>),
     Anno(Box<Pat<Data>>, Type),
+    Coerce(Box<Pat<Data>>, CoercionId),
     Wildcard,
     Invalid,
 }

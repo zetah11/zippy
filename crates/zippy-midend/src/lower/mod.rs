@@ -13,6 +13,7 @@ use zippy_common::names::{Name, Names};
 use zippy_common::thir::{self, UniVar};
 use zippy_common::Driver;
 
+type HiCoercions = thir::Coercions;
 type HiDefs = thir::Definitions;
 type HiType = thir::Type;
 type HiPat = thir::Pat<HiType>;
@@ -27,12 +28,13 @@ type Inst = HashMap<Name, HiType>;
 pub fn lower(
     driver: &mut impl Driver,
     subst: &HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
+    coercions: HiCoercions,
     defs: HiDefs,
     names: &mut Names,
     decls: HiDecls,
 ) -> (Types, Context, Decls) {
     debug!("beginning lowering");
-    let mut lowerer = Lowerer::new(names, subst);
+    let mut lowerer = Lowerer::new(names, subst, coercions);
     lowerer.lower_defs(defs);
 
     let ctx = lowerer.names.root();
@@ -54,6 +56,7 @@ struct Lowerer<'a> {
     context: Context,
     templates: HashMap<Name, HiValueDef>,
     named_types: HashMap<Name, TypeId>,
+    coercions: HiCoercions,
 
     values: Vec<ValueDef>,
 }
@@ -62,6 +65,7 @@ impl<'a> Lowerer<'a> {
     fn new(
         names: &'a mut Names,
         subst: &'a HashMap<UniVar, (HashMap<Name, HiType>, HiType)>,
+        coercions: HiCoercions,
     ) -> Self {
         Self {
             types: Types::new(),
@@ -71,6 +75,7 @@ impl<'a> Lowerer<'a> {
             context: Context::new(),
             templates: HashMap::new(),
             named_types: HashMap::new(),
+            coercions,
 
             values: Vec::new(),
         }

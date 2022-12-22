@@ -106,7 +106,8 @@ impl Typer<'_> {
                 let (ty, vars) = self.context.instantiate(&schema);
 
                 for (var, (span, ty)) in vars.into_iter().zip(args.iter()) {
-                    self.assignable(*span, Type::mutable(var), ty.clone());
+                    // unifying with a var, no coercion should happen
+                    let _ = self.assignable(*span, Type::mutable(var), ty.clone());
                 }
 
                 let res = ExprNode::Inst(
@@ -132,6 +133,8 @@ impl Typer<'_> {
             }
 
             ExprNode::Invalid => (ExprNode::Invalid, Type::Invalid),
+
+            ExprNode::Coerce(..) => unreachable!(),
         };
 
         Expr {

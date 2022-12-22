@@ -206,6 +206,12 @@ impl<'a> Prettier<'a> {
                 .append(self.allocator.text("."))
                 .append(self.allocator.text(format!("{at}")))
                 .group(),
+            StmtNode::Coerce { name, of, to, .. } => self
+                .doc_let(within, name)
+                .append(self.doc_name(within, of))
+                .append(self.allocator.text(" as "))
+                .append(self.doc_type(within, to))
+                .group(),
         }
     }
 

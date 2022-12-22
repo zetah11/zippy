@@ -109,6 +109,14 @@ impl Freer {
 
                     bound.insert(*name);
                 }
+
+                StmtNode::Coerce { name, of, .. } => {
+                    if !bound.contains(of) && free.insert(*of).is_none() {
+                        res.push((*of, expr.span));
+                    }
+
+                    bound.insert(*name);
+                }
             }
         }
 

@@ -23,13 +23,16 @@ impl Typer<'_> {
             }
 
             PatNode::Anno(pat, uy) => {
-                self.assignable(pat.span, ty, uy.clone());
-                return self.bind_pat(*pat, uy);
+                let id = self.assignable(pat.span, ty.clone(), uy.clone());
+                let pat = self.bind_pat(*pat, uy);
+                (PatNode::Coerce(Box::new(pat), id), ty)
             }
 
             PatNode::Wildcard => (PatNode::Wildcard, ty),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
+
+            PatNode::Coerce(..) => unreachable!(),
         };
 
         Pat {
@@ -66,12 +69,14 @@ impl Typer<'_> {
             }
 
             PatNode::Anno(pat, uy) => {
-                self.assignable(pat.span, ty, uy.clone());
-                return self.bind_generic(*pat, params, uy);
+                let id = self.assignable(pat.span, ty.clone(), uy.clone());
+                let pat = self.bind_generic(*pat, params, uy);
+                (PatNode::Coerce(Box::new(pat), id), ty)
             }
 
             PatNode::Wildcard => (PatNode::Wildcard, ty),
             PatNode::Invalid => (PatNode::Invalid, ty),
+            PatNode::Coerce(..) => unreachable!(),
         };
 
         Pat {
@@ -107,6 +112,7 @@ impl Typer<'_> {
             PatNode::Wildcard => (PatNode::Wildcard, Type::mutable(self.context.fresh())),
 
             PatNode::Invalid => (PatNode::Invalid, Type::Invalid),
+            PatNode::Coerce(..) => unreachable!(),
         };
 
         Pat {
@@ -132,6 +138,7 @@ impl Typer<'_> {
 
             PatNode::Wildcard => {}
             PatNode::Invalid => {}
+            PatNode::Coerce(..) => unreachable!(),
         }
     }
 }

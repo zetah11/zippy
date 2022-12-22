@@ -95,6 +95,12 @@ pub enum StmtNode {
         of: Name,
         at: usize,
     },
+    Coerce {
+        name: Name,
+        of: Name,
+        from: TypeId,
+        to: TypeId,
+    },
 }
 
 /// A static value is one that is alive for the entire duration of the program.

@@ -76,6 +76,10 @@ fn visit_block(worklist: &mut Vec<Name>, block: &Block) {
                 worklist.push(*fun);
             }
 
+            StmtNode::Coerce { of, .. } => {
+                worklist.push(*of);
+            }
+
             StmtNode::Function { .. } => todo!(),
             StmtNode::Join { .. } => todo!(),
             StmtNode::Proj { .. } => todo!(),

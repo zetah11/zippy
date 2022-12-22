@@ -87,6 +87,11 @@ impl Lowerer<'_> {
                 let expr = Box::new(self.copy_expr(name_map, old_name, new_name, *expr));
                 HiExprNode::Anno(expr, span, ty)
             }
+
+            HiExprNode::Coerce(expr, id) => {
+                let expr = Box::new(self.copy_expr(name_map, old_name, new_name, *expr));
+                HiExprNode::Coerce(expr, id)
+            }
         };
 
         HiExpr {
@@ -122,6 +127,11 @@ impl Lowerer<'_> {
             HiPatNode::Anno(pat, ty) => {
                 let pat = Box::new(self.copy_pat(name_map, old_name, new_name, *pat));
                 HiPatNode::Anno(pat, ty)
+            }
+
+            HiPatNode::Coerce(pat, id) => {
+                let pat = Box::new(self.copy_pat(name_map, old_name, new_name, *pat));
+                HiPatNode::Coerce(pat, id)
             }
         };
 

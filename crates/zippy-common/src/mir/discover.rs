@@ -87,6 +87,10 @@ impl MirDiscoverer {
             StmtNode::Proj { of, .. } => {
                 self.worklist.push(*of);
             }
+
+            StmtNode::Coerce { of, .. } => {
+                self.worklist.push(*of);
+            }
         }
     }
 

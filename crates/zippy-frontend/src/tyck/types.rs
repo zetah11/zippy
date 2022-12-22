@@ -25,6 +25,7 @@ impl Typer<'_> {
 
     pub fn check_type(&mut self, at: Span, ty: &Type, kind: Type) {
         let inferred = self.infer_type(at, ty);
-        self.assignable(at, kind, inferred);
+        // no coercion should happen for kinds
+        let _ = self.assignable(at, kind, inferred);
     }
 }

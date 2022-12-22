@@ -168,6 +168,11 @@ impl<'a> MirChecker<'a> {
                     _ => unreachable!(),
                 }
             }
+
+            StmtNode::Coerce { of, from, .. } => {
+                let of_type = self.context.get(of);
+                self.check_type(expr.span, *from, of_type);
+            }
         }
     }
 

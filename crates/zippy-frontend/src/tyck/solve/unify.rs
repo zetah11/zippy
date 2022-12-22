@@ -4,17 +4,19 @@ use log::trace;
 use zippy_common::message::{Messages, Span};
 use zippy_common::names::{Name, Names};
 use zippy_common::thir::{
-    merge_insts, pretty_type, Because, Definitions, Mutability, PrettyMap, Type, UniVar,
+    merge_insts, pretty_type, Because, Coercion, CoercionId, Coercions, Definitions, Mutability,
+    PrettyMap, Type, UniVar,
 };
 
 #[derive(Debug)]
 pub struct Unifier<'a> {
     pub names: &'a Names,
 
+    pub coercions: Coercions,
     pub defs: Definitions,
     pub subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     pub causes: HashMap<UniVar, Because>,
-    pub worklist: Vec<(Span, Type, Type)>,
+    pub worklist: Vec<(Span, Type, Type, CoercionId)>,
     pub messages: Messages,
 
     prettier: PrettyMap,
@@ -25,6 +27,7 @@ impl<'a> Unifier<'a> {
         Self {
             names,
             defs: Definitions::new(),
+            coercions: Coercions::new(),
             subst: HashMap::new(),
             causes: HashMap::new(),
             worklist: Vec::new(),
@@ -39,14 +42,21 @@ impl<'a> Unifier<'a> {
         pretty_type(self.names, &subst, &mut self.prettier, ty)
     }
 
-    pub fn unify(&mut self, span: Span, expected: Type, actual: Type) {
+    pub fn unify(&mut self, coercion: CoercionId, span: Span, expected: Type, actual: Type) {
         let t = self.pretty(&expected);
         let u = self.pretty(&actual);
         trace!("unifying {t} and {u}",);
 
         let message_count = self.messages.len();
 
-        self.unify_within(&HashMap::new(), &HashMap::new(), span, expected, actual);
+        self.unify_within(
+            &HashMap::new(),
+            &HashMap::new(),
+            coercion,
+            span,
+            expected,
+            actual,
+        );
 
         if self.messages.len() != message_count {
             trace!("unification failure");
@@ -57,6 +67,7 @@ impl<'a> Unifier<'a> {
         &mut self,
         left_inst: &HashMap<Name, Type>,
         right_inst: &HashMap<Name, Type>,
+        coercion: CoercionId,
         span: Span,
         expected: Type,
         actual: Type,
@@ -64,17 +75,18 @@ impl<'a> Unifier<'a> {
         match (expected, actual) {
             (Type::Name(n), u) if left_inst.contains_key(&n) => {
                 let t = left_inst.get(&n).unwrap();
-                self.unify_within(left_inst, right_inst, span, t.clone(), u)
+                self.unify_within(left_inst, right_inst, coercion, span, t.clone(), u)
             }
 
             (t, Type::Name(m)) if right_inst.contains_key(&m) => {
                 let u = right_inst.get(&m).unwrap();
-                self.unify_within(left_inst, right_inst, span, t, u.clone())
+                self.unify_within(left_inst, right_inst, coercion, span, t, u.clone())
             }
 
             (Type::Name(n), u) if self.defs.has(&n) => {
+                self.coercions.add(coercion, Coercion::Upcast);
                 let t = self.defs.get(&n).unwrap().clone();
-                self.unify_within(left_inst, right_inst, span, t, u)
+                self.unify_within(left_inst, right_inst, coercion, span, t, u)
             }
 
             (Type::Name(n), Type::Name(m)) => {
@@ -85,20 +97,20 @@ impl<'a> Unifier<'a> {
                 }
             }
 
-            (Type::Range(lo1, hi1), Type::Range(lo2, hi2)) => {
-                todo!()
+            (Type::Range(..), Type::Range(..)) => {
+                self.coercions.add(coercion, Coercion::Upcast);
             }
 
             (Type::Number, Type::Range(..)) => {}
 
             (Type::Fun(t1, u1), Type::Fun(t2, u2)) => {
-                self.unify_within(left_inst, right_inst, span, *t1, *t2);
-                self.unify_within(left_inst, right_inst, span, *u1, *u2);
+                self.unify_within(left_inst, right_inst, coercion, span, *t1, *t2);
+                self.unify_within(left_inst, right_inst, coercion, span, *u1, *u2);
             }
 
             (Type::Product(t1, u1), Type::Product(t2, u2)) => {
-                self.unify_within(left_inst, right_inst, span, *t1, *t2);
-                self.unify_within(left_inst, right_inst, span, *u1, *u2);
+                self.unify_within(left_inst, right_inst, coercion, span, *t1, *t2);
+                self.unify_within(left_inst, right_inst, coercion, span, *u1, *u2);
             }
 
             (Type::Var(_, v), Type::Var(_, w)) if v == w => {}
@@ -106,7 +118,7 @@ impl<'a> Unifier<'a> {
             (Type::Var(mutability, v), u) => {
                 if let Some((other_inst, t)) = self.get(mutability, &v) {
                     let left_inst = merge_insts(left_inst, other_inst);
-                    return self.unify_within(&left_inst, right_inst, span, t, u);
+                    return self.unify_within(&left_inst, right_inst, coercion, span, t, u);
                 }
 
                 if mutability == Mutability::Mutable {
@@ -133,14 +145,14 @@ impl<'a> Unifier<'a> {
                         Type::Instantiated(Box::new(u), right_inst.clone())
                     };
 
-                    self.worklist.push((span, left, right));
+                    self.worklist.push((span, left, right, coercion));
                 }
             }
 
             (t, Type::Var(mutability, w)) => {
                 if let Some((other_inst, u)) = self.get(mutability, &w) {
                     let right_inst = merge_insts(right_inst, other_inst);
-                    return self.unify_within(left_inst, &right_inst, span, t, u);
+                    return self.unify_within(left_inst, &right_inst, coercion, span, t, u);
                 }
 
                 if mutability == Mutability::Mutable {
@@ -167,7 +179,7 @@ impl<'a> Unifier<'a> {
                         Type::Instantiated(Box::new(Type::Var(mutability, w)), right_inst.clone())
                     };
 
-                    self.worklist.push((span, left, right));
+                    self.worklist.push((span, left, right, coercion));
                 }
             }
 
@@ -178,7 +190,7 @@ impl<'a> Unifier<'a> {
                     .map(|(name, var)| (*name, var.clone()))
                     .collect();
 
-                self.unify_within(&new, right_inst, span, *t, u)
+                self.unify_within(&new, right_inst, coercion, span, *t, u)
             }
 
             (t, Type::Instantiated(u, other_inst)) => {
@@ -188,7 +200,7 @@ impl<'a> Unifier<'a> {
                     .map(|(name, var)| (*name, var.clone()))
                     .collect();
 
-                self.unify_within(left_inst, &new, span, t, *u)
+                self.unify_within(left_inst, &new, coercion, span, t, *u)
             }
 
             (Type::Type, Type::Type) => {}

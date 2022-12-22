@@ -95,6 +95,8 @@ fn pat_defines(pat: &Pat) -> (HashSet<Name>, HashSet<Name>) {
     match &pat.node {
         PatNode::Invalid | PatNode::Wildcard => Default::default(),
 
+        PatNode::Coerce(pat, _) => pat_defines(pat),
+
         PatNode::Anno(pat, ty) => {
             let in_anno = type_refers(&HashSet::new(), ty);
             let (defined, in_pat) = pat_defines(pat);
@@ -144,6 +146,8 @@ fn expr_refers(shadowed: &HashSet<Name>, ex: &Expr) -> HashSet<Name> {
             let ty = type_refers(shadowed, ty);
             ex.into_iter().chain(ty).collect()
         }
+
+        ExprNode::Coerce(ex, _) => expr_refers(shadowed, ex),
 
         ExprNode::App(x, y) | ExprNode::Tuple(x, y) => {
             let x = expr_refers(shadowed, x);

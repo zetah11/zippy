@@ -52,6 +52,24 @@ impl Lowerer<'_> {
             // The typechecker should remove all annotations
             HiPatNode::Anno(..) => unreachable!(),
 
+            HiPatNode::Coerce(of, id) => {
+                let Some(_coercion) = self.coercions.get(&id) else {
+                    return self.destruct_monomorphic(inst, ctx, span, *of, bind);
+                };
+
+                let from = self.lower_type(inst, of.data.clone());
+                let into = self.lower_type(inst, pat.data);
+                let value = self.fresh_name(pat.span, ctx, from);
+
+                self.values.push(ValueDef {
+                    name: value,
+                    span,
+                    bind,
+                });
+
+                self.bind_coercion(inst, ctx, value, *of, from, into);
+            }
+
             HiPatNode::Wildcard | HiPatNode::Invalid => {}
         }
     }
@@ -121,6 +139,32 @@ impl Lowerer<'_> {
                 name
             }
 
+            HiPatNode::Coerce(of, id) => {
+                let Some(_coercion) = self.coercions.get(&id) else {
+                    return self.bind_local(inst, ctx, after, *of);
+                };
+
+                let (of, of_ty) = self.bind_local(inst, ctx, after, *of);
+                let into = ty;
+
+                let name = self.fresh_name(pat.span, ctx, into);
+
+                let bind = Statement {
+                    ty: into,
+                    span: pat.span,
+                    node: StmtNode::Coerce {
+                        name,
+                        of,
+                        from: of_ty,
+                        to: into,
+                    },
+                };
+
+                after.push(bind);
+
+                name
+            }
+
             // The typechecker should remove all annotations.
             HiPatNode::Anno(..) => unreachable!(),
 
@@ -160,6 +204,51 @@ impl Lowerer<'_> {
 
         let bind = Block {
             ty,
+            span,
+            stmts: vec![binding],
+            branch: ret,
+        };
+
+        self.destruct_monomorphic(inst, ctx, span, pat, bind);
+    }
+
+    fn bind_coercion(
+        &mut self,
+        inst: &Inst,
+        ctx: Name,
+        of: Name,
+        pat: HiPat,
+        from: TypeId,
+        into: TypeId,
+    ) {
+        let span = pat.span;
+        let target = self.fresh_name(pat.span, ctx, into);
+
+        let binding = Statement {
+            ty: into,
+            span,
+            node: StmtNode::Coerce {
+                name: target,
+                of,
+                from,
+                to: into,
+            },
+        };
+
+        let ret = Value {
+            ty: into,
+            span,
+            node: ValueNode::Name(target),
+        };
+
+        let ret = Branch {
+            ty: into,
+            span,
+            node: BranchNode::Return(vec![ret]),
+        };
+
+        let bind = Block {
+            ty: into,
             span,
             stmts: vec![binding],
             branch: ret,

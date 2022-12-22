@@ -53,6 +53,11 @@ impl<D: Driver> Interpreter<'_, D> {
             StmtNode::Tuple { .. } => todo!(),
             StmtNode::Proj { .. } => todo!(),
 
+            StmtNode::Coerce { name, of, from, to } => {
+                let mut args = args;
+                self.reduce_coerce(name, (args.remove(0), of), from, to, stmt.span)
+            }
+
             StmtNode::Apply {
                 names,
                 fun,
@@ -179,6 +184,55 @@ impl<D: Driver> Interpreter<'_, D> {
             action,
             operation: inst.map(Operation::Statement),
             values: None,
+        }
+    }
+
+    /// Reduce a coercion.
+    fn reduce_coerce(
+        &mut self,
+        name: Name,
+        of: (ReducedValue, Name),
+        from: TypeId,
+        into: TypeId,
+        span: Span,
+    ) -> ReduceResult {
+        let reduced = of.0;
+        let unreduced = of.1;
+
+        // TODO: check if the reduced value actually fits for this.
+
+        let operation = if reduced.is_dynamic(self.frame_index()) {
+            Some(Operation::Statement(Statement {
+                node: StmtNode::Coerce {
+                    name,
+                    of: unreduced,
+                    from,
+                    to: into,
+                },
+                span,
+                ty: into,
+            }))
+        } else {
+            match reduced.value.node {
+                ValueNode::Name(of) => Some(Operation::Statement(Statement {
+                    node: StmtNode::Coerce {
+                        name,
+                        of,
+                        from,
+                        to: into,
+                    },
+                    span,
+                    ty: into,
+                })),
+
+                _ => None,
+            }
+        };
+
+        ReduceResult {
+            action: Action::None,
+            operation,
+            values: Some(vec![reduced]),
         }
     }
 }

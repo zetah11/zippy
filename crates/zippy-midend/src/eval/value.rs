@@ -77,6 +77,14 @@ impl<D: Driver> Interpreter<'_, D> {
                     res
                 }
 
+                StmtNode::Coerce { of, from, .. } => {
+                    vec![Value {
+                        node: ValueNode::Name(*of),
+                        span: stmt.span,
+                        ty: *from,
+                    }]
+                }
+
                 StmtNode::Function { .. } => todo!(),
                 StmtNode::Join { .. } => todo!(),
 
@@ -103,6 +111,7 @@ impl<D: Driver> Interpreter<'_, D> {
 
             Operation::Statement(stmt) => match &stmt.node {
                 StmtNode::Apply { names, .. } => names.clone(),
+                StmtNode::Coerce { name, .. } => vec![*name],
 
                 StmtNode::Function { .. } => todo!(),
                 StmtNode::Join { .. } => todo!(),

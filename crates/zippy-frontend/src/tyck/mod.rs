@@ -41,8 +41,9 @@ pub fn typeck(
 
     TypeckResult {
         decls,
-        defs: typer.unifier.defs,
+        coercions: typer.unifier.coercions,
         context: typer.context,
+        defs: typer.unifier.defs,
         subst: typer.unifier.subst,
         constraints: typer.constraints,
     }
@@ -144,8 +145,8 @@ impl<'a> Typer<'a> {
                         let _ = self.int_type(at, because, ty);
                     }
 
-                    Constraint::Assignable { at, into, from } => {
-                        self.assignable(at, into, from);
+                    Constraint::Assignable { at, into, from, id } => {
+                        self.assignable_coercion(at, into, from, id);
                     }
                 }
             }
@@ -211,6 +212,9 @@ impl<'a> Typer<'a> {
             PatNode::Tuple(x, y) => {
                 self.make_mutability(mutability, x);
                 self.make_mutability(mutability, y);
+            }
+            PatNode::Coerce(pat, _) => {
+                self.make_mutability(mutability, pat);
             }
             PatNode::Invalid | PatNode::Wildcard => {}
         }
