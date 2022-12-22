@@ -29,7 +29,10 @@ impl Coercions {
     }
 
     pub fn add(&mut self, id: CoercionId, data: Coercion) {
-        assert!(self.coercions.insert(id, data).is_none());
+        // We don't check for duplicates, since, at the moment, the coercions
+        // don't carry any useful data other than whether or not a coercion is
+        // happening.
+        let _ = self.coercions.insert(id, data);
     }
 
     pub fn get(&self, id: &CoercionId) -> Option<Coercion> {
