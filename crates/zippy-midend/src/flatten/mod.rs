@@ -238,7 +238,7 @@ impl<'a> Flattener<'a> {
                 names
             }
 
-            Type::Invalid | Type::Fun(..) | Type::Range(..) => vec![name],
+            Type::Invalid | Type::Number | Type::Fun(..) | Type::Range(..) => vec![name],
         }
     }
 
@@ -293,6 +293,7 @@ impl<'a> Flattener<'a> {
                 let us = us.iter().flat_map(|u| self.flatten_types(u)).collect();
                 vec![self.types.add(Type::Fun(ts, us))]
             }
+            Type::Number => vec![*ty],
             Type::Invalid => vec![*ty],
         }
     }

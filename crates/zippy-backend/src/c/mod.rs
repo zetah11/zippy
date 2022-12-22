@@ -5,12 +5,15 @@ mod value;
 
 use std::collections::{HashMap, HashSet};
 
+use zippy_common::message::Messages;
 use zippy_common::mir::{discover, Context, Decls, StaticValue, Type, TypeId, Types};
 use zippy_common::names::{Name, Names};
+use zippy_common::Driver;
 
 use crate::mangle::mangle;
 
 pub fn emit(
+    driver: &mut impl Driver,
     names: &mut Names,
     types: &mut Types,
     context: &Context,
@@ -24,6 +27,8 @@ pub fn emit(
         emitter.emit_entry(entry);
     }
 
+    driver.report(emitter.messages.drain());
+
     emitter.build()
 }
 
@@ -33,6 +38,8 @@ struct Emitter<'a> {
     inits: String,
     res: String,
     typedefs: String,
+
+    messages: Messages,
 
     type_map: HashMap<TypeId, String>,
     type_name: usize,
@@ -52,6 +59,8 @@ impl<'a> Emitter<'a> {
             includes: HashSet::new(),
             res: String::new(),
             typedefs: String::new(),
+
+            messages: Messages::new(),
 
             type_map: HashMap::new(),
             type_name: 0,
@@ -81,7 +90,7 @@ impl<'a> Emitter<'a> {
         assert!(decls.defs.is_empty());
 
         let (reachable, in_types) = if entry.is_some() {
-            discover(self.types, entry, &decls)
+            discover(self.types, self.context, entry, &decls)
         } else {
             self.res.push_str("// (no code generated)\n");
             return;
@@ -91,11 +100,12 @@ impl<'a> Emitter<'a> {
 
         self.res.push_str("// declarations\n");
 
-        for (name, value) in decls.values.iter() {
-            if in_types.contains(name) {
-                assert!(self.values.insert(*name, value.clone()).is_none());
-            }
+        for name in in_types {
+            let Some(value) = decls.values.get(&name) else { unreachable!(); };
+            self.values.insert(name, value.clone());
+        }
 
+        for (name, value) in decls.values.iter() {
             if !reachable.contains(name) {
                 continue;
             }

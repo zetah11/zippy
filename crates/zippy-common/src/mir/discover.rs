@@ -3,13 +3,20 @@ use std::collections::{HashMap, HashSet};
 use log::trace;
 
 use super::tree::{StaticValue, StaticValueNode};
-use super::{Block, BranchNode, Decls, Statement, StmtNode, Type, TypeId, Types, Value, ValueNode};
+use super::{
+    Block, BranchNode, Context, Decls, Statement, StmtNode, Type, TypeId, Types, Value, ValueNode,
+};
 use crate::names::Name;
 
 /// Get a list of all of the names reachable from the entry point, as well as
 /// all of the names which are directly used by types.
-pub fn discover(types: &Types, entry: Option<Name>, decls: &Decls) -> (Vec<Name>, HashSet<Name>) {
-    let mut discoverer = MirDiscoverer::new(types, entry);
+pub fn discover(
+    types: &Types,
+    context: &Context,
+    entry: Option<Name>,
+    decls: &Decls,
+) -> (Vec<Name>, HashSet<Name>) {
+    let mut discoverer = MirDiscoverer::new(types, context, entry);
     discoverer.discover_decls(decls);
     (discoverer.names, discoverer.in_types)
 }
@@ -17,6 +24,7 @@ pub fn discover(types: &Types, entry: Option<Name>, decls: &Decls) -> (Vec<Name>
 #[derive(Debug)]
 struct MirDiscoverer<'a> {
     types: &'a Types,
+    context: &'a Context,
 
     worklist: Vec<Name>,
     names: Vec<Name>,
@@ -26,9 +34,10 @@ struct MirDiscoverer<'a> {
 }
 
 impl<'a> MirDiscoverer<'a> {
-    pub fn new(types: &'a Types, entry: Option<Name>) -> Self {
+    pub fn new(types: &'a Types, context: &'a Context, entry: Option<Name>) -> Self {
         Self {
             types,
+            context,
 
             worklist: match entry {
                 Some(entry) => vec![entry],
@@ -48,6 +57,9 @@ impl<'a> MirDiscoverer<'a> {
             if self.names.contains(&name) {
                 continue;
             }
+
+            let ty = self.context.get(&name);
+            self.discover_type(&ty);
 
             self.names.push(name);
             if let Some(&def) = defs.get(&name) {
@@ -105,8 +117,9 @@ impl<'a> MirDiscoverer<'a> {
                 self.worklist.push(*of);
             }
 
-            StmtNode::Coerce { of, .. } => {
+            StmtNode::Coerce { of, from, .. } => {
                 self.worklist.push(*of);
+                self.discover_type(from);
             }
         }
     }
@@ -148,9 +161,10 @@ impl<'a> MirDiscoverer<'a> {
             }
 
             Type::Range(lo, hi) => {
-                self.worklist.extend([*lo, *hi]);
                 self.in_types.extend([*lo, *hi]);
             }
+
+            Type::Number => {}
 
             Type::Invalid => {}
         }

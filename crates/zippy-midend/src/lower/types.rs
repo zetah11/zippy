@@ -50,7 +50,7 @@ impl Lowerer<'_> {
             }
 
             HiType::Type => unreachable!(),
-            HiType::Number => unreachable!(),
+            HiType::Number => Some(self.types.add(Type::Number)),
             HiType::Invalid => Some(self.types.add(Type::Invalid)),
         }
     }

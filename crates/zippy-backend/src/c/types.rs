@@ -1,3 +1,4 @@
+use zippy_common::message::{Messages, Span};
 use zippy_common::mir::{StaticValueNode, Type, TypeId};
 use zippy_common::names::Name;
 use zippy_common::Number;
@@ -73,6 +74,10 @@ impl Emitter<'_> {
                 name
             }
 
+            Type::Number => {
+                unreachable!("values of type <number> should never be reachable from user code")
+            }
+
             Type::Invalid => {
                 let name = self.fresh_typename();
                 self.typedef(&name, "void *", "");
@@ -82,8 +87,13 @@ impl Emitter<'_> {
     }
 
     fn make_integer_type(&mut self, lo: Name, hi: Name) -> String {
-        let (lo, _) = self.get_bounds(&lo);
-        let (_, hi) = self.get_bounds(&hi);
+        let lo_span = self.names.get_span(&lo);
+        let hi_span = self.names.get_span(&hi);
+
+        let mut messages = Messages::new();
+
+        let (lo, _) = self.get_bounds(&mut messages, lo_span, &lo);
+        let (_, hi) = self.get_bounds(&mut messages, hi_span, &hi);
 
         let ty = range_to_type! {
             lo.clone(), hi.clone(),
@@ -97,10 +107,12 @@ impl Emitter<'_> {
             else => unreachable!()
         };
 
+        self.messages.merge(messages);
+
         ty.into()
     }
 
-    fn get_bounds(&self, name: &Name) -> (&Number, &Number) {
+    fn get_bounds(&self, messages: &mut Messages, at: Span, name: &Name) -> (&Number, &Number) {
         let value = self.values.get(name).unwrap();
 
         match &value.node {
@@ -109,12 +121,17 @@ impl Emitter<'_> {
                 let ty = self.types.get(&block.ty);
                 match ty {
                     Type::Range(lo, hi) => {
-                        let (lo, _) = self.get_bounds(lo);
-                        let (_, hi) = self.get_bounds(hi);
+                        let (lo, _) = self.get_bounds(messages, value.span, lo);
+                        let (_, hi) = self.get_bounds(messages, value.span, hi);
                         (lo, hi)
                     }
                     Type::Invalid => todo!(),
                     Type::Fun(..) | Type::Product(..) => unreachable!(),
+
+                    Type::Number => {
+                        messages.at(at).compile_unconstrained_range();
+                        todo!()
+                    }
                 }
             }
         }

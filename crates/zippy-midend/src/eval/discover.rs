@@ -1,4 +1,6 @@
-use zippy_common::mir::{Block, BranchNode, StaticValueNode, StmtNode, Value, ValueNode};
+use zippy_common::mir::{
+    Block, BranchNode, StaticValueNode, StmtNode, Type, TypeId, Types, Value, ValueNode,
+};
 use zippy_common::names::Name;
 use zippy_common::Driver;
 
@@ -15,9 +17,22 @@ impl<D: Driver> Interpreter<'_, D> {
                 panic!("cycle! what to do");
             }
 
-            if let Some(block) = self.make_top_level(&name) {
-                visit_block(&mut worklist, block);
+            let ty = self.context.get(&name);
+            visit_type(self.types, &mut worklist, &ty);
+
+            if self.make_top_level(&name).is_some() {
+                // annoyingly, even though `make_top_level` returns an immutable
+                // reference, Rust treats it as if it has exclusive access to
+                // `self` because the function takes `self` by mut ref.
+                let block = self.blocks.get(&name).unwrap();
+                visit_block(self.types, &mut worklist, block);
                 self.worklist.insert(0, name);
+            } else {
+                // check if there is a top level with that name, and if so,
+                // visit its type
+                if let Some(value) = self.globals.get(&name) {
+                    visit_type(self.types, &mut worklist, &value.ty);
+                }
             }
         }
     }
@@ -61,7 +76,7 @@ impl<D: Driver> Interpreter<'_, D> {
     }
 }
 
-fn visit_block(worklist: &mut Vec<Name>, block: &Block) {
+fn visit_block(types: &Types, worklist: &mut Vec<Name>, block: &Block) {
     fn name_of_value(value: &Value) -> Option<Name> {
         match &value.node {
             ValueNode::Name(name) => Some(*name),
@@ -69,14 +84,19 @@ fn visit_block(worklist: &mut Vec<Name>, block: &Block) {
         }
     }
 
+    visit_type(types, worklist, &block.ty);
+
     for stmt in block.stmts.iter() {
+        visit_type(types, worklist, &stmt.ty);
+
         match &stmt.node {
             StmtNode::Apply { fun, args, .. } => {
                 worklist.extend(args.iter().filter_map(name_of_value));
                 worklist.push(*fun);
             }
 
-            StmtNode::Coerce { of, .. } => {
+            StmtNode::Coerce { of, from, .. } => {
+                visit_type(types, worklist, from);
                 worklist.push(*of);
             }
 
@@ -87,8 +107,33 @@ fn visit_block(worklist: &mut Vec<Name>, block: &Block) {
         }
     }
 
+    visit_type(types, worklist, &block.branch.ty);
+
     match &block.branch.node {
         BranchNode::Jump(..) => todo!(),
         BranchNode::Return(values) => worklist.extend(values.iter().filter_map(name_of_value)),
+    }
+}
+
+fn visit_type(types: &Types, worklist: &mut Vec<Name>, ty: &TypeId) {
+    match types.get(ty) {
+        Type::Fun(ts, us) => {
+            for ty in ts.iter().chain(us.iter()) {
+                visit_type(types, worklist, ty);
+            }
+        }
+
+        Type::Product(ts) => {
+            for ty in ts.iter() {
+                visit_type(types, worklist, ty);
+            }
+        }
+
+        Type::Range(lo, hi) => {
+            worklist.extend([*lo, *hi]);
+        }
+
+        Type::Invalid => {}
+        Type::Number => {}
     }
 }

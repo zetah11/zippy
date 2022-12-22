@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         let (mut types, context, decls) = elaborate(&mut driver, &mut names, checked, entry);
 
         if args.command.build() {
-            let code = emit(&mut names, &mut types, &context, entry, decls);
+            let code = emit(&mut driver, &mut names, &mut types, &context, entry, decls);
             let exec = compile(&args, &target, code)?;
 
             if args.command.run() {

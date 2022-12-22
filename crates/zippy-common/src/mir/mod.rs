@@ -25,6 +25,10 @@ pub enum Type {
     Range(Name, Name),
     Fun(Vec<TypeId>, Vec<TypeId>),
     Product(Vec<TypeId>),
+
+    /// Arbitrary-precision numeric type, used by some expressions in range
+    /// bounds.
+    Number,
     Invalid,
 }
 

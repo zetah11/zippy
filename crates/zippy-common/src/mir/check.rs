@@ -182,7 +182,7 @@ impl<'a> MirChecker<'a> {
 
         match &value.node {
             ValueNode::Num(_) => match self.types.get(&actual) {
-                Type::Range(..) | Type::Invalid => {}
+                Type::Range(..) | Type::Number | Type::Invalid => {}
                 _ => unreachable!(),
             },
 

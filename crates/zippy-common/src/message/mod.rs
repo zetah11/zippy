@@ -1,6 +1,7 @@
+mod diagnostic;
 mod source;
 
-mod diagnostic;
+mod compile;
 mod elab;
 mod lex;
 mod parse;
@@ -38,6 +39,12 @@ impl Messages {
 
     pub fn merge(&mut self, other: Messages) {
         self.msgs.extend(other.msgs);
+    }
+
+    pub fn drain(&mut self) -> Messages {
+        Messages {
+            msgs: self.msgs.drain(..).collect(),
+        }
     }
 }
 

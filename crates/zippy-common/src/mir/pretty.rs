@@ -115,6 +115,7 @@ impl<'a> Prettier<'a> {
                 ts.iter().map(|t| self.doc_type(within, t).parens()),
                 self.allocator.text(" * "),
             ),
+            Type::Number => self.allocator.text("<number>"),
             Type::Invalid => self.allocator.text("<error>"),
         }
     }
