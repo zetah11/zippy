@@ -73,6 +73,8 @@ impl<'a> Unifier<'a> {
         actual: Type,
     ) {
         match (expected, actual) {
+            (Type::Name(n), Type::Name(m)) if n == m => {}
+
             (Type::Name(n), u) if left_inst.contains_key(&n) => {
                 let t = left_inst.get(&n).unwrap();
                 self.unify_within(left_inst, right_inst, coercion, span, t.clone(), u)
@@ -87,14 +89,6 @@ impl<'a> Unifier<'a> {
                 self.coercions.add(coercion, Coercion::Upcast);
                 let t = self.defs.get(&n).unwrap().clone();
                 self.unify_within(left_inst, right_inst, coercion, span, t, u)
-            }
-
-            (Type::Name(n), Type::Name(m)) => {
-                if n != m {
-                    let n: Option<String> = Some(self.pretty(&Type::Name(n)));
-                    let m: Option<String> = Some(self.pretty(&Type::Name(m)));
-                    self.messages.at(span).tyck_incompatible(n, m);
-                }
             }
 
             (Type::Range(..), Type::Range(..)) => {
