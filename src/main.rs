@@ -4,6 +4,7 @@ mod console_driver;
 mod input;
 mod target;
 
+use std::fs::remove_dir_all;
 use std::process::Command;
 
 use zippy_backend::c::emit;
@@ -24,6 +25,12 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let mut args = Arguments::parse();
+
+    if let self::args::Command::Clean(opts) = args.command {
+        remove_dir_all(opts.artifacts)?;
+        return Ok(());
+    }
+
     let target = get_target(&args);
     let source = &args.options().path;
 

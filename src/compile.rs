@@ -1,6 +1,6 @@
 use std::fs::{DirBuilder, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use cc::Build;
 use target_lexicon::Triple;
@@ -9,7 +9,7 @@ use super::Arguments;
 
 /// Emit some C code and compile it. Returns the path of the executable.
 pub fn compile(args: &Arguments, target: &Triple, code: String) -> anyhow::Result<PathBuf> {
-    let artifacts = Path::new("artifacts");
+    let artifacts = args.options().artifacts.as_path();
 
     DirBuilder::new().recursive(true).create(artifacts)?;
 

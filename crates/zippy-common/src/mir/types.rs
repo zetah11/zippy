@@ -41,4 +41,8 @@ impl Types {
     pub fn is_pure(&self, _ty: &TypeId) -> bool {
         true
     }
+
+    pub(super) fn ids(&self) -> impl Iterator<Item = TypeId> {
+        (0..self.types.len()).into_iter().map(TypeId)
+    }
 }

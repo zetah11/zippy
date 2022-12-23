@@ -7,6 +7,6 @@ pub mod thir;
 
 pub use malachite::Rational as Number;
 
-pub use self::driver::{Driver, EvalAmount};
+pub use self::driver::{Driver, EvalAmount, IrOutput};
 
 mod driver;

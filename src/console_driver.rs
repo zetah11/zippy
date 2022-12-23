@@ -1,5 +1,7 @@
 use std::env;
+use std::fs::{DirBuilder, File};
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 use codespan_reporting::diagnostic as cr;
 use codespan_reporting::files::SimpleFiles;
@@ -8,7 +10,7 @@ use codespan_reporting::term::{self, Config, DisplayStyle};
 use console::{style, Term};
 
 use zippy_common::message::{self, Messages};
-use zippy_common::{Driver, EvalAmount};
+use zippy_common::{Driver, EvalAmount, IrOutput};
 
 use super::args::Arguments;
 
@@ -19,7 +21,10 @@ pub struct ConsoleDriver {
     config: Config,
 
     preserve_output: bool,
+    ir_output: bool,
     partial_eval: EvalAmount,
+
+    artifacts: PathBuf,
 }
 
 impl ConsoleDriver {
@@ -35,11 +40,14 @@ impl ConsoleDriver {
             },
 
             preserve_output: env::var("COR_PRESERVE_OUTPUT").is_ok() || opts.preserve_output,
+            ir_output: env::var("COR_OUTPUT_IR").is_ok() || opts.output_ir,
             partial_eval: if env::var("COR_NO_EVAL").is_ok() || opts.no_eval {
                 EvalAmount::None
             } else {
                 EvalAmount::Full
             },
+
+            artifacts: args.options().artifacts.clone(),
         }
     }
 
@@ -49,6 +57,21 @@ impl ConsoleDriver {
         } else {
             Ok(())
         }
+    }
+
+    fn write_ir_file(&self, at: IrOutput, data: String) -> anyhow::Result<()> {
+        DirBuilder::new()
+            .recursive(true)
+            .create(self.artifacts.as_path())?;
+
+        let name = match at {
+            IrOutput::Mir(name) => self.artifacts.join(format!("{name}.mir.z")),
+        };
+
+        let mut file = File::create(name)?;
+        file.write_all(data.as_bytes())?;
+
+        Ok(())
     }
 }
 
@@ -99,6 +122,14 @@ impl Driver for ConsoleDriver {
 
     fn done_eval(&mut self) {
         self.clear_line().unwrap();
+    }
+
+    fn output_ir(&mut self, at: IrOutput, data: impl FnOnce() -> String) {
+        if self.ir_output {
+            if let Err(e) = self.write_ir_file(at, data()) {
+                eprintln!("error writing ir file: {e}");
+            }
+        }
     }
 
     fn entry_name(&mut self) -> Option<String> {

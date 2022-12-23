@@ -28,6 +28,17 @@ impl<'a> Prettier<'a> {
     }
 
     #[must_use]
+    pub fn pretty_all(&'a self, decls: &Decls) -> String {
+        let doc = self
+            .doc_types()
+            .append(self.allocator.hardline())
+            .append(self.doc_decls(decls));
+        let mut res = Vec::new();
+        doc.render(self.width, &mut res).unwrap();
+        String::from_utf8(res).unwrap()
+    }
+
+    #[must_use]
     pub fn pretty_decls(&'a self, decls: &Decls) -> String {
         let doc = self.doc_decls(decls);
         let mut res = Vec::new();
@@ -57,6 +68,17 @@ impl<'a> Prettier<'a> {
         let mut res = Vec::new();
         doc.render(self.width, &mut res).unwrap();
         String::from_utf8(res).unwrap()
+    }
+
+    fn doc_types(&'a self) -> DocBuilder<Arena<'a>> {
+        self.allocator.intersperse(
+            self.types.ids().map(|ty| {
+                self.allocator
+                    .text(format!("type {} = ", ty.0))
+                    .append(self.doc_type(None, &ty))
+            }),
+            self.allocator.hardline(),
+        )
     }
 
     fn doc_decls(&'a self, decls: &Decls) -> DocBuilder<Arena<'a>> {

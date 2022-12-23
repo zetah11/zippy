@@ -28,6 +28,9 @@ pub enum Command {
     Build(Options),
     #[command(visible_alias = "c")]
     Check(Options),
+
+    #[command()]
+    Clean(Options),
 }
 
 impl Command {
@@ -36,6 +39,7 @@ impl Command {
             Self::Run(opts) => opts,
             Self::Build(opts) => opts,
             Self::Check(opts) => opts,
+            Self::Clean(opts) => opts,
         }
     }
 
@@ -61,6 +65,12 @@ pub struct Options {
     /// Never overwrite lines in the compiler output.
     #[arg(long, action = ArgAction::SetTrue)]
     pub preserve_output: bool,
+
+    #[arg(long, action = ArgAction::SetTrue)]
+    pub output_ir: bool,
+
+    #[arg(long, default_value = "artifacts")]
+    pub artifacts: PathBuf,
 
     /// The target to compile the code for.
     #[arg(short, long)]

@@ -3,6 +3,8 @@
 All commands also take the following options:
 
 - `--no-eval` - skip partial evaluation
+- `--output-ir` - output a textual representation of the intermediate
+  representation of the code in the artifacts folder
 - `--preserve-output` - never overwrite lines in the compiler output
 - `--target <target>` - the target to build for (note: currently poorly
   supported)

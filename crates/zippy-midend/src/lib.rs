@@ -5,10 +5,11 @@ mod lower;
 
 use log::{debug, info, trace};
 
+use zippy_common::mir::pretty::Prettier;
 use zippy_common::mir::{self, check};
 use zippy_common::names::{Name, Names};
 use zippy_common::thir::TypeckResult;
-use zippy_common::{Driver, EvalAmount};
+use zippy_common::{Driver, EvalAmount, IrOutput};
 
 pub fn elaborate(
     driver: &mut impl Driver,
@@ -34,6 +35,11 @@ pub fn elaborate(
         trace!("lowering is type-correct");
     }
 
+    driver.output_ir(IrOutput::Mir("lowering"), || {
+        let prettier = Prettier::new(names, &types);
+        prettier.pretty_all(&res)
+    });
+
     let res = flatten::flatten(names, &mut types, &mut context, res);
     if !error {
         error = check(names, &types, &context, &res);
@@ -44,6 +50,11 @@ pub fn elaborate(
         }
     }
 
+    driver.output_ir(IrOutput::Mir("flattening"), || {
+        let prettier = Prettier::new(names, &types);
+        prettier.pretty_all(&res)
+    });
+
     let res = hoist::hoist(driver, names, &mut context, res);
     if !error {
         error = check(names, &types, &context, &res);
@@ -53,6 +64,11 @@ pub fn elaborate(
             trace!("hoisting is type-correct");
         }
     }
+
+    driver.output_ir(IrOutput::Mir("hoisting"), || {
+        let prettier = Prettier::new(names, &types);
+        prettier.pretty_all(&res)
+    });
 
     let res = match driver.eval_amount() {
         EvalAmount::Full => {
@@ -75,6 +91,11 @@ pub fn elaborate(
             res
         }
     };
+
+    driver.output_ir(IrOutput::Mir("evaluation"), || {
+        let prettier = Prettier::new(names, &types);
+        prettier.pretty_all(&res)
+    });
 
     trace!("done elaborating");
 
