@@ -1,4 +1,7 @@
-fun main (?: 1) : Small = x
+fun main (?: Unit) : Small = blah
 
-let x: 0 upto 2 = 1
+let one: 0 upto 10 = 1
+let two: 0 upto 10 = 2
+
+type Unit = 0 upto one
 type Small = 0 upto 10

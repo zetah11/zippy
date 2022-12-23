@@ -198,6 +198,7 @@ impl<'a> MirChecker<'a> {
     fn check_type(&mut self, at: Span, expected: TypeId, actual: TypeId) {
         match (self.types.get(&expected), self.types.get(&actual)) {
             (Type::Invalid, _) | (_, Type::Invalid) => {}
+            (Type::Number, Type::Range(..)) => {}
             _ => {
                 if actual != expected {
                     self.error = true;

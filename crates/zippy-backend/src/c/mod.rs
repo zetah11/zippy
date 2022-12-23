@@ -36,6 +36,7 @@ pub fn emit(
 struct Emitter<'a> {
     includes: HashSet<&'static str>,
     inits: String,
+    auxilliary: String,
     res: String,
     typedefs: String,
 
@@ -55,8 +56,9 @@ struct Emitter<'a> {
 impl<'a> Emitter<'a> {
     pub fn new(names: &'a mut Names, types: &'a mut Types, context: &'a Context) -> Self {
         Self {
-            inits: String::new(),
             includes: HashSet::new(),
+            inits: String::new(),
+            auxilliary: String::new(),
             res: String::new(),
             typedefs: String::new(),
 
@@ -80,6 +82,7 @@ impl<'a> Emitter<'a> {
             result.push_str(&format!("#include <{include}>\n"));
         }
 
+        result.push_str(&self.auxilliary);
         result.push_str(&self.typedefs);
         result.push_str(&self.res);
 
@@ -236,10 +239,10 @@ impl<'a> Emitter<'a> {
             self.has_invalid = true;
 
             self.includes.insert("signal.h");
-            self.res.push_str("void * invalid(void) {\n");
-            self.res.push_str("\traise(SIGABRT);\n");
-            self.res.push_str("\treturn (void *) 0;\n");
-            self.res.push_str("}\n");
+            self.auxilliary.push_str("void * invalid(void) {\n");
+            self.auxilliary.push_str("\traise(SIGABRT);\n");
+            self.auxilliary.push_str("\treturn (void *) 0;\n");
+            self.auxilliary.push_str("}\n");
         }
 
         name
