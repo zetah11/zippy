@@ -1,9 +1,14 @@
+use lazy_static::lazy_static;
 use zippy_common::message::{Messages, Span};
 use zippy_common::mir::{StaticValueNode, Type, TypeId};
 use zippy_common::names::Name;
 use zippy_common::Number;
 
 use super::Emitter;
+
+lazy_static! {
+    static ref ZERO: Number = 0i32.into();
+}
 
 macro_rules! within {
     ($v:expr, $w:expr, $t:ty) => {
@@ -130,7 +135,7 @@ impl Emitter<'_> {
 
                     Type::Number => {
                         messages.at(at).compile_unconstrained_range();
-                        todo!()
+                        (&ZERO, &ZERO)
                     }
                 }
             }

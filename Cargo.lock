@@ -831,6 +831,7 @@ name = "zippy-backend"
 version = "0.0.1"
 dependencies = [
  "iced-x86",
+ "lazy_static",
  "log",
  "target-lexicon",
  "zippy-common",
