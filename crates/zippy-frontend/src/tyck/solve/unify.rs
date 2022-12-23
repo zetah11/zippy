@@ -85,12 +85,6 @@ impl<'a> Unifier<'a> {
                 self.unify_within(left_inst, right_inst, coercion, span, t, u.clone())
             }
 
-            (Type::Name(n), u) if self.defs.has(&n) => {
-                self.coercions.add(coercion, Coercion::Upcast);
-                let t = self.defs.get(&n).unwrap().clone();
-                self.unify_within(left_inst, right_inst, coercion, span, t, u)
-            }
-
             (Type::Range(..), Type::Range(..)) => {
                 self.coercions.add(coercion, Coercion::Upcast);
             }
@@ -200,6 +194,12 @@ impl<'a> Unifier<'a> {
             (Type::Type, Type::Type) => {}
 
             (Type::Invalid, _) | (_, Type::Invalid) => {}
+
+            (Type::Name(n), u) if self.defs.has(&n) => {
+                self.coercions.add(coercion, Coercion::Upcast);
+                let t = self.defs.get(&n).unwrap().clone();
+                self.unify_within(left_inst, right_inst, coercion, span, t, u)
+            }
 
             (expected, actual) => {
                 let expected = self.pretty(&expected);

@@ -1,6 +1,6 @@
 fun main (?: 1) : Small = x
 
 let x = f 5
-fun f (x: Small) : Small = x
+fun f (x: Small) = x
 
 type Small = 0 upto 10
