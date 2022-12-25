@@ -90,6 +90,7 @@ impl<'a> Unifier<'a> {
             }
 
             (Type::Number, Type::Range(..)) => {}
+            (Type::Number, Type::Name(name)) if self.defs.is_numeric(&name).unwrap_or(false) => {}
 
             (Type::Fun(t1, u1), Type::Fun(t2, u2)) => {
                 self.unify_within(left_inst, right_inst, coercion, span, *t1, *t2);

@@ -28,6 +28,19 @@ impl Definitions {
     pub fn has(&self, name: &Name) -> bool {
         self.types.contains_key(name)
     }
+
+    /// Returns `Some(true)` if the given type is a numeric type, `Some(false)`
+    /// if it is not, and `None` if the given type has not been defined.
+    pub fn is_numeric(&self, name: &Name) -> Option<bool> {
+        Some(match self.get(name)? {
+            Type::Range(..) => true,
+            Type::Name(name) => self.is_numeric(name)?,
+
+            Type::Instantiated(..) | Type::Number => unreachable!(),
+
+            _ => false,
+        })
+    }
 }
 
 pub struct DefsIter {
