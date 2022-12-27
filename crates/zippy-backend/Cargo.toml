@@ -8,8 +8,5 @@ edition = "2021"
 [dependencies]
 zippy-common = { path = "../zippy-common" }
 
-iced-x86 = { version = "1.17", features = ["code_asm"] }
-target-lexicon = "0.12"
-
 log = "0.4"
 lazy_static = "1.4.0"
