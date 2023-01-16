@@ -55,7 +55,7 @@ fn main() -> anyhow::Result<()> {
             let exec = compile(&args, &target, code)?;
 
             if args.command.run() {
-                let status = Command::new(exec).args(args.slop.drain(..)).status()?;
+                let status = Command::new(exec).args(args.options.drain(..)).status()?;
 
                 if !status.success() {
                     let err = if let Some(code) = status.code() {

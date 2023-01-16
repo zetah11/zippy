@@ -11,7 +11,7 @@ pub struct Arguments {
     pub command: Command,
 
     #[arg(last = true)]
-    pub slop: Vec<String>,
+    pub options: Vec<String>,
 }
 
 impl Arguments {
