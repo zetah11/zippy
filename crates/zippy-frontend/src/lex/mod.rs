@@ -1,14 +1,15 @@
 mod token;
 
-use log::{info, trace};
+use log::{debug, info};
 use logos::Logos;
 
 use zippy_common::message::{File, Messages, Span};
-use zippy_common::Driver;
+
+use crate::{MessageAccumulator, SourceProgram};
 
 use self::token::FreeToken;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Token {
     Fun,
     Let,
@@ -36,13 +37,28 @@ pub enum Token {
     Invalid,
 }
 
-pub fn lex(driver: &mut impl Driver, src: impl AsRef<str>, file: File) -> Vec<(Token, Span)> {
-    info!("lexing file with id {file}");
-    let mut lexer = Lexer::new(src.as_ref(), file);
+#[salsa::tracked]
+pub struct Tokens {
+    #[return_ref]
+    pub tokens: Vec<(Token, Span)>,
+}
+
+#[salsa::tracked]
+pub fn lex(db: &dyn crate::Db, source: SourceProgram) -> Tokens {
+    let (source, id) = (source.text(db), source.id(db));
+
+    info!("lexing file with id {id}");
+
+    let mut lexer = Lexer::new(source, id);
     lexer.lex();
-    driver.report(lexer.msgs);
-    trace!("done lexing {file}");
-    lexer.res
+
+    for msg in lexer.msgs.msgs {
+        MessageAccumulator::push(db, msg);
+    }
+
+    debug!("lexing {id} done");
+
+    Tokens::new(db, lexer.res)
 }
 
 impl Token {
