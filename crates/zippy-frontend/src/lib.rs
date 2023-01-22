@@ -3,11 +3,13 @@ pub mod parse;
 pub mod resolve;
 pub mod tyck;
 
+mod resolved;
+mod unresolved;
+
+use salsa::DbWithJar;
 use zippy_common::names::{Name, Names};
 use zippy_common::thir::TypeckResult;
 use zippy_common::Driver;
-
-use resolve::ResolveRes;
 
 #[derive(Debug)]
 pub struct ParseResult {
@@ -21,19 +23,18 @@ pub fn parse(driver: &mut impl Driver, source: String, file: usize) -> ParseResu
     let program = SourceProgram::new(&db, source, file);
 
     let tokens = lex::lex(&db, program);
-    let decls = parse::parse(driver, tokens.tokens(&db).iter().cloned(), file);
-    let ResolveRes {
-        decls,
-        mut names,
-        entry,
-    } = resolve::resolve(driver, decls);
-    let tyckres = tyck::typeck(driver, &mut names, decls);
+    let decls = parse::parse(&db, tokens);
+    let _decls = resolve::resolve(&db, decls);
 
-    ParseResult {
-        checked: tyckres,
-        names,
-        entry,
-    }
+    todo!()
+
+    // let tyckres = tyck::typeck(driver, &mut names, decls);
+
+    // ParseResult {
+    //     checked: tyckres,
+    //     names,
+    //     entry,
+    // }
 }
 
 #[salsa::accumulator]
@@ -47,14 +48,24 @@ pub struct SourceProgram {
 }
 
 #[salsa::jar(db = Db)]
-pub struct Jar(SourceProgram, MessageAccumulator, lex::Tokens, lex::lex);
+pub struct Jar(
+    crate::SourceProgram,
+    crate::MessageAccumulator,
+    crate::resolved::Decls,
+    crate::unresolved::Name,
+    crate::unresolved::Decls,
+    crate::lex::Tokens,
+    crate::lex::lex,
+    crate::parse::parse,
+    crate::resolve::resolve,
+);
 
-pub trait Db: salsa::DbWithJar<Jar> {}
+pub trait Db: DbWithJar<Jar> + DbWithJar<zippy_common::Jar> {}
 
-impl<DB> Db for DB where DB: salsa::DbWithJar<Jar> {}
+impl<DB> Db for DB where DB: DbWithJar<Jar> + DbWithJar<zippy_common::Jar> {}
 
 #[derive(Default)]
-#[salsa::db(crate::Jar)]
+#[salsa::db(crate::Jar, zippy_common::Jar)]
 pub(crate) struct Database {
     storage: salsa::Storage<Self>,
 }

@@ -1,31 +1,30 @@
-use zippy_common::hir::{Pat, PatNode};
+use super::Resolver;
+use crate::resolved::{Pat, PatNode};
+use crate::unresolved;
 
-use super::{Actual, Name, Path, Resolver};
-
-impl Resolver {
-    pub fn resolve_pat(&mut self, pat: Pat) -> Pat<Name> {
+impl Resolver<'_> {
+    pub fn resolve_pat(&mut self, pat: unresolved::Pat) -> Pat {
         let node = match pat.node {
-            PatNode::Name(name) => {
-                let path = Path::new(self.context(), Actual::Lit(name));
-                // should never fail
-                let name = self.names.lookup(&path).unwrap();
-                PatNode::Name(name)
+            unresolved::PatNode::Name(name) => {
+                PatNode::Name(self.lookup(pat.span, name).expect("undeclared pattern"))
             }
 
-            PatNode::Tuple(x, y) => {
-                let x = Box::new(self.resolve_pat(*x));
-                let y = Box::new(self.resolve_pat(*y));
-                PatNode::Tuple(x, y)
+            unresolved::PatNode::Tuple(a, b) => {
+                let a = Box::new(self.resolve_pat(*a));
+                let b = Box::new(self.resolve_pat(*b));
+
+                PatNode::Tuple(a, b)
             }
 
-            PatNode::Anno(pat, ty) => {
+            unresolved::PatNode::Anno(pat, ty) => {
                 let pat = Box::new(self.resolve_pat(*pat));
                 let ty = self.resolve_type(ty);
+
                 PatNode::Anno(pat, ty)
             }
 
-            PatNode::Wildcard => PatNode::Wildcard,
-            PatNode::Invalid => PatNode::Invalid,
+            unresolved::PatNode::Wildcard => PatNode::Wildcard,
+            unresolved::PatNode::Invalid => PatNode::Invalid,
         };
 
         Pat {

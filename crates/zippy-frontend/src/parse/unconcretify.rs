@@ -2,22 +2,24 @@
 //! `(x => x) => x` gives a valid parse. The job of this module is to produce a HIR tree, validating away cases like
 //! that in the process.
 
-use zippy_common::hir::{self, BindIdGenerator};
+use zippy_common::hir::BindIdGenerator;
 use zippy_common::message::{Messages, Span};
 
 use super::tree as cst;
+use crate::unresolved as hir;
 
-#[derive(Debug, Default)]
-pub struct Unconcretifier {
+pub struct Unconcretifier<'a> {
     pub msgs: Messages,
     bind_id: BindIdGenerator,
+    db: &'a dyn crate::Db,
 }
 
-impl Unconcretifier {
-    pub fn new() -> Self {
+impl<'a> Unconcretifier<'a> {
+    pub fn new(db: &'a dyn crate::Db) -> Self {
         Self {
             msgs: Messages::new(),
             bind_id: BindIdGenerator::new(),
+            db,
         }
     }
 
@@ -164,19 +166,19 @@ impl Unconcretifier {
 
         values.shrink_to_fit();
 
-        hir::Decls { values, types }
+        hir::Decls::new(self.db, values, types)
     }
 
     fn unconc_expr(&mut self, expr: cst::Expr) -> hir::Expr {
         let node = match expr.node {
-            cst::ExprNode::Name(name) => hir::ExprNode::Name(name),
+            cst::ExprNode::Name(name) => hir::ExprNode::Name(self.unconc_name(name)),
             cst::ExprNode::Num(i) => hir::ExprNode::Num(i),
             cst::ExprNode::Group(expr) => return self.unconc_expr(*expr),
             cst::ExprNode::Range(span, lo, hi) => {
                 let lo = Box::new(self.unconc_expr(*lo));
                 let hi = Box::new(self.unconc_expr(*hi));
                 let fun = hir::Expr {
-                    node: hir::ExprNode::Name("upto".into()),
+                    node: hir::ExprNode::Name(self.unconc_name("upto".into())),
                     span,
                 };
 
@@ -193,7 +195,7 @@ impl Unconcretifier {
                 let u = Box::new(self.unconc_expr(*u));
 
                 let fun = hir::Expr {
-                    node: hir::ExprNode::Name("->".into()),
+                    node: hir::ExprNode::Name(self.unconc_name("->".into())),
                     span,
                 };
 
@@ -210,7 +212,7 @@ impl Unconcretifier {
                 let y = Box::new(self.unconc_expr(*y));
 
                 let fun = hir::Expr {
-                    node: hir::ExprNode::Name(binop_to_name(op).into()),
+                    node: hir::ExprNode::Name(self.binop_to_name(op)),
                     span,
                 };
 
@@ -273,7 +275,7 @@ impl Unconcretifier {
 
     fn unconc_pat(&mut self, pat: cst::Expr) -> (hir::Pat, Vec<cst::Expr>) {
         let (node, insts) = match pat.node {
-            cst::ExprNode::Name(name) => (hir::PatNode::Name(name), vec![]),
+            cst::ExprNode::Name(name) => (hir::PatNode::Name(self.unconc_name(name)), vec![]),
             cst::ExprNode::Group(pat) => return self.unconc_pat(*pat),
             cst::ExprNode::BinOp(..) => todo!("constructor patterns not yet supported"),
             cst::ExprNode::Tuple(x, y) => {
@@ -311,11 +313,11 @@ impl Unconcretifier {
         )
     }
 
-    fn unconc_insts(&mut self, insts: Vec<cst::Expr>) -> Vec<(String, Span)> {
+    fn unconc_insts(&mut self, insts: Vec<cst::Expr>) -> Vec<(hir::Name, Span)> {
         insts
             .into_iter()
             .filter_map(|inst| match inst.node {
-                cst::ExprNode::Name(name) => Some((name, inst.span)),
+                cst::ExprNode::Name(name) => Some((self.unconc_name(name), inst.span)),
                 _ => {
                     self.msgs.at(inst.span).parse_not_a_type_name();
                     None
@@ -333,7 +335,7 @@ impl Unconcretifier {
                 hir::TypeNode::Range(Box::new(lo), Box::new(hi))
             }
 
-            cst::ExprNode::Name(name) => hir::TypeNode::Name(name),
+            cst::ExprNode::Name(name) => hir::TypeNode::Name(self.unconc_name(name)),
 
             cst::ExprNode::Num(v) => {
                 let lo = hir::Expr {
@@ -358,7 +360,7 @@ impl Unconcretifier {
             cst::ExprNode::BinOp(_, cst::BinOp::Mul, t, u) => {
                 let t = Box::new(self.unconc_type(*t));
                 let u = Box::new(self.unconc_type(*u));
-                hir::TypeNode::Prod(t, u)
+                hir::TypeNode::Product(t, u)
             }
 
             cst::ExprNode::Group(typ) => return self.unconc_type(*typ),
@@ -378,11 +380,17 @@ impl Unconcretifier {
             span: ty.span,
         }
     }
-}
 
-fn binop_to_name(op: cst::BinOp) -> &'static str {
-    match op {
-        cst::BinOp::Mul => "*",
+    fn unconc_name(&self, name: String) -> hir::Name {
+        hir::Name::new(self.db, name)
+    }
+
+    fn binop_to_name(&self, op: cst::BinOp) -> hir::Name {
+        let name = match op {
+            cst::BinOp::Mul => "*",
+        };
+
+        hir::Name::new(self.db, name.into())
     }
 }
 

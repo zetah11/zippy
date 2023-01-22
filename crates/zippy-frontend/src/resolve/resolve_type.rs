@@ -1,39 +1,39 @@
-use zippy_common::hir::{Type, TypeNode};
-use zippy_common::names::{Actual, Name};
-
 use super::Resolver;
+use crate::resolved::{Type, TypeNode};
+use crate::unresolved;
 
-impl Resolver {
-    pub fn resolve_type(&mut self, ty: Type) -> Type<Name> {
+impl Resolver<'_> {
+    pub fn resolve_type(&mut self, ty: unresolved::Type) -> Type {
         let node = match ty.node {
-            TypeNode::Name(name) => match self.lookup_name(ty.span, Actual::Lit(name)) {
+            unresolved::TypeNode::Name(name) => match self.lookup(ty.span, name) {
                 Some(name) => TypeNode::Name(name),
                 None => TypeNode::Invalid,
             },
 
-            TypeNode::Prod(t, u) => {
+            unresolved::TypeNode::Product(t, u) => {
                 let t = Box::new(self.resolve_type(*t));
                 let u = Box::new(self.resolve_type(*u));
 
-                TypeNode::Prod(t, u)
+                TypeNode::Product(t, u)
             }
 
-            TypeNode::Fun(t, u) => {
+            unresolved::TypeNode::Fun(t, u) => {
                 let t = Box::new(self.resolve_type(*t));
                 let u = Box::new(self.resolve_type(*u));
 
                 TypeNode::Fun(t, u)
             }
 
-            TypeNode::Range(lo, hi) => {
+            unresolved::TypeNode::Range(lo, hi) => {
                 let lo = Box::new(self.resolve_expr(*lo));
                 let hi = Box::new(self.resolve_expr(*hi));
 
                 TypeNode::Range(lo, hi)
             }
-            TypeNode::Type => TypeNode::Type,
-            TypeNode::Wildcard => TypeNode::Wildcard,
-            TypeNode::Invalid => TypeNode::Invalid,
+
+            unresolved::TypeNode::Type => TypeNode::Type,
+            unresolved::TypeNode::Wildcard => TypeNode::Wildcard,
+            unresolved::TypeNode::Invalid => TypeNode::Invalid,
         };
 
         Type {

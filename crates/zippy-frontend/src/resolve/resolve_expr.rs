@@ -1,50 +1,57 @@
-use zippy_common::hir::{Expr, ExprNode};
-use zippy_common::names::{Actual, Name};
-
+use super::path::NamePart;
 use super::Resolver;
+use crate::resolved::{Expr, ExprNode};
+use crate::unresolved;
 
-impl Resolver {
-    pub fn resolve_expr(&mut self, expr: Expr) -> Expr<Name> {
+impl Resolver<'_> {
+    pub fn resolve_expr(&mut self, expr: unresolved::Expr) -> Expr {
         let node = match expr.node {
-            ExprNode::Hole => ExprNode::Hole,
-            ExprNode::Invalid => ExprNode::Invalid,
-            ExprNode::Num(v) => ExprNode::Num(v),
-            ExprNode::Name(name) => match self.lookup_name(expr.span, Actual::Lit(name)) {
+            unresolved::ExprNode::Num(v) => ExprNode::Num(v),
+
+            unresolved::ExprNode::Name(name) => match self.lookup(expr.span, name) {
                 Some(name) => ExprNode::Name(name),
                 None => ExprNode::Invalid,
             },
 
-            ExprNode::Lam(id, param, body) => {
-                self.enter(expr.span, id);
-                let param = self.resolve_pat(param);
-                let body = Box::new(self.resolve_expr(*body));
-                self.exit();
-                ExprNode::Lam(id, param, body)
+            unresolved::ExprNode::Lam(id, param, body) => {
+                self.in_scope(NamePart::Scope(id), |this| {
+                    let param = this.resolve_pat(param);
+                    let body = Box::new(this.resolve_expr(*body));
+
+                    ExprNode::Lam(param, body)
+                })
             }
 
-            ExprNode::App(fun, arg) => {
-                let fun = Box::new(self.resolve_expr(*fun));
-                let arg = Box::new(self.resolve_expr(*arg));
-                ExprNode::App(fun, arg)
-            }
-
-            ExprNode::Inst(fun, args) => {
-                let fun = Box::new(self.resolve_expr(*fun));
-                let args = args.into_iter().map(|ty| self.resolve_type(ty)).collect();
-                ExprNode::Inst(fun, args)
-            }
-
-            ExprNode::Tuple(x, y) => {
+            unresolved::ExprNode::App(x, y) => {
                 let x = Box::new(self.resolve_expr(*x));
                 let y = Box::new(self.resolve_expr(*y));
+
+                ExprNode::App(x, y)
+            }
+
+            unresolved::ExprNode::Inst(x, args) => {
+                let x = Box::new(self.resolve_expr(*x));
+                let args = args.into_iter().map(|ty| self.resolve_type(ty)).collect();
+
+                ExprNode::Inst(x, args)
+            }
+
+            unresolved::ExprNode::Tuple(x, y) => {
+                let x = Box::new(self.resolve_expr(*x));
+                let y = Box::new(self.resolve_expr(*y));
+
                 ExprNode::Tuple(x, y)
             }
 
-            ExprNode::Anno(expr, ty) => {
-                let expr = Box::new(self.resolve_expr(*expr));
+            unresolved::ExprNode::Anno(x, ty) => {
+                let x = Box::new(self.resolve_expr(*x));
                 let ty = self.resolve_type(ty);
-                ExprNode::Anno(expr, ty)
+
+                ExprNode::Anno(x, ty)
             }
+
+            unresolved::ExprNode::Hole => ExprNode::Hole,
+            unresolved::ExprNode::Invalid => ExprNode::Invalid,
         };
 
         Expr {

@@ -1,13 +1,12 @@
-use zippy_common::hir::{Pat, PatNode};
-use zippy_common::names::Actual;
-
+use super::path::NamePart;
 use super::Resolver;
+use crate::unresolved::{Pat, PatNode};
 
-impl Resolver {
+impl Resolver<'_> {
     pub fn declare_pat(&mut self, pat: &Pat) {
         match &pat.node {
             PatNode::Name(name) => {
-                self.declare_name(pat.span, Actual::Lit(name.clone()));
+                self.declare(pat.span, NamePart::Source(*name));
             }
             PatNode::Tuple(x, y) => {
                 self.declare_pat(x);

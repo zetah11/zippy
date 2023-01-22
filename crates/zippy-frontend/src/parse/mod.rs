@@ -11,28 +11,32 @@ use zippy_common::hir::Decls;
 use zippy_common::message::{File, Messages, Span};
 use zippy_common::Driver;
 
-use crate::lex::Token;
+use crate::lex::{Token, Tokens};
+use crate::{unresolved, MessageAccumulator};
 use matcher::Matcher;
 use unconcretify::Unconcretifier;
 
-pub fn parse(
-    driver: &mut impl Driver,
-    tokens: impl IntoIterator<Item = (Token, Span)>,
-    file: File,
-) -> Decls {
+#[salsa::tracked]
+pub fn parse(db: &dyn crate::Db, tokens: Tokens) -> unresolved::Decls {
+    let file = tokens.file(db);
+
     info!("parsing file with id {file}");
 
-    let mut parser = Parser::new(tokens, file);
+    let mut parser = Parser::new(tokens.tokens(db).iter().cloned(), file);
     let decls = parser.parse_program();
 
-    driver.report(parser.msgs);
+    for msg in parser.msgs.msgs {
+        MessageAccumulator::push(db, msg);
+    }
 
-    let mut unconcretifier = Unconcretifier::new();
-    let decls = unconcretifier.unconcretify(decls);
+    let mut unconcer = Unconcretifier::new(db);
+    let decls = unconcer.unconcretify(decls);
 
-    driver.report(unconcretifier.msgs);
+    for msg in unconcer.msgs.msgs {
+        MessageAccumulator::push(db, msg);
+    }
 
-    trace!("done parsing file {file}");
+    trace!("done parsing {file}");
 
     decls
 }

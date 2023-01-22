@@ -41,24 +41,25 @@ pub enum Token {
 pub struct Tokens {
     #[return_ref]
     pub tokens: Vec<(Token, Span)>,
+    pub file: File,
 }
 
 #[salsa::tracked]
 pub fn lex(db: &dyn crate::Db, source: SourceProgram) -> Tokens {
-    let (source, id) = (source.text(db), source.id(db));
+    let (source, file) = (source.text(db), source.id(db));
 
-    info!("lexing file with id {id}");
+    info!("lexing file with id {file}");
 
-    let mut lexer = Lexer::new(source, id);
+    let mut lexer = Lexer::new(source, file);
     lexer.lex();
 
     for msg in lexer.msgs.msgs {
         MessageAccumulator::push(db, msg);
     }
 
-    debug!("lexing {id} done");
+    debug!("done lexing {file}");
 
-    Tokens::new(db, lexer.res)
+    Tokens::new(db, lexer.res, file)
 }
 
 impl Token {

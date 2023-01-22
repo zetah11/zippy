@@ -1059,6 +1059,7 @@ dependencies = [
  "log",
  "malachite",
  "pretty",
+ "salsa-2022",
 ]
 
 [[package]]

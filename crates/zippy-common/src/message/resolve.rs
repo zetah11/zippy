@@ -29,13 +29,13 @@ impl<'a> MessageAdder<'a> {
         );
     }
 
-    pub fn resolve_unknown_name(&mut self) {
+    pub fn resolve_unknown_name(&mut self, name: &str) {
         let labels = vec![Label::primary(self.at)];
 
         self.add(
             Diagnostic::error()
                 .with_code(UNKNOWN_NAME)
-                .with_message("unresolved name")
+                .with_message(format!("unresolved name '{}'", name))
                 .with_labels(labels),
         );
     }

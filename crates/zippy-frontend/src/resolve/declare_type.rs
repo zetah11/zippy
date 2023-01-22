@@ -1,12 +1,12 @@
-use zippy_common::hir::{Type, TypeNode};
-
 use super::Resolver;
+use crate::unresolved::{Type, TypeNode};
 
-impl Resolver {
+impl Resolver<'_> {
     pub fn declare_type(&mut self, ty: &Type) {
         match &ty.node {
             TypeNode::Name(_) => {}
-            TypeNode::Fun(t, u) | TypeNode::Prod(t, u) => {
+
+            TypeNode::Fun(t, u) | TypeNode::Product(t, u) => {
                 self.declare_type(t);
                 self.declare_type(u);
             }

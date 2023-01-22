@@ -1,72 +1,63 @@
-use zippy_common::hir::{Decls, TypeDef, ValueDef};
-use zippy_common::message::Span;
-use zippy_common::names::{Actual, Path};
+use super::path::NamePart;
+use super::Resolver;
+use crate::resolved::{Decls, TypeDef, ValueDef};
+use crate::unresolved;
 
-use super::{Name, Resolver};
+impl Resolver<'_> {
+    pub fn resolve_decls(&mut self, decls: unresolved::Decls) -> Decls {
+        let unresolved_values = decls.values(self.db);
+        let unresolved_types = decls.types(self.db);
 
-impl Resolver {
-    pub fn resolve_decls(&mut self, decls: Decls) -> Decls<Name> {
-        let mut values = Vec::with_capacity(decls.values.len());
-        let mut types = Vec::with_capacity(decls.types.len());
+        let mut values = Vec::with_capacity(unresolved_values.len());
+        let mut types = Vec::with_capacity(unresolved_values.len());
 
-        for def in decls.values {
+        for def in unresolved_values.iter().cloned() {
             values.push(self.resolve_value_def(def));
         }
 
-        for def in decls.types {
+        for def in unresolved_types.iter().cloned() {
             types.push(self.resolve_type_def(def));
         }
 
-        Decls { values, types }
+        Decls::new(self.db, values, types)
     }
 
-    fn resolve_value_def(&mut self, def: ValueDef) -> ValueDef<Name> {
+    fn resolve_value_def(&mut self, def: unresolved::ValueDef) -> ValueDef {
         let pat = self.resolve_pat(def.pat);
 
-        self.enter(def.span, def.id);
-        let implicits = def
-            .implicits
-            .into_iter()
-            .map(|ty| self.resolve_type_name(ty))
-            .collect();
-        let anno = self.resolve_type(def.anno);
-        let bind = self.resolve_expr(def.bind);
+        self.in_scope(NamePart::Scope(def.id), |this| {
+            let implicits = def
+                .implicits
+                .into_iter()
+                .map(|(name, span)| this.lookup(span, name).unwrap())
+                .collect();
 
-        self.exit();
+            let anno = this.resolve_type(def.anno);
+            let bind = this.resolve_expr(def.bind);
 
-        ValueDef {
-            span: def.span,
-            id: def.id,
-            implicits,
-            pat,
-            anno,
-            bind,
-        }
+            ValueDef {
+                span: def.span,
+                pat,
+                implicits,
+                anno,
+                bind,
+            }
+        })
     }
 
-    fn resolve_type_def(&mut self, def: TypeDef) -> TypeDef<Name> {
+    fn resolve_type_def(&mut self, def: unresolved::TypeDef) -> TypeDef {
         let pat = self.resolve_pat(def.pat);
 
-        self.enter(def.span, def.id);
+        self.in_scope(NamePart::Scope(def.id), |this| {
+            let anno = this.resolve_type(def.anno);
+            let bind = this.resolve_type(def.bind);
 
-        let anno = self.resolve_type(def.anno);
-        let bind = self.resolve_type(def.bind);
-
-        self.exit();
-
-        TypeDef {
-            span: def.span,
-            id: def.id,
-            pat,
-            anno,
-            bind,
-        }
-    }
-
-    fn resolve_type_name(&self, ty: (String, Span)) -> (Name, Span) {
-        let path = Path::new(self.context(), Actual::Lit(ty.0));
-        // should never fail
-        let name = self.names.lookup(&path).unwrap();
-        (name, ty.1)
+            TypeDef {
+                span: def.span,
+                pat,
+                anno,
+                bind,
+            }
+        })
     }
 }

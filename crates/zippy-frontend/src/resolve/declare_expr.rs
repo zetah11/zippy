@@ -1,16 +1,16 @@
-use zippy_common::hir::{Expr, ExprNode};
-
+use super::path::NamePart;
 use super::Resolver;
+use crate::unresolved::{Expr, ExprNode};
 
-impl Resolver {
+impl Resolver<'_> {
     pub fn declare_expr(&mut self, expr: &Expr) {
         match &expr.node {
             ExprNode::Name(_) | ExprNode::Num(_) | ExprNode::Hole | ExprNode::Invalid => {}
             ExprNode::Lam(id, param, body) => {
-                self.enter(param.span, *id);
-                self.declare_pat(param);
-                self.declare_expr(body);
-                self.exit();
+                self.in_scope_mut(expr.span, NamePart::Scope(*id), |this| {
+                    this.declare_pat(param);
+                    this.declare_expr(body);
+                });
             }
 
             ExprNode::App(fun, arg) => {

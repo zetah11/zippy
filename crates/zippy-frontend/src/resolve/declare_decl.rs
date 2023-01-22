@@ -1,14 +1,14 @@
-use zippy_common::hir::{Decls, TypeDef, ValueDef};
+use super::path::NamePart;
+use super::Resolver;
+use crate::unresolved::{Decls, TypeDef, ValueDef};
 
-use super::{Actual, Resolver};
-
-impl Resolver {
+impl Resolver<'_> {
     pub fn declare_decls(&mut self, decls: &Decls) {
-        for def in decls.values.iter() {
+        for def in decls.values(self.db) {
             self.declare_value_def(def);
         }
 
-        for def in decls.types.iter() {
+        for def in decls.types(self.db) {
             self.declare_type_def(def);
         }
     }
@@ -16,24 +16,20 @@ impl Resolver {
     fn declare_value_def(&mut self, def: &ValueDef) {
         self.declare_pat(&def.pat);
 
-        self.enter(def.span, def.id);
+        self.in_scope_mut(def.span, NamePart::Scope(def.id), |this| {
+            for (name, span) in def.implicits.iter().copied() {
+                this.declare(span, NamePart::Source(name));
+            }
 
-        def.implicits.iter().for_each(|(name, span)| {
-            self.declare_name(*span, Actual::Lit(name.clone()));
+            this.declare_expr(&def.bind);
         });
-
-        self.declare_expr(&def.bind);
-
-        self.exit();
     }
 
     fn declare_type_def(&mut self, def: &TypeDef) {
         self.declare_pat(&def.pat);
 
-        self.enter(def.span, def.id);
-
-        self.declare_type(&def.bind);
-
-        self.exit();
+        self.in_scope_mut(def.span, NamePart::Scope(def.id), |this| {
+            this.declare_type(&def.bind);
+        });
     }
 }
