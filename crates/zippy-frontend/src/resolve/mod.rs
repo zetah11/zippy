@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use log::{debug, info};
 use zippy_common::{
     message::{Messages, Span},
-    names2::{self, Name, NameGenerator},
+    names2::{self, Name},
 };
 
 use self::path::{NamePart, Path};
@@ -41,9 +41,6 @@ pub struct Resolver<'a> {
     /// counterpart.
     names: HashMap<Path, Name>,
 
-    /// The generator used to create new, unique names.
-    generator: NameGenerator,
-
     /// The name of all items we are currently "within", as well as the interned
     /// name of the innermost containing name (if any).
     context: (Vec<NamePart>, Option<Name>),
@@ -55,7 +52,7 @@ impl<'a> Resolver<'a> {
     pub fn new(db: &'a dyn Db) -> Self {
         Self {
             names: HashMap::new(),
-            generator: NameGenerator::new(),
+            //generator: NameGenerator::new(),
             context: (Vec::new(), None),
 
             db,
@@ -66,16 +63,14 @@ impl<'a> Resolver<'a> {
     /// the name has already been declared.
     fn declare(&mut self, _span: Span, part: NamePart) -> Name {
         let name = match &part {
-            NamePart::Scope(_) => self.generator.fresh(self.common_db(), self.context.1),
+            NamePart::Scope(id) => names2::NamePart::Scope(*id),
             NamePart::Source(name) => {
                 let text = name.text(self.db);
-                Name::new(
-                    self.common_db(),
-                    self.context.1,
-                    names2::NamePart::Source(text.clone()),
-                )
+                names2::NamePart::Source(text.clone())
             }
         };
+
+        let name = Name::new(self.common_db(), self.context.1, name);
 
         let path = Path(self.context.0.clone(), part);
 

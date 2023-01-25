@@ -5,11 +5,11 @@ pub use unify::Unifier;
 use std::collections::HashMap;
 
 use log::trace;
+use zippy_common::hir2::{merge_insts, Because, CoercionId, Constraint, Type};
 use zippy_common::message::Span;
-use zippy_common::names::Name;
-use zippy_common::thir::{merge_insts, Because, CoercionId, Constraint};
+use zippy_common::names2::Name;
 
-use super::{Type, Typer};
+use super::Typer;
 
 impl Typer<'_> {
     /// Check if `from` can be given where `into` is expected (i.e. if `from` is wider than `into`), and return the

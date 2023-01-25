@@ -9,47 +9,46 @@ mod types;
 
 use log::{debug, info, trace};
 
-use zippy_common::message::Messages;
-use zippy_common::names::{Name, Names};
-use zippy_common::thir::{
+use zippy_common::hir2::{
     Because, Constraint, Context, Decls, Expr, ExprNode, Mutability, Pat, PatNode, Type, TypeDef,
     TypeckResult, ValueDef,
 };
-use zippy_common::{hir, Driver};
+use zippy_common::message::Messages;
+use zippy_common::names2::Name;
 
 use self::components::Components;
 use self::dependency::DefIndex;
 use self::lower::Lowerer;
 use self::solve::Unifier;
+use crate::{resolved, Db, MessageAccumulator};
 
-pub fn typeck(
-    driver: &mut impl Driver,
-    names: &mut Names,
-    decls: hir::Decls<Name>,
-) -> TypeckResult {
+pub fn typeck(db: &dyn Db, decls: resolved::Decls) -> TypeckResult {
     info!("beginning typechecking");
 
-    let (decls, context) = Lowerer::new(names).lower(decls);
+    let (decls, context) = Lowerer::new(db).lower(decls);
 
-    let mut typer = Typer::new(names, context);
+    let mut typer = Typer::new(db, context);
     let decls = typer.typeck(decls);
 
     typer.messages.merge(typer.unifier.messages);
-    driver.report(typer.messages);
+
+    for msg in typer.messages.msgs {
+        MessageAccumulator::push(db, msg);
+    }
 
     trace!("done typechecking");
 
-    TypeckResult {
+    TypeckResult::new(
+        db,
+        typer.unifier.coercions,
+        typer.context,
+        typer.unifier.defs,
         decls,
-        coercions: typer.unifier.coercions,
-        context: typer.context,
-        defs: typer.unifier.defs,
-        subst: typer.unifier.subst,
-        constraints: typer.constraints,
-    }
+        typer.unifier.subst,
+        typer.constraints,
+    )
 }
 
-#[derive(Debug)]
 struct Typer<'a> {
     pub messages: Messages,
     context: Context,
@@ -58,16 +57,16 @@ struct Typer<'a> {
 }
 
 impl<'a> Typer<'a> {
-    pub fn new(names: &'a Names, context: Context) -> Self {
+    pub fn new(db: &'a dyn Db, context: Context) -> Self {
         Self {
             messages: Messages::new(),
             context,
-            unifier: Unifier::new(names),
+            unifier: Unifier::new(db),
             constraints: Vec::new(),
         }
     }
 
-    pub fn typeck(&mut self, decls: Decls) -> Decls<Type> {
+    pub fn typeck(&mut self, decls: resolved::Decls) -> Decls {
         let mut types = Vec::with_capacity(decls.types.len());
         let mut values = Vec::with_capacity(decls.values.len());
 
@@ -164,19 +163,19 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn bind_def(&mut self, def: &ValueDef) -> Pat<Type> {
+    fn bind_def(&mut self, def: &ValueDef) -> Pat {
         let pat = self.bind_generic(def.pat.clone(), &def.implicits, def.anno.clone());
         self.make_mutability(Mutability::Immutable, &pat);
         pat
     }
 
-    fn bind_type_def(&mut self, def: &TypeDef) -> Pat<Type> {
+    fn bind_type_def(&mut self, def: &resolved::TypeDef) -> Pat {
         let pat = self.bind_pat(def.pat.clone(), def.anno.clone());
         self.make_mutability(Mutability::Immutable, &pat);
         pat
     }
 
-    fn check_def(&mut self, pat: Pat<Type>, def: ValueDef) -> ValueDef<Type> {
+    fn check_def(&mut self, pat: resolved::Pat, def: resolved::ValueDef) -> ValueDef {
         self.make_mutability(Mutability::Mutable, &pat);
         let ty = pat.data.make_mutability(Mutability::Mutable);
         let bind = self.check(Because::Annotation(def.span), def.bind, ty);
@@ -191,7 +190,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn check_type_def(&mut self, pat: Pat<Type>, def: TypeDef) -> TypeDef<Type> {
+    fn check_type_def(&mut self, pat: resolved::Pat, def: resolved::TypeDef) -> TypeDef {
         self.make_mutability(Mutability::Mutable, &pat);
         let ty = pat.data.make_mutability(Mutability::Mutable);
         self.check_type(def.span, &def.bind, ty);
@@ -205,7 +204,7 @@ impl<'a> Typer<'a> {
         }
     }
 
-    fn make_mutability<T>(&mut self, mutability: Mutability, pat: &Pat<T>) {
+    fn make_mutability(&mut self, mutability: Mutability, pat: &Pat) {
         match &pat.node {
             PatNode::Name(name) => self.context.make_mutability(name, mutability),
             PatNode::Anno(pat, _) => self.make_mutability(mutability, pat),

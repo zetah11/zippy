@@ -1,11 +1,12 @@
+use zippy_common::hir2::{Pat, PatNode, Type};
 use zippy_common::message::Span;
-use zippy_common::names::Name;
+use zippy_common::names2::Name;
 
 use super::Typer;
-use super::{Pat, PatNode, Type};
+use crate::resolved;
 
 impl Typer<'_> {
-    pub fn bind_pat(&mut self, pat: Pat, ty: Type) -> Pat<Type> {
+    pub fn bind_pat(&mut self, pat: resolved::Pat, ty: Type) -> Pat {
         let (node, ty) = match pat.node {
             PatNode::Name(name) => {
                 self.context.add(name, ty.clone());
@@ -42,7 +43,12 @@ impl Typer<'_> {
         }
     }
 
-    pub fn bind_generic(&mut self, pat: Pat, params: &Vec<(Name, Span)>, ty: Type) -> Pat<Type> {
+    pub fn bind_generic(
+        &mut self,
+        pat: resolved::Pat,
+        params: &Vec<(Name, Span)>,
+        ty: Type,
+    ) -> Pat {
         if params.is_empty() {
             let pat = self.bind_pat(pat, ty);
             return pat;
@@ -86,7 +92,7 @@ impl Typer<'_> {
         }
     }
 
-    pub fn bind_fresh(&mut self, pat: Pat) -> Pat<Type> {
+    pub fn bind_fresh(&mut self, pat: resolved::Pat) -> Pat {
         let (node, ty) = match pat.node {
             PatNode::Name(name) => {
                 let ty = self.context.fresh();

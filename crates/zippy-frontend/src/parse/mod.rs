@@ -7,9 +7,7 @@ mod matcher;
 mod unconcretify;
 
 use log::{info, trace};
-use zippy_common::hir::Decls;
 use zippy_common::message::{File, Messages, Span};
-use zippy_common::Driver;
 
 use crate::lex::{Token, Tokens};
 use crate::{unresolved, MessageAccumulator};

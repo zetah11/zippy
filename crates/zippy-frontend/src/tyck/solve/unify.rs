@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
 use log::trace;
-use zippy_common::message::{Messages, Span};
-use zippy_common::names::{Name, Names};
-use zippy_common::thir::{
+use zippy_common::hir2::{
     merge_insts, pretty_type, Because, Coercion, CoercionId, Coercions, Definitions, Mutability,
     PrettyMap, Type, UniVar,
 };
+use zippy_common::message::{Messages, Span};
+use zippy_common::names2::Name;
 
-#[derive(Debug)]
+use crate::Db;
+
 pub struct Unifier<'a> {
-    pub names: &'a Names,
+    pub db: &'a dyn Db,
 
     pub coercions: Coercions,
     pub defs: Definitions,
@@ -23,9 +24,9 @@ pub struct Unifier<'a> {
 }
 
 impl<'a> Unifier<'a> {
-    pub fn new(names: &'a Names) -> Self {
+    pub fn new(db: &'a dyn Db) -> Self {
         Self {
-            names,
+            db,
             defs: Definitions::new(),
             coercions: Coercions::new(),
             subst: HashMap::new(),
@@ -39,7 +40,7 @@ impl<'a> Unifier<'a> {
 
     pub fn pretty(&mut self, ty: &Type) -> String {
         let subst = self.subst.iter().map(|(var, (_, ty))| (*var, ty)).collect();
-        pretty_type(self.names, &subst, &mut self.prettier, ty)
+        pretty_type(self.common_db(), &subst, &mut self.prettier, ty)
     }
 
     pub fn unify(&mut self, coercion: CoercionId, span: Span, expected: Type, actual: Type) {
@@ -235,5 +236,9 @@ impl<'a> Unifier<'a> {
 
     fn set(&mut self, inst: &HashMap<Name, Type>, var: UniVar, ty: Type) {
         assert!(self.subst.insert(var, (inst.clone(), ty)).is_none());
+    }
+
+    fn common_db(&self) -> &'a dyn zippy_common::Db {
+        <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(self.db)
     }
 }

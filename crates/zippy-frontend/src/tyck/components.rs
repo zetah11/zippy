@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use zippy_common::thir::Decls;
+use zippy_common::hir2::Decls;
 
 use super::dependency::{DefIndex, Dependencies};
 

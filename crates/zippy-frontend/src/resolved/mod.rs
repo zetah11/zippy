@@ -81,10 +81,11 @@ pub struct Type {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum TypeNode {
     Name(Name),
-    Range(Box<Expr>, Box<Expr>),
+    Range(Name, Name),
     Fun(Box<Type>, Box<Type>),
     Product(Box<Type>, Box<Type>),
     Type,
+    Number,
     Wildcard,
     Invalid,
 }

@@ -1,11 +1,12 @@
 use log::trace;
-use zippy_common::thir::{Because, TypeOrSchema};
+use zippy_common::hir2::{Because, Expr, ExprNode, Type, TypeOrSchema};
 
-use super::{Expr, ExprNode, Type, Typer};
+use super::Typer;
+use crate::resolved;
 
 impl Typer<'_> {
     /// Infer the type of an expression.
-    pub fn infer(&mut self, ex: Expr) -> Expr<Type> {
+    pub fn infer(&mut self, ex: resolved::Expr) -> Expr {
         let (node, ty) = match ex.node {
             ExprNode::Name(name) => {
                 let ty = self.context.get(&name).clone();

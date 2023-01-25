@@ -4,8 +4,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use zippy_common::names::Name;
-use zippy_common::thir::{Decls, Expr, ExprNode, Pat, PatNode, Type, TypeDef, ValueDef};
+use zippy_common::hir2::{Decls, Expr, ExprNode, Pat, PatNode, Type, TypeDef, ValueDef};
+use zippy_common::names2::Name;
 
 /// A [`DefIndex`] is an index into either the `values` or the `types` list in a
 /// [`Decls`].

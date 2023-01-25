@@ -1,24 +1,24 @@
 use super::Resolver;
-use crate::resolved::{Pat, PatNode};
+use crate::resolved::{Pat, PatNode, ValueDef};
 use crate::unresolved;
 
 impl Resolver<'_> {
-    pub fn resolve_pat(&mut self, pat: unresolved::Pat) -> Pat {
+    pub fn resolve_pat(&mut self, values: &mut Vec<ValueDef>, pat: unresolved::Pat) -> Pat {
         let node = match pat.node {
             unresolved::PatNode::Name(name) => {
                 PatNode::Name(self.lookup(pat.span, name).expect("undeclared pattern"))
             }
 
             unresolved::PatNode::Tuple(a, b) => {
-                let a = Box::new(self.resolve_pat(*a));
-                let b = Box::new(self.resolve_pat(*b));
+                let a = Box::new(self.resolve_pat(values, *a));
+                let b = Box::new(self.resolve_pat(values, *b));
 
                 PatNode::Tuple(a, b)
             }
 
             unresolved::PatNode::Anno(pat, ty) => {
-                let pat = Box::new(self.resolve_pat(*pat));
-                let ty = self.resolve_type(ty);
+                let pat = Box::new(self.resolve_pat(values, *pat));
+                let ty = self.resolve_type(values, ty);
 
                 PatNode::Anno(pat, ty)
             }

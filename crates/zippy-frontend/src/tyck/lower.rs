@@ -1,23 +1,24 @@
 use std::collections::HashMap;
 
-use zippy_common::names::Names;
-use zippy_common::thir::Context;
-use zippy_common::{hir, thir};
+use zippy_common::hir2::Context;
+use zippy_common::names2::NamePart;
+use zippy_common::{hir, hir2 as thir};
+
+use crate::Db;
 
 use super::Name;
 
-#[derive(Debug)]
 pub struct Lowerer<'a> {
-    names: &'a mut Names,
+    db: &'a dyn Db,
     context: Context,
 
     lifted: HashMap<hir::Expr<Name>, Name>,
 }
 
 impl<'a> Lowerer<'a> {
-    pub fn new(names: &'a mut Names) -> Self {
+    pub fn new(db: &'a dyn Db) -> Self {
         Self {
-            names,
+            db,
             context: Context::new(),
 
             lifted: HashMap::new(),
@@ -180,8 +181,8 @@ impl<'a> Lowerer<'a> {
         if let Some(name) = self.lifted.get(&ex) {
             *name
         } else {
-            let root = self.names.root();
-            let name = self.names.fresh(ex.span, root);
+            let name = Name::new(self.common_db(), None, NamePart::Spanned(ex.span));
+
             self.lifted.insert(ex.clone(), name);
 
             let ex = self.lower_expr(values, ex);
@@ -205,5 +206,9 @@ impl<'a> Lowerer<'a> {
             bind: ex,
             span,
         }
+    }
+
+    fn common_db(&self) -> &'a dyn zippy_common::Db {
+        <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(self.db)
     }
 }

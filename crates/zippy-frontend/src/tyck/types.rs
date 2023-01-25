@@ -1,5 +1,5 @@
+use zippy_common::hir2::Type;
 use zippy_common::message::Span;
-use zippy_common::thir::Type;
 
 use super::Typer;
 

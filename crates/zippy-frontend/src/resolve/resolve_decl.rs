@@ -12,18 +12,23 @@ impl Resolver<'_> {
         let mut types = Vec::with_capacity(unresolved_values.len());
 
         for def in unresolved_values.iter().cloned() {
-            values.push(self.resolve_value_def(def));
+            let value = self.resolve_value_def(&mut values, def);
+            values.push(value);
         }
 
         for def in unresolved_types.iter().cloned() {
-            types.push(self.resolve_type_def(def));
+            types.push(self.resolve_type_def(&mut values, def));
         }
 
         Decls::new(self.db, values, types)
     }
 
-    fn resolve_value_def(&mut self, def: unresolved::ValueDef) -> ValueDef {
-        let pat = self.resolve_pat(def.pat);
+    fn resolve_value_def(
+        &mut self,
+        values: &mut Vec<ValueDef>,
+        def: unresolved::ValueDef,
+    ) -> ValueDef {
+        let pat = self.resolve_pat(values, def.pat);
 
         self.in_scope(NamePart::Scope(def.id), |this| {
             let implicits = def
@@ -32,8 +37,8 @@ impl Resolver<'_> {
                 .map(|(name, span)| this.lookup(span, name).unwrap())
                 .collect();
 
-            let anno = this.resolve_type(def.anno);
-            let bind = this.resolve_expr(def.bind);
+            let anno = this.resolve_type(values, def.anno);
+            let bind = this.resolve_expr(values, def.bind);
 
             ValueDef {
                 span: def.span,
@@ -45,12 +50,16 @@ impl Resolver<'_> {
         })
     }
 
-    fn resolve_type_def(&mut self, def: unresolved::TypeDef) -> TypeDef {
-        let pat = self.resolve_pat(def.pat);
+    fn resolve_type_def(
+        &mut self,
+        values: &mut Vec<ValueDef>,
+        def: unresolved::TypeDef,
+    ) -> TypeDef {
+        let pat = self.resolve_pat(values, def.pat);
 
         self.in_scope(NamePart::Scope(def.id), |this| {
-            let anno = this.resolve_type(def.anno);
-            let bind = this.resolve_type(def.bind);
+            let anno = this.resolve_type(values, def.anno);
+            let bind = this.resolve_type(values, def.bind);
 
             TypeDef {
                 span: def.span,

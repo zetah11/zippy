@@ -1,11 +1,12 @@
 use log::trace;
-use zippy_common::thir::Because;
+use zippy_common::hir2::{Because, Expr, ExprNode, Type};
 
-use super::{Expr, ExprNode, Type, Typer};
+use super::Typer;
+use crate::resolved;
 
 impl Typer<'_> {
     /// Check that an expression conforms to a given type.
-    pub fn check(&mut self, because: Because, ex: Expr, ty: Type) -> Expr<Type> {
+    pub fn check(&mut self, because: Because, ex: resolved::Expr, ty: Type) -> Expr {
         let pretty = self.pretty(&ty);
         let span = ex.span;
         let (node, ty) = match ex.node {
