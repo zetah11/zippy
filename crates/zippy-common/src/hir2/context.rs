@@ -27,7 +27,13 @@ impl Context {
         assert!(self.names.insert(name, TypeOrSchema::Type(ty)).is_none());
     }
 
+    /// Add a name parameterized by the given type parameters.
+    /// If the type parameter list is empty, this adds it as a non-schema
+    /// monomorphic name.
     pub fn add_schema(&mut self, name: Name, params: Vec<Name>, ty: Type) {
+        if params.is_empty() {
+            return self.add(name, ty);
+        }
         assert!(self
             .names
             .insert(name, TypeOrSchema::Schema(params, ty))
@@ -38,17 +44,17 @@ impl Context {
         self.names.get(name).unwrap()
     }
 
-    pub fn fresh(&mut self) -> UniVar {
-        let id = UniVar(self.curr_var);
-        self.curr_var += 1;
-        id
-    }
+    pub fn get_instantiated(&mut self, name: &Name) -> (Type, Vec<UniVar>) {
+        let mut fresh = || {
+            let id = UniVar(self.curr_var);
+            self.curr_var += 1;
+            id
+        };
 
-    pub fn instantiate(&mut self, schema: &TypeOrSchema) -> (Type, Vec<UniVar>) {
-        match schema {
+        match self.names.get(name).unwrap() {
             TypeOrSchema::Type(ty) => (ty.clone(), vec![]),
             TypeOrSchema::Schema(params, ty) => {
-                let vars: Vec<_> = (0..params.len()).map(|_| self.fresh()).collect();
+                let vars: Vec<_> = (0..params.len()).map(|_| fresh()).collect();
                 let mapping = params
                     .iter()
                     .copied()
@@ -61,6 +67,12 @@ impl Context {
                 (ty, vars)
             }
         }
+    }
+
+    pub fn fresh(&mut self) -> UniVar {
+        let id = UniVar(self.curr_var);
+        self.curr_var += 1;
+        id
     }
 
     /// Modify the mutability of the type bound to this name.

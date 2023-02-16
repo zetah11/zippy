@@ -13,7 +13,7 @@ pub use self::constraint::Constraint;
 pub use self::context::{merge_insts, Context, TypeOrSchema};
 pub use self::definitions::Definitions;
 pub use self::pretty::{pretty_type, PrettyMap};
-pub use self::tree::{Decls, Expr, ExprNode, Pat, PatNode, TypeDef, ValueDef};
+pub use self::tree::{Decls, Expr, ExprNode, Pat, PatNode, ValueDef};
 pub use self::types::{Mutability, Type, UniVar};
 
 use std::collections::HashMap;

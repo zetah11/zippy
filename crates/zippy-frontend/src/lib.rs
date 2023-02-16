@@ -1,7 +1,10 @@
+pub mod components;
+pub mod kick;
 pub mod lex;
 pub mod parse;
 pub mod resolve;
-pub mod tyck;
+//pub mod tyck;
+pub mod tyck2;
 
 mod resolved;
 mod unresolved;
@@ -58,6 +61,11 @@ pub struct Jar(
     crate::lex::lex,
     crate::parse::parse,
     crate::resolve::resolve,
+    crate::components::Components,
+    crate::components::components,
+    crate::kick::Kinds,
+    crate::kick::kindck,
+    crate::tyck2::typeck,
 );
 
 pub trait Db: DbWithJar<Jar> + DbWithJar<zippy_common::Jar> {}

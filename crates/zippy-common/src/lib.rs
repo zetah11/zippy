@@ -1,5 +1,6 @@
 pub mod hir;
 pub mod hir2;
+pub mod kinds;
 pub mod message;
 pub mod mir;
 pub mod names;
@@ -15,7 +16,11 @@ pub use self::driver::{Driver, EvalAmount, IrOutput};
 mod driver;
 
 #[salsa::jar(db = Db)]
-pub struct Jar(crate::names2::Name, crate::hir2::TypeckResult);
+pub struct Jar(
+    crate::names2::Name,
+    crate::hir2::Decls,
+    crate::hir2::TypeckResult,
+);
 
 pub trait Db: DbWithJar<Jar> {}
 

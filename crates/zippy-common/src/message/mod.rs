@@ -3,6 +3,7 @@ mod source;
 
 mod compile;
 mod elab;
+mod kick;
 mod lex;
 mod parse;
 mod resolve;

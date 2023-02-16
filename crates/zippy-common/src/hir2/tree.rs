@@ -3,27 +3,16 @@ use crate::message::Span;
 use crate::names2::Name;
 use crate::Number;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[salsa::tracked]
 pub struct Decls {
     pub values: Vec<ValueDef>,
-    pub types: Vec<TypeDef>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValueDef {
     pub span: Span,
-    pub implicits: Vec<(Name, Span)>,
     pub pat: Pat,
-    pub anno: Type,
-    pub bind: Expr,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TypeDef {
-    pub span: Span,
-    pub pat: Pat,
-    pub anno: Type,
-    pub bind: Type,
+    pub body: Expr,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,7 +29,7 @@ pub enum ExprNode {
 
     Lam(Pat, Box<Expr>),
     App(Box<Expr>, Box<Expr>),
-    Inst(Box<Expr>, Vec<(Span, Type)>),
+    Inst(Name, Vec<(Span, Type)>),
 
     Anno(Box<Expr>, Span, Type),
     Coerce(Box<Expr>, CoercionId),

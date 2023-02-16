@@ -5,7 +5,7 @@ use crate::message::Span;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Constraint {
-    IntType {
+    NumberType {
         at: Span,
         because: Because,
         ty: Type,
