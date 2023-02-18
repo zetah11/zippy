@@ -19,6 +19,7 @@ mod driver;
 pub struct Jar(
     crate::names2::Name,
     crate::hir2::Decls,
+    crate::hir2::Definitions,
     crate::hir2::TypeckResult,
 );
 

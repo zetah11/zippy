@@ -4,6 +4,8 @@ mod constrain;
 mod infer;
 mod lower;
 
+pub use lower::lower_type;
+
 use log::debug;
 use zippy_common::hir2::{Because, Coercions, Constraint, Context, Decls, TypeckResult, ValueDef};
 use zippy_common::message::Messages;

@@ -1,9 +1,9 @@
 pub mod components;
+pub mod definitions;
 pub mod kick;
 pub mod lex;
 pub mod parse;
 pub mod resolve;
-//pub mod tyck;
 pub mod tyck2;
 
 mod resolved;
@@ -63,6 +63,7 @@ pub struct Jar(
     crate::resolve::resolve,
     crate::components::Components,
     crate::components::components,
+    crate::definitions::type_definitions,
     crate::kick::Kinds,
     crate::kick::kindck,
     crate::tyck2::typeck,
