@@ -1,4 +1,4 @@
-use zippy_common::hir2::Type;
+use zippy_common::hir2::{Mutability, Type};
 
 use super::Typer;
 use crate::resolved;
@@ -33,7 +33,7 @@ where
 }
 
 impl Typer<'_> {
-    pub fn lower_type(&mut self, ty: &resolved::Type) -> Type {
-        lower_type(&mut || Type::mutable(self.context.fresh()), ty)
+    pub fn lower_type(&mut self, ty: &resolved::Type, mutability: Mutability) -> Type {
+        lower_type(&mut || Type::Var(mutability, self.context.fresh()), ty)
     }
 }

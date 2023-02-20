@@ -24,7 +24,6 @@ use crate::names2::Name;
 pub struct TypeckResult {
     pub coercions: Coercions,
     pub context: Context,
-    pub defs: Definitions,
     pub decls: Decls,
     pub subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     pub constraints: Vec<Constraint>,

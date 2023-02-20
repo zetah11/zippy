@@ -23,8 +23,8 @@ impl Typer<'_> {
 
             resolved::PatNode::Anno(pat, anno) => {
                 let span = anno.span;
-                let anno = self.lower_type(anno);
-                self.equate(span, &ty, &anno);
+                let anno = self.lower_type(anno, hir2::Mutability::Mutable);
+                self.equate(span, ty, anno.clone());
                 return self.bind_pat(pat, anno);
             }
 
@@ -42,6 +42,8 @@ impl Typer<'_> {
     /// Bind a pattern parameterized by some number of type names to a type
     /// annotation. If the type parameter list is empty, this does the same as
     /// [`Self::bind_pat`].
+    ///
+    /// This also returns a list of every name mentioned by this pattern.
     pub fn bind_pat_schema(
         &mut self,
         pat: &resolved::Pat,
@@ -64,8 +66,8 @@ impl Typer<'_> {
 
             resolved::PatNode::Anno(pat, anno) => {
                 let span = anno.span;
-                let anno = self.lower_type(anno);
-                self.equate(span, &ty, &anno);
+                let anno = self.lower_type(anno, hir2::Mutability::Mutable);
+                self.equate(span, ty, anno.clone());
                 return self.bind_pat_schema(pat, anno, implicits);
             }
 

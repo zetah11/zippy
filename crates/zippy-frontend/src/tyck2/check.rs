@@ -34,7 +34,7 @@ impl Typer<'_> {
 
             _ => {
                 let expr = Box::new(self.infer(expr));
-                let coerce = self.assign(expr.span, &against, &expr.data);
+                let coerce = self.assign(expr.span, against.clone(), expr.data.clone());
                 (hir2::ExprNode::Coerce(expr, coerce), against)
             }
         };

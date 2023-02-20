@@ -52,8 +52,8 @@ impl Typer<'_> {
                     let mut new_args = Vec::with_capacity(args.len());
                     for (var, ty) in vars.into_iter().zip(args.iter()) {
                         let span = ty.span;
-                        let ty = self.lower_type(ty);
-                        self.equate(span, &Type::mutable(var), &ty);
+                        let ty = self.lower_type(ty, hir2::Mutability::Mutable);
+                        self.equate(span, Type::mutable(var), ty.clone());
                         new_args.push((span, ty));
                     }
 
@@ -65,7 +65,7 @@ impl Typer<'_> {
 
             resolved::ExprNode::Anno(expr, ty) => {
                 let span = ty.span;
-                let ty = self.lower_type(ty);
+                let ty = self.lower_type(ty, hir2::Mutability::Mutable);
                 return self.check(Because::Annotation(span), expr, ty);
             }
 

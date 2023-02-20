@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use super::because::Because;
 use super::coerce::CoercionId;
-use super::Type;
+use super::{Type, UniVar};
 use crate::message::Span;
+use crate::names2::Name;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Constraint {
@@ -13,8 +16,16 @@ pub enum Constraint {
 
     Assignable {
         at: Span,
+        id: CoercionId,
         into: Type,
         from: Type,
-        id: CoercionId,
+        subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
+    },
+
+    Equal {
+        at: Span,
+        t: Type,
+        u: Type,
+        subst: HashMap<UniVar, (HashMap<Name, Type>, Type)>,
     },
 }
