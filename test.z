@@ -1,5 +1,0 @@
-fun main (?: 1) : Small = 5
-
-let ten: Big = 10
-type Small = 0 upto ten
-type Big = 0 upto 20
