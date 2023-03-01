@@ -1,12 +1,9 @@
 [package]
-name = "zippy-frontend"
+name = "zippy-common"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zippy-common = { path = "../zippy-common" }
-
-logos = "0.12"
 salsa = { git = "https://github.com/salsa-rs/salsa", branch = "master", package = "salsa-2022" }
