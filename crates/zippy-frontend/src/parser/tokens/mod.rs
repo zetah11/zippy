@@ -55,7 +55,7 @@ mod tests;
 use std::collections::VecDeque;
 
 use logos::Logos;
-use zippy_common::messages::MessageMaker;
+use zippy_common::messages::{Message, MessageMaker, Messages};
 use zippy_common::source::{Source, Span};
 
 use self::raw::RawToken;
@@ -68,8 +68,8 @@ pub fn get_tokens(db: &dyn crate::Db, src: Source) -> Vec<Token> {
     TokenIter::new(src, src.content(db))
         .filter_map(|token| match token {
             Ok(token) => Some(token),
-            Err(span) => {
-                MessageMaker::new(db, span).unexpected_token();
+            Err(message) => {
+                Messages::push(db, message);
                 None
             }
         })
@@ -110,8 +110,8 @@ pub enum TokenType {
 }
 
 /// An iterator producing a stream of tokens from a given source. This produces
-/// a result which is either `Ok(token)` with a token or `Err(span)` when an
-/// invalid token was encountered at the given span.
+/// a result which is either `Ok(token)` with a token or `Err(message)` when a
+/// message has been produced.
 struct TokenIter<'source> {
     lexer: logos::SpannedIter<'source, RawToken>,
     source: Source,
@@ -120,6 +120,8 @@ struct TokenIter<'source> {
     last_span: Span,
 
     last_tokens: VecDeque<Token>,
+
+    errors: Vec<Message>,
 }
 
 impl<'source> TokenIter<'source> {
@@ -132,6 +134,8 @@ impl<'source> TokenIter<'source> {
             last_span: source.span(0, 0),
 
             last_tokens: VecDeque::new(),
+
+            errors: Vec::new(),
         }
     }
 
@@ -162,6 +166,10 @@ impl<'source> TokenIter<'source> {
             }
         }
 
+        if new_indent.is_lt() && indent.0 > self.indents.1 {
+            MessageMaker::new(&mut self.errors, indent.1).indent_error(self.indents.1, indent.0);
+        }
+
         // Only emit a semicolon if new indent is less than or equal to the
         // current indent and we plausibly expect an eol here.
         if new_indent.is_le() {
@@ -188,7 +196,7 @@ impl<'source> TokenIter<'source> {
 }
 
 impl Iterator for TokenIter<'_> {
-    type Item = Result<Token, Span>;
+    type Item = Result<Token, Message>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut last_indent = None;
@@ -210,6 +218,8 @@ impl Iterator for TokenIter<'_> {
                             self.indents.1 = front;
 
                             return Some(Ok(token));
+                        } else if let Some(error) = self.errors.pop() {
+                            return Some(Err(error));
                         } else {
                             return None;
                         }
@@ -246,7 +256,8 @@ impl Iterator for TokenIter<'_> {
                 RawToken::Semicolon => TokenType::Semicolon,
 
                 RawToken::Error => {
-                    return Some(Err(span));
+                    MessageMaker::new(&mut self.errors, span).unexpected_token();
+                    continue;
                 }
             };
 

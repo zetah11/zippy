@@ -13,8 +13,9 @@ In particular, indentation is very "dumb" and works like this:
 - The lexer keeps track of a "stack" of indentation levels, starting at the
   leftmost column 0.
 - If there is a decrease in the indentation level, `Dedent` tokens are emitted
-  until the top of the indentation stack is less than or equal to the current
-  indentation level.
+  until the top of the indentation stack is equal to the current indentation
+  level. The current indentation level cannot be greater than the top of the
+  stack.
 - If the indentation level has decreased or stayed the same, an `Eol` token is
   emitted *after* every `Dedent` token.
 - If the indentation level has increased from the top of the indentation stack

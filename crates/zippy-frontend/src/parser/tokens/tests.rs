@@ -29,6 +29,24 @@ fn check(source: impl Into<String>, expected: &[TokenType]) {
     assert!(messages.is_empty());
 }
 
+/// Check that the lexer produces the expected token types, and that some
+/// messages were emitted.
+fn check_error(source: impl Into<String>, expected: &[TokenType]) {
+    let db = MockDb::default();
+    let source = Source::new(&db, "test".into(), source.into());
+
+    let tokens = get_tokens(&db, source);
+
+    assert_eq!(expected.len(), tokens.len());
+
+    for (expected, actual) in expected.iter().zip(tokens) {
+        assert_eq!(expected, &actual.kind);
+    }
+
+    let messages = get_tokens::accumulated::<Messages>(&db, source);
+    assert!(!messages.is_empty());
+}
+
 #[test]
 fn lex_dedent_at_eof() {
     let source = "let x =\n  y";
@@ -90,7 +108,7 @@ fn lex_dedents_and_eols() {
 }
 
 #[test]
-fn lex_dedents_not_followed_by_dedents() {
+fn lex_invalid_dedent() {
     let source = "\n  x\n y\nz";
     let expected = &[
         TokenType::Indent,
@@ -102,7 +120,7 @@ fn lex_dedents_not_followed_by_dedents() {
         TokenType::Name("z".into()),
     ];
 
-    check(source, expected);
+    check_error(source, expected);
 }
 
 #[test]

@@ -172,9 +172,9 @@ impl MessageContainer for &'_ dyn crate::Db {
     }
 }
 
-impl MessageContainer for Vec<Message> {
+impl MessageContainer for &'_ mut Vec<Message> {
     fn push(&mut self, message: Message) {
-        self.push(message)
+        Vec::push(*self, message)
     }
 }
 

@@ -3,6 +3,9 @@ use zippy_common::messages::{Message, MessageContainer, Messages};
 use crate::Db;
 
 pub trait ParseMessages {
+    /// The indentation is not correct
+    fn indent_error(&mut self, expected: usize, actual: usize);
+
     /// An invalid token was encountered
     fn unexpected_token(&mut self);
 }
