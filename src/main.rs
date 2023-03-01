@@ -4,12 +4,19 @@ mod project;
 
 use dashmap::DashMap;
 use project::SourceName;
-use simple_logger::SimpleLogger;
 use zippy_common::source::Source;
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
-    lsp::lsp().unwrap();
+    let mut args = std::env::args();
+    let program_name = match args.next() {
+        Some(arg) => arg,
+        None => print_usage_info("zc"),
+    };
+
+    match args.next().as_ref().map(AsRef::as_ref) {
+        Some("lsp") => lsp::lsp().unwrap(),
+        _ => print_usage_info(&program_name),
+    }
 }
 
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
@@ -48,4 +55,23 @@ impl Database {
     pub fn read_source(&self, source: SourceName) -> anyhow::Result<String> {
         Ok(std::fs::read_to_string(source.as_path())?)
     }
+}
+
+fn print_usage_info(program_name: &str) -> ! {
+    eprintln!(
+        "{} version {}-{}",
+        meta::COMPILER_NAME,
+        meta::VERSION,
+        meta::TAG
+    );
+    eprintln!("usage: {} <command>", program_name);
+    eprintln!();
+    eprintln!("available commands:");
+    eprintln!(
+        "  lsp   run {} as a language server on stdio",
+        meta::COMPILER_NAME
+    );
+
+    // eugh whatever
+    std::process::exit(1)
 }

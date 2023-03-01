@@ -50,9 +50,7 @@ impl LspServer {
     }
 
     pub fn serve(self, mut server: impl InitServer) -> Result<(), LspError> {
-        eprintln!("please.....");
         let (id, params) = self.connection.initialize_start()?;
-        eprintln!("alright");
         let params: InitializeParams = serde_json::from_value(params)?;
 
         let capabilities = server.initialize(params);
