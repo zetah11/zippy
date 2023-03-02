@@ -10,3 +10,5 @@ zippy-common = { path = "../zippy-common" }
 
 logos = "0.12"
 salsa = { git = "https://github.com/salsa-rs/salsa", branch = "master", package = "salsa-2022" }
+
+itertools = "0.10"

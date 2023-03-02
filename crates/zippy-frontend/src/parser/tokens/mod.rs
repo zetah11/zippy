@@ -55,26 +55,11 @@ mod tests;
 use std::collections::VecDeque;
 
 use logos::Logos;
-use zippy_common::messages::{Message, MessageMaker, Messages};
+use zippy_common::messages::{Message, MessageMaker};
 use zippy_common::source::{Source, Span};
 
 use self::raw::RawToken;
 use crate::messages::ParseMessages;
-use crate::Db;
-
-#[salsa::tracked]
-pub fn get_tokens(db: &dyn crate::Db, src: Source) -> Vec<Token> {
-    let db = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
-    TokenIter::new(src, src.content(db))
-        .filter_map(|token| match token {
-            Ok(token) => Some(token),
-            Err(message) => {
-                Messages::push(db, message);
-                None
-            }
-        })
-        .collect()
-}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Token {
@@ -100,7 +85,8 @@ pub enum TokenType {
     Fun,
     Let,
 
-    Equals,
+    Colon,
+    Equal,
 
     LeftParen,
     RightParen,
@@ -112,7 +98,7 @@ pub enum TokenType {
 /// An iterator producing a stream of tokens from a given source. This produces
 /// a result which is either `Ok(token)` with a token or `Err(message)` when a
 /// message has been produced.
-struct TokenIter<'source> {
+pub struct TokenIter<'source> {
     lexer: logos::SpannedIter<'source, RawToken>,
     source: Source,
 
@@ -249,7 +235,8 @@ impl Iterator for TokenIter<'_> {
                 RawToken::Fun => TokenType::Fun,
                 RawToken::Let => TokenType::Let,
 
-                RawToken::Equals => TokenType::Equals,
+                RawToken::Colon => TokenType::Colon,
+                RawToken::Equal => TokenType::Equal,
 
                 RawToken::LeftParen => TokenType::LeftParen,
                 RawToken::RightParen => TokenType::RightParen,

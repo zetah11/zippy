@@ -1,0 +1,88 @@
+//! Various representations for item names encountered during compilation.
+//!
+//! Note that zippy makes a distinction between *declarations* and *expressions*
+//! and this distinction shows up with the names as well. Declarations are
+//! allowed to be declared in any order and may refer to themselves, while
+//! expressions follow a "top-down" approach. This means that names may not be
+//! shadowed within the same "level" of declarations (because that would be
+//! ambiguous), while they are allowed to be shadowed within expressions
+//! (because they are read in a specific order).
+//!
+//! Thus, any name declared in a declarative section will eventually become an
+//! [`ItemName`] while any name declared in an expression will become a
+//! [`LocalName`]. The latter contains a `scope` id which is used to
+//! disambiguate it from other locals with the same name. Both contain an
+//! optional reference to a "parent" name, which is the name of the item or
+//! local that contains it.
+//!
+//! Finally, note that some declarations don't have a convenient name to
+//! identify them. For instance:
+//!
+//! ```zippy
+//! let _: Int =
+//!   let x = 5
+//!   x
+//! ```
+//!
+//! As such, there is a third kind of name - the [`UnnamableName`] - which is
+//! identified by a [`Span`] instead of a name.
+
+use crate::source::Span;
+
+/// This is simply an interned string intended to make it easier and fast to
+/// compare names. It should not be used as an identifier by itself, however.
+#[salsa::tracked]
+pub struct RawName {
+    #[return_ref]
+    pub text: String,
+}
+
+/// A name of an item in some unordered declarative region.
+#[salsa::tracked]
+pub struct ItemName {
+    pub parent: Option<DeclarableName>,
+    pub name: RawName,
+}
+
+/// A name of a local in some ordered, scoped region.
+#[salsa::tracked]
+pub struct LocalName {
+    pub parent: Option<DeclarableName>,
+    pub name: RawName,
+    pub scope: usize,
+}
+
+/// The name of some item whose pattern contains no names, and so can only be
+/// identified by its span.
+#[salsa::tracked]
+pub struct UnnamableName {
+    pub parent: Option<DeclarableName>,
+    pub span: Span,
+}
+
+/// Represents any kind of name that may be referred to.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum Name {
+    Item(ItemName),
+    Local(LocalName),
+}
+
+/// Represents any kind of name that can be created with some kind of
+/// declaration or binding. This is different from a [referrable name](Name)
+/// because it also includes unnamable names (which, by definition, cannot be
+/// referred to). These may be used as the parent of any item.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DeclarableName {
+    Item(ItemName),
+    Local(LocalName),
+    Unnamable(UnnamableName),
+}
+
+impl From<Name> for DeclarableName {
+    fn from(value: Name) -> Self {
+        match value {
+            Name::Item(name) => DeclarableName::Item(name),
+            Name::Local(name) => DeclarableName::Local(name),
+        }
+    }
+}

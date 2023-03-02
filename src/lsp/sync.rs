@@ -4,7 +4,7 @@ use lsp_types::{notification, Url};
 use lsp_types::{MessageType, PublishDiagnosticsParams};
 
 use zippy_common::messages::Messages;
-use zippy_frontend::parser::get_tokens;
+use zippy_frontend::parser::get_ast;
 
 use super::Backend;
 use crate::project::SourceName;
@@ -15,9 +15,9 @@ impl Backend {
         let mut diagnostics: HashMap<Url, Vec<_>> = HashMap::new();
 
         for source in self.database.sources.iter() {
-            let _ = get_tokens(&self.database, *source);
+            let _ = get_ast(&self.database, *source);
 
-            for message in get_tokens::accumulated::<Messages>(&self.database, *source) {
+            for message in get_ast::accumulated::<Messages>(&self.database, *source) {
                 let (url, diagnostic) = self.make_diagnostic(message);
                 diagnostics.entry(url).or_default().push(diagnostic);
             }

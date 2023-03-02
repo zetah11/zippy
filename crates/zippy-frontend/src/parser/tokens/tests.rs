@@ -1,7 +1,9 @@
-use zippy_common::messages::Messages;
+use itertools::Itertools;
+use zippy_common::messages::Message;
 use zippy_common::source::Source;
+use zippy_common::Db;
 
-use super::{get_tokens, TokenType};
+use super::{Token, TokenIter, TokenType};
 
 #[derive(Default)]
 #[salsa::db(crate::Jar, zippy_common::Jar)]
@@ -11,13 +13,18 @@ struct MockDb {
 
 impl salsa::Database for MockDb {}
 
+fn get_tokens(db: &dyn Db, source: Source) -> (Vec<Message>, Vec<Token>) {
+    let content = source.content(db);
+    TokenIter::new(source, content).partition_map(Into::into)
+}
+
 /// Check that the lexer produces the expected token types, and that no messages
 /// are emitted.
 fn check(source: impl Into<String>, expected: &[TokenType]) {
     let db = MockDb::default();
     let source = Source::new(&db, "test".into(), source.into());
 
-    let tokens = get_tokens(&db, source);
+    let (messages, tokens) = get_tokens(&db, source);
 
     assert_eq!(expected.len(), tokens.len());
 
@@ -25,7 +32,6 @@ fn check(source: impl Into<String>, expected: &[TokenType]) {
         assert_eq!(expected, &actual.kind);
     }
 
-    let messages = get_tokens::accumulated::<Messages>(&db, source);
     assert!(messages.is_empty());
 }
 
@@ -35,7 +41,7 @@ fn check_error(source: impl Into<String>, expected: &[TokenType]) {
     let db = MockDb::default();
     let source = Source::new(&db, "test".into(), source.into());
 
-    let tokens = get_tokens(&db, source);
+    let (messages, tokens) = get_tokens(&db, source);
 
     assert_eq!(expected.len(), tokens.len());
 
@@ -43,7 +49,6 @@ fn check_error(source: impl Into<String>, expected: &[TokenType]) {
         assert_eq!(expected, &actual.kind);
     }
 
-    let messages = get_tokens::accumulated::<Messages>(&db, source);
     assert!(!messages.is_empty());
 }
 
@@ -53,7 +58,7 @@ fn lex_dedent_at_eof() {
     let expected = &[
         TokenType::Let,
         TokenType::Name("x".into()),
-        TokenType::Equals,
+        TokenType::Equal,
         TokenType::Indent,
         TokenType::Name("y".into()),
         TokenType::Dedent,
@@ -85,16 +90,16 @@ fn lex_dedents_and_eols() {
     let expected = &[
         TokenType::Let,
         TokenType::Name("x".into()),
-        TokenType::Equals,
+        TokenType::Equal,
         TokenType::Indent,
         TokenType::Let,
         TokenType::Name("y".into()),
-        TokenType::Equals,
+        TokenType::Equal,
         TokenType::Number("5".into()),
         TokenType::Eol,
         TokenType::Let,
         TokenType::Name("z".into()),
-        TokenType::Equals,
+        TokenType::Equal,
         TokenType::Name("y".into()),
         TokenType::Eol,
         TokenType::Name("z".into()),

@@ -31,9 +31,11 @@ pub enum RawToken {
 
     #[token(";")]
     Semicolon,
+    #[token(":")]
+    Colon,
 
     #[token("=")]
-    Equals,
+    Equal,
 
     #[regex(r"--[^\n\r]*", |lexer| lexer.slice().to_string())]
     #[regex(r"-\+", |lexer| lex_block_comment(Block::Normal, lexer))]
