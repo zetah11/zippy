@@ -3,11 +3,11 @@ use zippy_common::messages::{Message, Text};
 use zippy_common::source::Span;
 
 use super::format;
-use crate::output::format_code;
+use crate::output::{format_code, format_note_kind};
 use crate::Database;
 
 /// Print a nicely formatted diagnostic.
-pub(super) fn print_diagnostic(db: &Database, message: Message) -> anyhow::Result<()> {
+pub(super) fn print_diagnostic(db: &Database, message: Message) {
     let source_name = message.span.source.name(db);
     let source = message.span.source.content(db);
     let ranges = get_line_ranges(source, message.span);
@@ -15,7 +15,17 @@ pub(super) fn print_diagnostic(db: &Database, message: Message) -> anyhow::Resul
     let term = Terminal::new();
 
     // Print source info
-    eprint!("in {}", source_name.display());
+    let source_name = if let Some(root) = &db.root {
+        if let Ok(path) = source_name.strip_prefix(root) {
+            path.display()
+        } else {
+            source_name.display()
+        }
+    } else {
+        source_name.display()
+    };
+
+    eprint!("in {source_name}");
     if let Some((line, column)) = ranges.first().map(|range| (range.line, range.first_column)) {
         eprintln!(":{line}:{column}");
     } else {
@@ -29,9 +39,12 @@ pub(super) fn print_diagnostic(db: &Database, message: Message) -> anyhow::Resul
 
     eprintln!("{code}: {title}");
 
-    // Print source lines
+    // Print source lines and squigglies
     let biggest_line = ranges.iter().map(|range| range.line).max().unwrap_or(0);
     let line_number_width = count_digits(biggest_line);
+
+    // Only print squigglies on single-line errors.
+    let squigglies = ranges.len() == 1;
 
     for range in ranges {
         // Print line number
@@ -57,10 +70,24 @@ pub(super) fn print_diagnostic(db: &Database, message: Message) -> anyhow::Resul
         eprintln!("{source_line}");
 
         // Print squiggly thingies
-        eprintln!("{}{}", " ".repeat(indent + start), "^".repeat(end - start));
+        if squigglies {
+            eprintln!("{}{}", " ".repeat(indent + start), "^".repeat(end - start));
+        }
     }
 
-    Ok(())
+    // Print notes and helps
+    let any_notes = !message.notes.is_empty();
+    for (kind, note) in message.notes {
+        let kind = format_note_kind(kind);
+        let indent = kind.len() + 2;
+        eprintln!("{kind}: {}", term.indented(indent, note));
+    }
+
+    if any_notes {
+        eprintln!();
+    }
+
+    // TODO: print labels
 }
 
 pub(super) struct Terminal {
@@ -139,8 +166,8 @@ fn get_line_ranges(text: &str, span: Span) -> Vec<LineRange> {
             first_column = 0;
             last_column = 0;
 
-            first_byte = first_index + i;
-            last_byte = first_byte;
+            first_byte = first_index + i + 1;
+            last_byte = first_index + i;
         } else {
             last_column += c.len_utf8();
         }

@@ -4,6 +4,8 @@ mod meta;
 mod output;
 mod project;
 
+use std::path::PathBuf;
+
 use dashmap::DashMap;
 use project::SourceName;
 use zippy_common::source::Source;
@@ -28,6 +30,7 @@ fn main() {
 struct Database {
     storage: salsa::Storage<Self>,
     sources: DashMap<SourceName, Source>,
+    root: Option<PathBuf>,
 }
 
 impl salsa::Database for Database {}
@@ -37,6 +40,7 @@ impl salsa::ParallelDatabase for Database {
         salsa::Snapshot::new(Self {
             storage: self.storage.snapshot(),
             sources: DashMap::new(),
+            root: self.root.clone(),
         })
     }
 }
@@ -46,6 +50,14 @@ impl Database {
         Self {
             storage: salsa::Storage::default(),
             sources: DashMap::new(),
+            root: None,
+        }
+    }
+
+    pub fn with_root(self, root: impl Into<PathBuf>) -> Self {
+        Self {
+            root: Some(root.into()),
+            ..self
         }
     }
 
