@@ -5,4 +5,5 @@
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Code {
     SyntaxError,
+    DeclarationError,
 }

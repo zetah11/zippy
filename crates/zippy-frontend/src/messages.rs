@@ -1,6 +1,13 @@
 use zippy_common::messages::{Message, MessageContainer, Messages};
+use zippy_common::names::Name;
+use zippy_common::source::Span;
 
 use crate::Db;
+
+pub trait NameMessages {
+    /// A name has already been defined.
+    fn duplicate_definition(&mut self, name: Option<Name>, previous: Span);
+}
 
 pub trait ParseMessages {
     /// Expected an expression.

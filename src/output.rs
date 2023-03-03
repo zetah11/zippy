@@ -4,6 +4,7 @@ use zippy_common::messages::{Code, NoteKind};
 pub fn format_code(code: Code) -> &'static str {
     match code {
         Code::SyntaxError => "syntax error",
+        Code::DeclarationError => "declaration error",
     }
 }
 

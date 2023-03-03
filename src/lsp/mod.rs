@@ -1,3 +1,4 @@
+mod check;
 mod client;
 mod diagnostic;
 mod format;
@@ -194,13 +195,13 @@ impl Server for Backend {
 
         let content = params.content_changes.pop().unwrap();
         self.update_document(uri, content.text);
-        self.check();
+        self.check_and_publish();
     }
 
     fn did_close_text_document(&mut self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         self.update_document_from_source(uri);
-        self.check();
+        self.check_and_publish();
     }
 
     fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams) {
@@ -211,7 +212,7 @@ impl Server for Backend {
 
         let content = params.text_document.text;
         self.update_document(uri, content);
-        self.check();
+        self.check_and_publish();
     }
 
     fn did_save_text_document(&mut self, params: lsp_types::DidSaveTextDocumentParams) {
@@ -223,7 +224,7 @@ impl Server for Backend {
             self.update_document_from_source(uri);
         }
 
-        self.check();
+        self.check_and_publish();
     }
 
     fn shutdown(&mut self) {}

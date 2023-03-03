@@ -9,12 +9,13 @@ use zippy_common::source::Span;
 use super::format::format_text;
 use super::Backend;
 use crate::output::format_code;
+use crate::pretty::Prettier;
 use crate::{meta, Database};
 
 impl Backend {
     /// Create an LSP diagnostic for the given message, as well as the URI for
     /// the source it comes from.
-    pub fn make_diagnostic(&self, message: Message) -> (Url, Diagnostic) {
+    pub fn make_diagnostic(&self, prettier: &Prettier, message: Message) -> (Url, Diagnostic) {
         let severity = match message.severity {
             Severity::Error => DiagnosticSeverity::ERROR,
             Severity::Warning => DiagnosticSeverity::WARNING,
@@ -30,7 +31,7 @@ impl Backend {
             .labels
             .into_iter()
             .flat_map(|(span, label)| {
-                let message = format_text(label);
+                let message = format_text(prettier, label);
                 let location = Location {
                     range: span_to_range(&self.database, span),
                     uri: span_to_uri(&self.database, span),
@@ -41,7 +42,7 @@ impl Backend {
             .collect();
 
         let code = format_code(message.code);
-        let message = format_text(message.title);
+        let message = format_text(prettier, message.title);
 
         let diagnostic = Diagnostic {
             range,

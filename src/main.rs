@@ -2,7 +2,9 @@ mod cli;
 mod lsp;
 mod meta;
 mod output;
+mod pretty;
 mod project;
+mod span;
 
 use std::path::PathBuf;
 
@@ -26,8 +28,9 @@ fn main() {
     result.unwrap()
 }
 
+#[derive(Default)]
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
-struct Database {
+pub struct Database {
     storage: salsa::Storage<Self>,
     source_names: BiMap<PathBuf, SourceName>,
     sources: DashMap<SourceName, Source>,

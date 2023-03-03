@@ -1,7 +1,7 @@
 mod files;
 mod modules;
 
-pub(crate) use self::modules::{source_name_from_path, DEFAULT_ROOT_NAME};
+pub use self::modules::{source_name_from_path, DEFAULT_ROOT_NAME};
 
 use zippy_common::source::Project;
 

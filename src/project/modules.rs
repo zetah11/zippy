@@ -18,7 +18,7 @@ pub const DEFAULT_ROOT_NAME: &str = "Root";
 /// Directory- and filenames are converted into title case.
 ///
 /// (cursed warning: paths are cursed, therefore this function is cursed)
-pub(crate) fn source_name_from_path(
+pub fn source_name_from_path(
     db: &Database,
     project: Option<&FsProject>,
     path: impl AsRef<Path>,

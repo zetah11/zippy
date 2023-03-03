@@ -1,14 +1,34 @@
+use crate::pretty::Prettier;
+use crate::Database;
+
 use super::format;
+use zippy_common::messages::Text;
 use zippy_common::text;
+
+fn check_plain(expected: &str, text: Text) {
+    let db = Database::new();
+    let prettier = Prettier::new(&db);
+    let formatted = format::plain(&prettier, text);
+
+    assert_eq!(expected, &formatted);
+}
+
+fn check_indented(expected: &str, give_up: usize, width: Option<usize>, indent: usize, text: Text) {
+    let db = Database::new();
+    let prettier = Prettier::new(&db);
+    let formatted = format::indented(&prettier, give_up, width, indent, text);
+
+    assert_eq!(expected, &formatted);
+}
 
 #[test]
 fn format_plain_works() {
-    let formatted = format::plain(text![
+    let text = text![
         "hello ",
         (code "world!")
-    ]);
+    ];
 
-    assert_eq!("hello `world!`", &formatted);
+    check_plain("hello `world!`", text);
 }
 
 #[test]
@@ -16,17 +36,12 @@ fn format_indented_small_is_unchanged() {
     let give_up = 0;
     let width = Some(40);
     let indent = 8;
-    let formatted = format::indented(
-        give_up,
-        width,
-        indent,
-        text![
-            "hello ",
-            (code "world!")
-        ],
-    );
+    let text = text![
+        "hello ",
+        (code "world!")
+    ];
 
-    assert_eq!("hello `world!`", &formatted);
+    check_indented("hello `world!`", give_up, width, indent, text);
 }
 
 #[test]
@@ -34,16 +49,11 @@ fn format_indented_many_words() {
     let give_up = 0;
     let width = Some(10);
     let indent = 0;
-    let formatted = format::indented(
-        give_up,
-        width,
-        indent,
-        text!["abc def ghi jkl  mno pqr stu vwx yz."],
-    );
+    let text = text!["abc def ghi jkl  mno pqr stu vwx yz."];
 
     let expected = "abc def\nghi jkl\nmno pqr\nstu vwx\nyz.";
 
-    assert_eq!(expected, &formatted);
+    check_indented(expected, give_up, width, indent, text);
 }
 
 #[test]
@@ -51,16 +61,11 @@ fn format_indented_give_up() {
     let give_up = 10;
     let width = Some(15);
     let indent = 8;
-    let formatted = format::indented(
-        give_up,
-        width,
-        indent,
-        text!["abc def ghi jkl mno pqr stu vwx yz."],
-    );
+    let text = text!["abc def ghi jkl mno pqr stu vwx yz."];
 
     let expected = "abc def ghi jkl mno pqr stu vwx yz.";
 
-    assert_eq!(expected, &formatted);
+    check_indented(expected, give_up, width, indent, text);
 }
 
 #[test]
@@ -68,12 +73,7 @@ fn format_indented_works() {
     let give_up = 10;
     let width = Some(20);
     let indent = 4;
-    let formatted = format::indented(
-        give_up,
-        width,
-        indent,
-        text!["there is text here which should eventually get the proper indentation hopefully pleasepleasepleaseplease"],
-    );
+    let text = text!["there is text here which should eventually get the proper indentation hopefully pleasepleasepleaseplease"];
 
     let expected = r#"there is text
     here which
@@ -85,7 +85,7 @@ fn format_indented_works() {
     pleasepleaseplea
     se"#;
 
-    assert_eq!(expected, &formatted);
+    check_indented(expected, give_up, width, indent, text);
 }
 
 #[test]

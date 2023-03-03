@@ -16,6 +16,8 @@ pub struct Module {
 pub struct AstSource {
     #[id]
     pub source: Source,
+
+    #[return_ref]
     pub items: Vec<Item>,
 }
 

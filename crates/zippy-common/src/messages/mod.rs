@@ -2,6 +2,7 @@ mod codes;
 
 pub use self::codes::Code;
 
+use crate::names::Name;
 use crate::source::Span;
 
 /// Contains messages produced during queries.
@@ -124,6 +125,9 @@ pub enum TextPart {
 
     /// Some piece of code.
     Code(String),
+
+    /// Some user-defined name.
+    Name(Name),
 }
 
 /// This is used as an intermediate struct to generate messages using syntax
@@ -191,6 +195,10 @@ impl MessageContainer for &'_ mut Vec<Message> {
 macro_rules! text {
     (part (code $part:tt)) => {
         $crate::messages::TextPart::Code($part.into())
+    };
+
+    (part (name $part:tt)) => {
+        $crate::messages::TextPart::Name($part)
     };
 
     (part $part:tt) => {

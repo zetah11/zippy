@@ -16,6 +16,8 @@
 use itertools::Itertools;
 use zippy_common::messages::{Text, TextPart};
 
+use crate::pretty::Prettier;
+
 /// Format the given string such that the span `highlight` is visible, cutting
 /// off either with ellipses (`...`) if the entire line cannot fit.
 ///
@@ -114,12 +116,18 @@ pub fn cutoff(
 ///
 /// TODO: This should treat `Code` parts as "prefer not to break", putting them
 /// on a separate line if possible, breaking at word boundaries if not, etc.
-pub fn indented(give_up: usize, width: Option<usize>, indent: usize, text: Text) -> String {
+pub fn indented(
+    prettier: &Prettier,
+    give_up: usize,
+    width: Option<usize>,
+    indent: usize,
+    text: Text,
+) -> String {
     // Format the text using `plain` first so that "joins" between distinct text
     // parts are handled correctly. For instance, "`abc`d" (a code part followed
     // by a text part) should be treated as one word without a space inbetween,
     // not as two.
-    let text = plain(text);
+    let text = plain(prettier, text);
 
     let Some(width) = width else {
         return text;
@@ -178,12 +186,13 @@ pub fn indented(give_up: usize, width: Option<usize>, indent: usize, text: Text)
 }
 
 /// Format the given `text` "plainly" as a continuous run of characters.
-pub fn plain(text: Text) -> String {
+pub fn plain(prettier: &Prettier, text: Text) -> String {
     text.0
         .into_iter()
         .map(|part| match part {
             TextPart::Text(text) => text,
             TextPart::Code(code) => format!("`{code}`"),
+            TextPart::Name(name) => format!("`{}`", prettier.pretty_name(name)),
         })
         .join("")
 }

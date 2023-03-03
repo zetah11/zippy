@@ -8,10 +8,16 @@ use zippy_common::source::Span;
 
 use super::format;
 use crate::output::{format_code, format_note_kind};
+use crate::pretty::Prettier;
+use crate::span::{find_span_start, SpanStartInfo};
 use crate::Database;
 
 /// Print a nicely formatted diagnostic.
-pub(super) fn print_diagnostic(db: &Database, message: Message) -> io::Result<()> {
+pub(super) fn print_diagnostic(
+    db: &Database,
+    prettier: &Prettier,
+    message: Message,
+) -> io::Result<()> {
     let source_name = message.span.source.name(db);
     let source_name = db
         .source_names
@@ -46,7 +52,7 @@ pub(super) fn print_diagnostic(db: &Database, message: Message) -> io::Result<()
     // Print code and title
     let code = format_code(message.code);
     let indent = code.len() + 2;
-    let title = term.indented(indent, message.title);
+    let title = term.indented(prettier, indent, message.title);
 
     term.print_severe(message.severity, code)?;
     term.print(": ")?;
@@ -99,7 +105,7 @@ pub(super) fn print_diagnostic(db: &Database, message: Message) -> io::Result<()
     // Print notes and helps
     let any_notes = !message.notes.is_empty();
     for (kind, note) in message.notes {
-        term.print_note(kind, note)?;
+        term.print_note(prettier, kind, note)?;
         term.newline()?;
     }
 
@@ -135,8 +141,8 @@ impl Terminal {
         }
     }
 
-    pub fn indented(&self, indent: usize, text: Text) -> String {
-        format::indented(Self::GIVE_UP, self.width, indent, text)
+    pub fn indented(&self, prettier: &Prettier, indent: usize, text: Text) -> String {
+        format::indented(prettier, Self::GIVE_UP, self.width, indent, text)
     }
 
     pub fn finish(&mut self) -> io::Result<()> {
@@ -181,10 +187,15 @@ impl Terminal {
         }
     }
 
-    pub fn print_note(&mut self, kind: NoteKind, text: Text) -> io::Result<()> {
+    pub fn print_note(
+        &mut self,
+        prettier: &Prettier,
+        kind: NoteKind,
+        text: Text,
+    ) -> io::Result<()> {
         let kind = format_note_kind(kind);
         let indent = kind.len() + 2;
-        let text = self.indented(indent, text);
+        let text = self.indented(prettier, indent, text);
 
         if self.colorful {
             queue!(self.stderr, style::Print(kind.green()))?;
@@ -223,7 +234,12 @@ fn count_digits(mut num: usize) -> usize {
 
 /// Compute the line ranges for the given span in the given text.
 fn get_line_ranges(text: &str, span: Span) -> Vec<LineRange> {
-    let (mut line, first_index) = find_first_line(text, span);
+    let SpanStartInfo {
+        mut line,
+        line_index: first_index,
+        ..
+    } = find_span_start(text, span);
+
     let mut ranges = Vec::new();
 
     let mut first_byte = first_index;
@@ -277,32 +293,4 @@ fn get_line_ranges(text: &str, span: Span) -> Vec<LineRange> {
     }
 
     ranges
-}
-
-/// Get the line and byte index of the first line that intersects with the span.
-/// The line is zero-indexed, so the first line is `0`.
-///
-/// # Panics
-///
-/// Panics if the span is outside the text.
-fn find_first_line(text: &str, span: Span) -> (usize, usize) {
-    let mut line = 0;
-    let mut line_start = 0;
-    let mut inside = false;
-
-    for (i, c) in text.char_indices() {
-        if c == '\n' {
-            line += 1;
-            line_start = i + 1; // newlines are one byte long, this is okay
-        }
-
-        if i >= span.start {
-            inside = true;
-            break;
-        }
-    }
-
-    assert!(inside);
-
-    (line, line_start)
 }

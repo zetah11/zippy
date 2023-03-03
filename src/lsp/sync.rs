@@ -1,40 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 
 use lsp_types::{notification, Url};
 use lsp_types::{MessageType, PublishDiagnosticsParams};
 
-use zippy_common::messages::Messages;
-use zippy_common::source::project::module_name_from_source;
-use zippy_frontend::parser::get_ast;
-
 use super::Backend;
 
 impl Backend {
-    /// Check the project and publish all generated diagnostics.
-    pub(super) fn check(&mut self) {
-        let mut diagnostics: HashMap<Url, Vec<_>> = HashMap::new();
-        let mut asts: HashMap<_, Vec<_>> = HashMap::new();
-
-        for source in self.database.sources.iter() {
-            let ast = get_ast(&self.database, *source);
-            let source_name = *ast.source(&self.database).name(&self.database);
-            let module_name = module_name_from_source(&self.database, source_name);
-
-            asts.entry(module_name).or_default().push(ast);
-
-            for message in get_ast::accumulated::<Messages>(&self.database, *source) {
-                let (url, diagnostic) = self.make_diagnostic(message);
-                diagnostics.entry(url).or_default().push(diagnostic);
-            }
-        }
-
-        let modules: Vec<_> = asts
-            .into_iter()
-            .map(|(name, sources)| zippy_frontend::ast::Module::new(&self.database, name, sources))
-            .collect();
-
-        let _ = modules;
+    /// Check the project and publish the generated diagnostics.
+    pub(super) fn check_and_publish(&mut self) {
+        let diagnostics = self.check();
 
         let current_diagnostics: HashSet<_> = diagnostics.keys().cloned().collect();
 

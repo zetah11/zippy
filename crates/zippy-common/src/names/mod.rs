@@ -65,7 +65,11 @@ pub struct UnnamableName {
 /// lambda?
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnnamableNameKind {
+    /// An unnamed function such as a lambda.
     Lambda,
+
+    /// Some pattern that's not just a single name.
+    Pattern,
 }
 
 /// Represents any kind of name that may be referred to.
@@ -84,6 +88,16 @@ pub enum DeclarableName {
     Item(ItemName),
     Local(LocalName),
     Unnamable(UnnamableName),
+}
+
+impl DeclarableName {
+    pub fn to_name(self) -> Option<Name> {
+        match self {
+            Self::Item(item) => Some(Name::Item(item)),
+            Self::Local(item) => Some(Name::Local(item)),
+            Self::Unnamable(_) => None,
+        }
+    }
 }
 
 impl From<Name> for DeclarableName {
