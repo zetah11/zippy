@@ -6,10 +6,10 @@ use lsp_types::{
 use zippy_common::messages::{Message, Severity};
 use zippy_common::source::Span;
 
-use crate::{meta, Database};
-
-use super::format::{format_code, format_text};
+use super::format::format_text;
 use super::Backend;
+use crate::output::format_code;
+use crate::{meta, Database};
 
 impl Backend {
     /// Create an LSP diagnostic for the given message, as well as the URI for

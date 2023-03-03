@@ -1,11 +1,5 @@
 use itertools::Itertools;
-use zippy_common::messages::{Code, Text, TextPart};
-
-pub fn format_code(code: Code) -> &'static str {
-    match code {
-        Code::SyntaxError => "syntax error",
-    }
-}
+use zippy_common::messages::{Text, TextPart};
 
 /// Format a [`Text`] into a string suitable for a language client.
 pub fn format_text(text: Text) -> String {

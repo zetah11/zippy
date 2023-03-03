@@ -1,5 +1,7 @@
+mod cli;
 mod lsp;
 mod meta;
+mod output;
 mod project;
 
 use dashmap::DashMap;
@@ -13,10 +15,13 @@ fn main() {
         None => print_usage_info("zc"),
     };
 
-    match args.next().as_ref().map(AsRef::as_ref) {
-        Some("lsp") => lsp::lsp().unwrap(),
+    let result = match args.next().as_ref().map(AsRef::as_ref) {
+        Some("check") => cli::check(),
+        Some("lsp") => lsp::lsp(),
         _ => print_usage_info(&program_name),
-    }
+    };
+
+    result.unwrap()
 }
 
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
@@ -67,8 +72,9 @@ fn print_usage_info(program_name: &str) -> ! {
     eprintln!("usage: {} <command>", program_name);
     eprintln!();
     eprintln!("available commands:");
+    eprintln!("  check    check the project for errors");
     eprintln!(
-        "  lsp   run {} as a language server on stdio",
+        "  lsp      run {} as a language server on stdio",
         meta::COMPILER_NAME
     );
 
