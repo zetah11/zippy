@@ -6,6 +6,11 @@ name = "zippyc"
 version = "0.0.1"
 edition = "2021"
 
+[profile.release]
+opt-level = 2
+lto = "thin"
+strip = "symbols"
+
 [[bin]]
 name = "zc"
 path = "src/main.rs"

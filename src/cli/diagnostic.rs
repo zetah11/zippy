@@ -2,7 +2,7 @@ use std::io::{self, stderr, Stderr, Write};
 
 use crossterm::ansi_support::supports_ansi;
 use crossterm::style::{self, Color, Stylize};
-use crossterm::{cursor, queue, terminal};
+use crossterm::{queue, terminal};
 use zippy_common::messages::{Message, NoteKind, Severity, Text};
 use zippy_common::source::Span;
 
@@ -139,7 +139,7 @@ impl Terminal {
     }
 
     pub fn newline(&mut self) -> io::Result<()> {
-        queue!(self.stderr, cursor::MoveToNextLine(1))
+        queue!(self.stderr, style::Print('\n'))
     }
 
     /// Print some text.
