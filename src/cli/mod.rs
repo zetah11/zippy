@@ -34,7 +34,7 @@ pub fn check() -> anyhow::Result<()> {
         let source = *source;
         let _ = get_ast(&database, source);
         for message in get_ast::accumulated::<Messages>(&database, source) {
-            print_diagnostic(&database, message);
+            print_diagnostic(&database, message)?;
         }
     }
 
