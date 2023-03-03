@@ -1,27 +1,40 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 
 use lsp_types::{notification, Url};
 use lsp_types::{MessageType, PublishDiagnosticsParams};
 
 use zippy_common::messages::Messages;
+use zippy_common::source::project::module_name_from_source;
 use zippy_frontend::parser::get_ast;
 
 use super::Backend;
-use crate::project::SourceName;
 
 impl Backend {
     /// Check the project and publish all generated diagnostics.
     pub(super) fn check(&mut self) {
         let mut diagnostics: HashMap<Url, Vec<_>> = HashMap::new();
+        let mut asts: HashMap<_, Vec<_>> = HashMap::new();
 
         for source in self.database.sources.iter() {
-            let _ = get_ast(&self.database, *source);
+            let ast = get_ast(&self.database, *source);
+            let source_name = *ast.source(&self.database).name(&self.database);
+            let module_name = module_name_from_source(&self.database, source_name);
+
+            asts.entry(module_name).or_default().push(ast);
 
             for message in get_ast::accumulated::<Messages>(&self.database, *source) {
                 let (url, diagnostic) = self.make_diagnostic(message);
                 diagnostics.entry(url).or_default().push(diagnostic);
             }
         }
+
+        let modules: Vec<_> = asts
+            .into_iter()
+            .map(|(name, sources)| zippy_frontend::ast::Module::new(&self.database, name, sources))
+            .collect();
+
+        let _ = modules;
 
         let current_diagnostics: HashSet<_> = diagnostics.keys().cloned().collect();
 
@@ -61,8 +74,8 @@ impl Backend {
             return;
         }
 
-        let name = match uri.to_file_path() {
-            Ok(path) => SourceName::new(path),
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
             Err(()) => {
                 self.client.log(
                     MessageType::ERROR,
@@ -72,18 +85,19 @@ impl Backend {
             }
         };
 
-        let content = match self.database.read_source(name.clone()) {
+        let content = match fs::read_to_string(&path) {
             Ok(content) => content,
             Err(e) => {
                 self.client.log(
                     MessageType::ERROR,
-                    format!("error reading source {}: {e}", name.as_path().display()),
+                    format!("error reading source {}: {e}", path.display()),
                 );
                 return;
             }
         };
 
-        self.write_content(name, content);
+        let name = self.path_to_source_name(path.clone());
+        self.write_content(path, name, content);
     }
 
     /// Update the contents of the document from a string.
@@ -96,8 +110,8 @@ impl Backend {
             return;
         }
 
-        let name = match uri.to_file_path() {
-            Ok(path) => SourceName::new(path),
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
             Err(()) => {
                 self.client.log(
                     MessageType::ERROR,
@@ -107,20 +121,7 @@ impl Backend {
             }
         };
 
-        self.write_content(name, content);
-    }
-
-    /// Write the given content to the given file.
-    fn write_content(&mut self, name: SourceName, content: String) {
-        let source = match self.database.sources.get(&name) {
-            Some(source) => *source,
-
-            None => {
-                self.database.add_source(name, content);
-                return;
-            }
-        };
-
-        source.set_content(&mut self.database).to(content);
+        let name = self.path_to_source_name(path.clone());
+        self.write_content(path, name, content);
     }
 }

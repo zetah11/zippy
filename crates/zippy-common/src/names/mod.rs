@@ -31,21 +31,21 @@ use crate::source::Span;
 
 /// This is simply an interned string intended to make it easier and fast to
 /// compare names. It should not be used as an identifier by itself, however.
-#[salsa::tracked]
+#[salsa::interned]
 pub struct RawName {
     #[return_ref]
     pub text: String,
 }
 
 /// A name of an item in some unordered declarative region.
-#[salsa::tracked]
+#[salsa::interned]
 pub struct ItemName {
     pub parent: Option<DeclarableName>,
     pub name: RawName,
 }
 
 /// A name of a local in some ordered, scoped region.
-#[salsa::tracked]
+#[salsa::interned]
 pub struct LocalName {
     pub parent: Option<DeclarableName>,
     pub name: RawName,
@@ -54,10 +54,18 @@ pub struct LocalName {
 
 /// The name of some item whose pattern contains no names, and so can only be
 /// identified by its span.
-#[salsa::tracked]
+#[salsa::interned]
 pub struct UnnamableName {
+    pub kind: UnnamableNameKind,
     pub parent: Option<DeclarableName>,
     pub span: Span,
+}
+
+/// How did this unnamable name come to be? Through an anonymous object? A
+/// lambda?
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum UnnamableNameKind {
+    Lambda,
 }
 
 /// Represents any kind of name that may be referred to.

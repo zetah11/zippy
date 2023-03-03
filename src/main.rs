@@ -6,9 +6,9 @@ mod project;
 
 use std::path::PathBuf;
 
+use bimap::BiMap;
 use dashmap::DashMap;
-use project::SourceName;
-use zippy_common::source::Source;
+use zippy_common::source::{Source, SourceName};
 
 fn main() {
     let mut args = std::env::args();
@@ -29,6 +29,7 @@ fn main() {
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
 struct Database {
     storage: salsa::Storage<Self>,
+    source_names: BiMap<PathBuf, SourceName>,
     sources: DashMap<SourceName, Source>,
     root: Option<PathBuf>,
 }
@@ -39,7 +40,8 @@ impl salsa::ParallelDatabase for Database {
     fn snapshot(&self) -> salsa::Snapshot<Self> {
         salsa::Snapshot::new(Self {
             storage: self.storage.snapshot(),
-            sources: DashMap::new(),
+            source_names: self.source_names.clone(),
+            sources: self.sources.clone(),
             root: self.root.clone(),
         })
     }
@@ -49,6 +51,7 @@ impl Database {
     pub fn new() -> Self {
         Self {
             storage: salsa::Storage::default(),
+            source_names: BiMap::new(),
             sources: DashMap::new(),
             root: None,
         }
@@ -61,16 +64,13 @@ impl Database {
         }
     }
 
-    /// Add a source to the database, as long as it hasn't been added yet.
-    pub fn add_source(&self, name: SourceName, content: String) -> Source {
-        let source = Source::new(self, name.as_path().to_path_buf(), content);
-        assert!(self.sources.insert(name, source).is_none());
-        source
-    }
+    /// Write the given content to a source file with the given path and source
+    /// name. This should only be called once times for the same file.
+    pub fn write_source(&mut self, path: PathBuf, name: SourceName, content: String) {
+        let source = Source::new(self, name, content);
 
-    /// Get the content of the source with the given name.
-    pub fn read_source(&self, source: SourceName) -> anyhow::Result<String> {
-        Ok(std::fs::read_to_string(source.as_path())?)
+        assert!(!self.source_names.insert(path, name).did_overwrite());
+        assert!(self.sources.insert(name, source).is_none());
     }
 }
 

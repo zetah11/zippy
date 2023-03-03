@@ -13,6 +13,11 @@ use crate::Database;
 /// Print a nicely formatted diagnostic.
 pub(super) fn print_diagnostic(db: &Database, message: Message) -> io::Result<()> {
     let source_name = message.span.source.name(db);
+    let source_name = db
+        .source_names
+        .get_by_right(source_name)
+        .expect("source name with no corresponding path");
+
     let source = message.span.source.content(db);
     let ranges = get_line_ranges(source, message.span);
 

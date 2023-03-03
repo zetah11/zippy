@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod names;
 pub mod parser;
 
 mod messages;
@@ -11,4 +12,8 @@ impl<Database> Db for Database where
 }
 
 #[salsa::jar(db = Db)]
-pub struct Jar(crate::ast::AstSource, crate::parser::get_ast);
+pub struct Jar(
+    crate::ast::AstSource,
+    crate::ast::Module,
+    crate::parser::get_ast,
+);

@@ -61,7 +61,12 @@ impl Backend {
 
 /// Get the URI for the given span.
 fn span_to_uri(db: &Database, span: Span) -> Url {
-    let path = span.source.name(db).as_path();
+    let path = span.source.name(db);
+    let path = db
+        .source_names
+        .get_by_right(path)
+        .expect("a `SourceName` with no corresponding path has been created");
+
     match Url::from_file_path(path) {
         Ok(url) => url,
         Err(()) => panic!("{} is not a file", path.display()),

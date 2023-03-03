@@ -1,4 +1,9 @@
 mod files;
+mod modules;
+
+pub(crate) use self::modules::{source_name_from_path, DEFAULT_ROOT_NAME};
+
+use zippy_common::source::Project;
 
 use std::path::{Path, PathBuf};
 
@@ -6,24 +11,34 @@ use log::{error, warn};
 
 use self::files::files;
 
-/// The name of a source, which for the language server is just a path to a
-/// file.
+/// Represents a project within a filesystem.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct SourceName(PathBuf);
+pub struct FsProject {
+    pub project: Project,
 
-impl SourceName {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        Self(path.as_ref().into())
+    /// The root directory of the project
+    pub root_dir: Option<PathBuf>,
+}
+
+impl FsProject {
+    pub fn new(project: Project) -> Self {
+        Self {
+            project,
+            root_dir: None,
+        }
     }
 
-    pub fn as_path(&self) -> &Path {
-        &self.0
+    pub fn with_root(self, root_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            root_dir: Some(root_dir.into()),
+            ..self
+        }
     }
 }
 
 /// Get the source names of every source that is part of the project in the
 /// current directory.
-pub fn get_project_sources(root: impl AsRef<Path>) -> Vec<SourceName> {
+pub fn get_project_sources(root: impl AsRef<Path>) -> Vec<PathBuf> {
     let files = match files(root) {
         Ok(files) => files,
         Err(e) => {
@@ -50,7 +65,7 @@ pub fn get_project_sources(root: impl AsRef<Path>) -> Vec<SourceName> {
         };
 
         let name = match ext.to_str() {
-            Some("z") => SourceName::new(path),
+            Some("z") => path,
             _ => continue,
         };
 

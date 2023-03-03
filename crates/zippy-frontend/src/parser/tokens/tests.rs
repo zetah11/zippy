@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use zippy_common::messages::Message;
-use zippy_common::source::Source;
+use zippy_common::source::{Project, Source, SourceName};
 use zippy_common::Db;
 
 use super::{Token, TokenIter, TokenType};
@@ -22,7 +22,9 @@ fn get_tokens(db: &dyn Db, source: Source) -> (Vec<Message>, Vec<Token>) {
 /// are emitted.
 fn check(source: impl Into<String>, expected: &[TokenType]) {
     let db = MockDb::default();
-    let source = Source::new(&db, "test".into(), source.into());
+    let project = Project::new(&db, "test".into());
+    let name = SourceName::new(&db, project, Vec::new());
+    let source = Source::new(&db, name, source.into());
 
     let (messages, tokens) = get_tokens(&db, source);
 
@@ -39,7 +41,9 @@ fn check(source: impl Into<String>, expected: &[TokenType]) {
 /// messages were emitted.
 fn check_error(source: impl Into<String>, expected: &[TokenType]) {
     let db = MockDb::default();
-    let source = Source::new(&db, "test".into(), source.into());
+    let project = Project::new(&db, "test".into());
+    let name = SourceName::new(&db, project, Vec::new());
+    let source = Source::new(&db, name, source.into());
 
     let (messages, tokens) = get_tokens(&db, source);
 

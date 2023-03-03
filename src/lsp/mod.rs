@@ -5,6 +5,7 @@ mod server;
 mod sync;
 
 use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use lsp_types::{
@@ -12,10 +13,11 @@ use lsp_types::{
     InitializeParams, MessageType, SaveOptions, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url,
 };
+use zippy_common::source::{Project, SourceName};
 
 use self::client::Client;
 use self::server::{InitServer, LspError, LspServer, Server};
-use crate::project::get_project_sources;
+use crate::project::{get_project_sources, source_name_from_path, FsProject, DEFAULT_ROOT_NAME};
 use crate::{meta, Database};
 
 /// Run the compiler as a language server on stdio. This function may exit the
@@ -50,7 +52,10 @@ impl InitServer for BackendBuilder {
             .root
             .unwrap_or_else(|| std::env::current_dir().expect("no sensible project root"));
 
-        Backend::new(root, client)
+        let mut backend = Backend::new(client);
+        backend.init_project(&root);
+        backend.init_sources(&root);
+        backend
     }
 
     fn initialize(&mut self, params: InitializeParams) -> ServerCapabilities {
@@ -96,6 +101,8 @@ struct Backend {
     client: Client,
     database: Database,
 
+    project: Option<FsProject>,
+
     /// Diagnostics in the language server protocol are (primarily) published by
     /// the server. A file without any diagnostics can be "cleared" by sending
     /// a `textDocument/publishDiagnostics` notification to the client with an
@@ -107,29 +114,69 @@ struct Backend {
 impl Backend {
     /// Create a new language server backend in the given project root for the
     /// given client.
-    pub fn new(root: impl AsRef<Path>, mut client: Client) -> Self {
+    pub fn new(client: Client) -> Self {
         let database = Database::new();
-
-        for source in get_project_sources(root) {
-            let content = match database.read_source(source.clone()) {
-                Ok(content) => content,
-                Err(e) => {
-                    client.log(
-                        MessageType::ERROR,
-                        format!("Error initializing with file: {e}"),
-                    );
-                    continue;
-                }
-            };
-
-            database.add_source(source, content);
-        }
 
         Self {
             client,
             database,
+            project: None,
             has_diagnostics: HashSet::new(),
         }
+    }
+
+    fn init_project(&mut self, root: impl AsRef<Path>) {
+        let root = root.as_ref();
+        let name = match root.file_name() {
+            Some(name) => name.to_string_lossy().into_owned(),
+            None => DEFAULT_ROOT_NAME.to_string(),
+        };
+
+        let project = Project::new(&self.database, name);
+        self.project = Some(FsProject::new(project));
+    }
+
+    fn init_sources(&mut self, root: impl AsRef<Path>) {
+        for name in get_project_sources(root) {
+            let content = match fs::read_to_string(name.clone()) {
+                Ok(content) => content,
+                Err(e) => {
+                    self.client.log(
+                        MessageType::ERROR,
+                        format!("Error initializing with file: {e}"),
+                    );
+
+                    continue;
+                }
+            };
+
+            let source_name = self.path_to_source_name(name.clone());
+            self.write_content(name, source_name, content);
+        }
+    }
+
+    fn path_to_source_name(&mut self, path: PathBuf) -> SourceName {
+        match self.database.source_names.get_by_left(&path) {
+            Some(name) => *name,
+            None => source_name_from_path(&self.database, self.project.as_ref(), path),
+        }
+    }
+
+    /// Write the given content to the given file.
+    fn write_content(&mut self, path: PathBuf, name: SourceName, content: String) {
+        // yeaaa..... what don't you do for borrowck
+        'create: {
+            let source = if let Some(source) = self.database.sources.get(&name) {
+                *source
+            } else {
+                break 'create;
+            };
+
+            source.set_content(&mut self.database).to(content);
+            return;
+        }
+
+        self.database.write_source(path, name, content);
     }
 }
 
