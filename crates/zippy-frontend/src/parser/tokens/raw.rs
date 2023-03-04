@@ -21,6 +21,8 @@ pub enum RawToken {
 
     #[token("fun")]
     Fun,
+    #[token("import")]
+    Import,
     #[token("let")]
     Let,
 
@@ -29,6 +31,8 @@ pub enum RawToken {
     #[token(")")]
     RightParen,
 
+    #[token(".")]
+    Period,
     #[token(";")]
     Semicolon,
     #[token(":")]

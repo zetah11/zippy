@@ -26,7 +26,9 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
 
     /// Parse a single item.
     pub fn parse_item(&mut self) -> Item {
-        if let Some(opener) = self.consume(TokenType::Let) {
+        if let Some(opener) = self.consume(TokenType::Import) {
+            self.parse_import(opener)
+        } else if let Some(opener) = self.consume(TokenType::Let) {
             self.parse_let(opener)
         } else if self.peek_expr() {
             self.parse_expr()
@@ -42,8 +44,26 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
 
     /// Returns `true` if the next token could be the start of an item.
     pub(super) fn peek_item(&self) -> bool {
-        const ITEM_STARTS: &[TokenType] = &[TokenType::Let];
+        const ITEM_STARTS: &[TokenType] = &[TokenType::Import, TokenType::Let];
         self.peek(ITEM_STARTS).is_some() || self.peek_expr()
+    }
+
+    /// Parse an `import` item.
+    fn parse_import(&mut self, opener: Span) -> Item {
+        if !self.peek_expr() {
+            let span = opener;
+            self.at(span).expected_name();
+            return Item {
+                span,
+                node: ItemNode::Invalid,
+            };
+        }
+
+        let item = self.parse_expr();
+        Item {
+            span: opener + item.span,
+            node: ItemNode::Import(Box::new(item)),
+        }
     }
 
     /// Parse a `let` binding

@@ -18,6 +18,13 @@ impl<C: MessageContainer> ParseMessages for MessageMaker<C> {
         self.add(message);
     }
 
+    fn expected_name(&mut self) {
+        let message = self
+            .error(Code::SyntaxError)
+            .with_title(text!["expected a name"]);
+        self.add(message);
+    }
+
     fn expected_pattern(&mut self) {
         let message = self
             .error(Code::SyntaxError)

@@ -83,10 +83,12 @@ pub enum TokenType {
     String(String),
 
     Fun,
+    Import,
     Let,
 
     Colon,
     Equal,
+    Period,
 
     LeftParen,
     RightParen,
@@ -233,10 +235,12 @@ impl Iterator for TokenIter<'_> {
                 RawToken::String(string) => TokenType::String(string),
 
                 RawToken::Fun => TokenType::Fun,
+                RawToken::Import => TokenType::Import,
                 RawToken::Let => TokenType::Let,
 
                 RawToken::Colon => TokenType::Colon,
                 RawToken::Equal => TokenType::Equal,
+                RawToken::Period => TokenType::Period,
 
                 RawToken::LeftParen => TokenType::LeftParen,
                 RawToken::RightParen => TokenType::RightParen,

@@ -11,22 +11,14 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
 
     /// Returns `true` if the current token could be the start of an expression.
     pub(super) fn peek_expr(&self) -> bool {
-        const EXPR_STARTS: &[TokenType] = &[
-            TokenType::Indent,
-            TokenType::LeftParen,
-            TokenType::Name(String::new()),
-            TokenType::Number(String::new()),
-            TokenType::String(String::new()),
-        ];
-
-        self.peek(EXPR_STARTS).is_some()
+        self.peek_simple_expr()
     }
 
     fn annotation_expr(&mut self) -> Item {
-        let expr = self.simple_expr();
+        let expr = self.invoke_expr();
 
         if self.consume(TokenType::Colon).is_some() {
-            let ty = Box::new(self.simple_expr());
+            let ty = Box::new(self.invoke_expr());
             Item {
                 span: expr.span + ty.span,
                 node: ItemNode::Annotation(Box::new(expr), ty),
@@ -34,6 +26,36 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
         } else {
             expr
         }
+    }
+
+    fn invoke_expr(&mut self) -> Item {
+        let mut expr = self.simple_expr();
+
+        while let Some(period) = self.consume(TokenType::Period) {
+            if self.peek_simple_expr() {
+                let field = self.simple_expr();
+                expr = Item {
+                    span: expr.span + field.span,
+                    node: ItemNode::Path(Box::new(expr), Box::new(field)),
+                };
+            } else {
+                self.at(period).expected_name();
+            }
+        }
+
+        expr
+    }
+
+    fn peek_simple_expr(&self) -> bool {
+        const SIMPLE_STARTS: &[TokenType] = &[
+            TokenType::Name(String::new()),
+            TokenType::Number(String::new()),
+            TokenType::String(String::new()),
+            TokenType::LeftParen,
+            TokenType::Indent,
+        ];
+
+        self.peek(SIMPLE_STARTS).is_some()
     }
 
     fn simple_expr(&mut self) -> Item {

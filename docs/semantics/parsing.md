@@ -52,12 +52,14 @@ Capitalized words are tokens.
     items      = [item *(delimit item)]
     delimit    = SEMICOLON / EOL
 
-    item       = let-item / expression
+    item       = import / let / expression
 
+    import     = IMPORT expression
     let        = LET expression [EQUAL expression]
 
     expression = annotate
-    annotate   = simple [COLON simple]
+    annotate   = invoke [COLON invoke]
+    invoke     = [invoke PERIOD] simple
 
     simple     = NAME / NUMBER / STRING
                / LEFT-PAREN items RIGHT-PAREN

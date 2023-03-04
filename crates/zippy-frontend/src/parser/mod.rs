@@ -11,7 +11,7 @@ use zippy_common::names::ItemName;
 use zippy_common::source::project::module_name_from_source;
 use zippy_common::source::Source;
 
-use self::abstraction::abstract_item;
+use self::abstraction::{abstract_item, ItemOrImports};
 use self::parse::Parser;
 use self::tokens::TokenIter;
 use crate::ast::AstSource;
@@ -52,11 +52,17 @@ pub fn get_ast(db: &dyn Db, source: Source) -> AstSource {
     });
 
     let mut parser = Parser::new(db, source, tokens);
-    let items = parser.parse_items();
-    let items = items
-        .into_iter()
-        .filter_map(|item| abstract_item(db, item))
-        .collect();
+    let csts = parser.parse_items();
+    let mut items = Vec::new();
+    let mut imports = Vec::new();
 
-    AstSource::new(db, source, items)
+    for cst in csts {
+        match abstract_item(db, cst) {
+            ItemOrImports::Item(item) => items.push(item),
+            ItemOrImports::Imports(names) => imports.extend(names),
+            ItemOrImports::Neither => {}
+        }
+    }
+
+    AstSource::new(db, source, items, imports)
 }

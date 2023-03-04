@@ -9,6 +9,21 @@ pub struct AstSource {
 
     #[return_ref]
     pub items: Vec<Item>,
+
+    #[return_ref]
+    pub imports: Vec<Import>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Import {
+    pub from: Option<Expression>,
+    pub names: Vec<ImportedName>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct ImportedName {
+    pub span: Span,
+    pub name: Identifier,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -49,6 +64,7 @@ pub enum ExpressionNode {
     Block(Vec<Expression>),
 
     Annotate(Box<Expression>, Box<Type>),
+    Path(Box<Expression>, Identifier),
 
     Name(Identifier),
     Number(String),

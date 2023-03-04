@@ -14,7 +14,10 @@ pub struct Item {
 
 #[derive(Clone, Debug)]
 pub enum ItemNode {
-    // A let binding or expression.
+    /// Brings a name into scope.
+    Import(Box<Item>),
+
+    /// A let binding or expression.
     Let {
         pattern: Box<Item>,
         body: Option<Box<Item>>,
@@ -22,6 +25,9 @@ pub enum ItemNode {
 
     /// A type annotation.
     Annotation(Box<Item>, Box<Item>),
+
+    /// Two items separated by a dot.
+    Path(Box<Item>, Box<Item>),
 
     // Some parenthesized or indented group of delimited items.
     Group(Vec<Item>),

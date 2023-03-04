@@ -16,6 +16,9 @@ pub trait ParseMessages {
     /// Expected an item.
     fn expected_item(&mut self);
 
+    /// Expected a name.
+    fn expected_name(&mut self);
+
     /// Expected a pattern.
     fn expected_pattern(&mut self);
 
