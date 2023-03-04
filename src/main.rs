@@ -10,7 +10,9 @@ use std::path::PathBuf;
 
 use bimap::BiMap;
 use dashmap::DashMap;
+use zippy_common::names::ItemName;
 use zippy_common::source::{Source, SourceName};
+use zippy_frontend::ast;
 
 fn main() {
     let mut args = std::env::args();
@@ -32,9 +34,13 @@ fn main() {
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
 pub struct Database {
     storage: salsa::Storage<Self>,
+    root: Option<PathBuf>,
+
+    // Inputs
     source_names: BiMap<PathBuf, SourceName>,
     sources: DashMap<SourceName, Source>,
-    root: Option<PathBuf>,
+
+    ast_modules: DashMap<ItemName, ast::Module>,
 }
 
 impl salsa::Database for Database {}
@@ -43,9 +49,12 @@ impl salsa::ParallelDatabase for Database {
     fn snapshot(&self) -> salsa::Snapshot<Self> {
         salsa::Snapshot::new(Self {
             storage: self.storage.snapshot(),
+            root: self.root.clone(),
+
             source_names: self.source_names.clone(),
             sources: self.sources.clone(),
-            root: self.root.clone(),
+
+            ast_modules: self.ast_modules.clone(),
         })
     }
 }
@@ -54,9 +63,12 @@ impl Database {
     pub fn new() -> Self {
         Self {
             storage: salsa::Storage::default(),
+            root: None,
+
             source_names: BiMap::new(),
             sources: DashMap::new(),
-            root: None,
+
+            ast_modules: DashMap::new(),
         }
     }
 
