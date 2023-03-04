@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use zippy_common::messages::MessageMaker;
-use zippy_common::names::{DeclarableName, ItemName, RawName, UnnamableName, UnnamableNameKind};
+use zippy_common::names::{
+    DeclarableName, ItemName, Name, RawName, UnnamableName, UnnamableNameKind,
+};
 use zippy_common::source::{Module, Span};
 
 use crate::ast::{AstSource, Expression, Item, Pattern, PatternNode};
@@ -28,6 +30,7 @@ struct Declarer<'db> {
     db: &'db dyn Db,
     scope: (Vec<DeclarableName>, DeclarableName),
     names: HashMap<DeclarableName, Span>,
+    imports: HashMap<RawName, Span>,
 }
 
 impl<'db> Declarer<'db> {
@@ -38,10 +41,29 @@ impl<'db> Declarer<'db> {
             db,
             scope: (Vec::new(), scope),
             names: HashMap::new(),
+            imports: HashMap::new(),
         }
     }
 
     pub fn declare_source(&mut self, source: AstSource) {
+        for import in source.imports(self.db) {
+            for name in import.names.iter() {
+                let span = name.span;
+                let alias = name.alias.name;
+
+                if let Some(previous) = self.imports.get(&alias) {
+                    // Kinda hacky but shhh
+                    let name = ItemName::new(self.common_db(), None, alias);
+                    self.at(span)
+                        .duplicate_definition(Some(Name::Item(name)), *previous);
+
+                    continue;
+                }
+
+                self.imports.insert(alias, span);
+            }
+        }
+
         for item in source.items(self.db) {
             self.declare_item(item);
         }
@@ -115,6 +137,13 @@ impl<'db> Declarer<'db> {
                 .duplicate_definition(name.to_name(), *previous);
 
             return;
+        }
+
+        if let DeclarableName::Item(item) = name {
+            if let Some(previous) = self.imports.get(&item.name(self.common_db())) {
+                self.at(span)
+                    .duplicate_definition(name.to_name(), *previous);
+            }
         }
 
         self.names.insert(name, span);

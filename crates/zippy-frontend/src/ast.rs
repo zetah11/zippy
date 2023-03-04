@@ -23,7 +23,12 @@ pub struct Import {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedName {
     pub span: Span,
+
+    /// The actual name being imported.
     pub name: Identifier,
+
+    /// The name as it appears in this source.
+    pub alias: Identifier,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

@@ -61,9 +61,11 @@ fn abstract_import(db: &dyn Db, item: cst::Item) -> Vec<ast::Import> {
                 .flat_map(|item| imported_name(db, item))
                 .collect(),
             cst::ItemNode::Name(name) => {
+                let name = make_name(db, span, name);
                 let name = ast::ImportedName {
                     span,
-                    name: make_name(db, span, name),
+                    name,
+                    alias: name,
                 };
 
                 vec![name]
