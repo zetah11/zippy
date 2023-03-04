@@ -1,5 +1,5 @@
+use crate::database::Database;
 use crate::pretty::Prettier;
-use crate::Database;
 
 use super::format;
 use zippy_common::messages::Text;

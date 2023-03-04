@@ -1,4 +1,3 @@
-use log::warn;
 use zippy_common::names::{
     DeclarableName, ItemName, LocalName, Name, UnnamableName, UnnamableNameKind,
 };
@@ -58,16 +57,10 @@ impl Prettier<'_> {
 
             let SpanStartInfo { line, column, .. } = find_span_start(source, span);
 
-            match self.db.source_names.get_by_right(span.source.name(self.db)) {
-                Some(name) => match name.file_name() {
-                    Some(name) => format!("<{kind} in {}:{line}:{column}>", name.to_string_lossy()),
-                    None => format!("<{kind} in {}:{line}:{column}>", name.display()),
-                },
-
-                None => {
-                    warn!("source name without associated path");
-                    format!("<{kind}>")
-                }
+            let name = self.db.get_source_path(span.source.name(self.db));
+            match name.file_name() {
+                Some(name) => format!("<{kind} in {}:{line}:{column}>", name.to_string_lossy()),
+                None => format!("<{kind} in {}:{line}:{column}>", name.display()),
             }
         } else {
             format!("<{kind}>")

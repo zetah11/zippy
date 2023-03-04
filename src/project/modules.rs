@@ -5,7 +5,7 @@ use log::warn;
 use zippy_common::source::{Project, SourceName};
 
 use super::FsProject;
-use crate::Database;
+use crate::database::Database;
 
 pub const DEFAULT_ROOT_NAME: &str = "Root";
 

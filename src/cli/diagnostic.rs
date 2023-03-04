@@ -7,22 +7,21 @@ use zippy_common::messages::{Message, NoteKind, Severity, Text};
 use zippy_common::source::Span;
 
 use super::format;
+use crate::database::Database;
 use crate::output::{format_code, format_note_kind};
 use crate::pretty::Prettier;
+use crate::project::FsProject;
 use crate::span::{find_span_start, SpanStartInfo};
-use crate::Database;
 
 /// Print a nicely formatted diagnostic.
 pub(super) fn print_diagnostic(
     db: &Database,
+    project: Option<&FsProject>,
     prettier: &Prettier,
     message: Message,
 ) -> io::Result<()> {
     let source_name = message.span.source.name(db);
-    let source_name = db
-        .source_names
-        .get_by_right(source_name)
-        .expect("source name with no corresponding path");
+    let source_name = db.get_source_path(source_name);
 
     let source = message.span.source.content(db);
     let ranges = get_line_ranges(source, message.span);
@@ -30,7 +29,7 @@ pub(super) fn print_diagnostic(
     let mut term = Terminal::new();
 
     // Print source info
-    let source_name = if let Some(root) = &db.root {
+    let source_name = if let Some(root) = project.and_then(|project| project.root_dir.as_ref()) {
         if let Ok(path) = source_name.strip_prefix(root) {
             path.display()
         } else {

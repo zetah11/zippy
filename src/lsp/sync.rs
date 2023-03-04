@@ -72,7 +72,7 @@ impl Backend {
         };
 
         let name = self.path_to_source_name(path.clone());
-        self.write_content(path, name, content);
+        self.database.update_source(path, name, content);
     }
 
     /// Update the contents of the document from a string.
@@ -97,6 +97,6 @@ impl Backend {
         };
 
         let name = self.path_to_source_name(path.clone());
-        self.write_content(path, name, content);
+        self.database.update_source(path, name, content);
     }
 }

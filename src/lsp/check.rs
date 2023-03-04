@@ -14,11 +14,11 @@ impl Backend {
         let mut diagnostics: HashMap<Url, Vec<_>> = HashMap::new();
 
         let mut messages = Vec::new();
-        for module in self.database.modules.iter() {
-            let _ = declared_names(&self.database, *module);
+        for module in self.database.get_modules() {
+            let _ = declared_names(&self.database, module);
             messages.extend(declared_names::accumulated::<Messages>(
                 &self.database,
-                *module,
+                module,
             ));
         }
 

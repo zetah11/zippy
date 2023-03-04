@@ -5,7 +5,7 @@ mod format;
 mod server;
 mod sync;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -14,13 +14,13 @@ use lsp_types::{
     InitializeParams, MessageType, SaveOptions, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url,
 };
-use zippy_common::source::project::module_name_from_source;
-use zippy_common::source::{Module, Project, SourceName};
+use zippy_common::source::{Project, SourceName};
 
 use self::client::Client;
 use self::server::{InitServer, LspError, LspServer, Server};
+use crate::database::Database;
+use crate::meta;
 use crate::project::{get_project_sources, source_name_from_path, FsProject, DEFAULT_ROOT_NAME};
-use crate::{meta, Database};
 
 /// Run the compiler as a language server on stdio. This function may exit the
 /// process if given the `exit` notification.
@@ -139,56 +139,31 @@ impl Backend {
     }
 
     fn init_sources(&mut self, root: impl AsRef<Path>) {
-        let mut modules: HashMap<_, Vec<_>> = HashMap::new();
+        let sources = get_project_sources(root)
+            .into_iter()
+            .filter_map(|path| {
+                let name = source_name_from_path(&self.database, self.project.as_ref(), &path);
+                let content = match fs::read_to_string(&path) {
+                    Ok(content) => content,
+                    Err(e) => {
+                        self.client.log(
+                            MessageType::ERROR,
+                            format!("Error initializing with file: {e}"),
+                        );
+                        return None;
+                    }
+                };
+                Some((path, name, content))
+            })
+            .collect();
 
-        for path in get_project_sources(root) {
-            let content = match fs::read_to_string(path.clone()) {
-                Ok(content) => content,
-                Err(e) => {
-                    self.client.log(
-                        MessageType::ERROR,
-                        format!("Error initializing with file: {e}"),
-                    );
-
-                    continue;
-                }
-            };
-
-            let name = self.path_to_source_name(path.clone());
-            let source = self.database.write_source(path, name, content);
-
-            let module_name = module_name_from_source(&self.database, name);
-            modules.entry(module_name).or_default().push(source);
-        }
-
-        for (name, sources) in modules {
-            let module = Module::new(&self.database, name, sources);
-            assert!(self.database.modules.insert(name, module).is_none());
-        }
+        self.database.init_sources(sources);
     }
 
     fn path_to_source_name(&mut self, path: PathBuf) -> SourceName {
-        match self.database.source_names.get_by_left(&path) {
-            Some(name) => *name,
-            None => source_name_from_path(&self.database, self.project.as_ref(), path),
-        }
-    }
-
-    /// Write the given content to the given file.
-    fn write_content(&mut self, path: PathBuf, name: SourceName, content: String) {
-        // yeaaa..... what don't you do for borrowck
-        'create: {
-            let source = if let Some(source) = self.database.sources.get(&name) {
-                *source
-            } else {
-                break 'create;
-            };
-
-            source.set_content(&mut self.database).to(content);
-            return;
-        }
-
-        self.database.write_source(path, name, content);
+        self.database.get_source_name(path, |path| {
+            source_name_from_path(&self.database, self.project.as_ref(), path)
+        })
     }
 }
 

@@ -8,9 +8,10 @@ use zippy_common::source::Span;
 
 use super::format::format_text;
 use super::Backend;
+use crate::database::Database;
+use crate::meta;
 use crate::output::format_code;
 use crate::pretty::Prettier;
-use crate::{meta, Database};
 
 impl Backend {
     /// Create an LSP diagnostic for the given message, as well as the URI for
@@ -63,10 +64,7 @@ impl Backend {
 /// Get the URI for the given span.
 fn span_to_uri(db: &Database, span: Span) -> Url {
     let path = span.source.name(db);
-    let path = db
-        .source_names
-        .get_by_right(path)
-        .expect("a `SourceName` with no corresponding path has been created");
+    let path = db.get_source_path(path);
 
     match Url::from_file_path(path) {
         Ok(url) => url,

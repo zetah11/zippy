@@ -1,6 +1,6 @@
 //! Various bits and pieces related to pretty-printing of various things.
 
-use crate::Database;
+use crate::database::Database;
 
 mod names;
 
