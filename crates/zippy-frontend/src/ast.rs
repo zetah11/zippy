@@ -1,16 +1,6 @@
 use zippy_common::invalid::Reason;
-use zippy_common::names::{ItemName, RawName};
+use zippy_common::names::RawName;
 use zippy_common::source::{Source, Span};
-
-/// A module may be split over several sources.
-#[salsa::input]
-pub struct Module {
-    #[id]
-    pub name: ItemName,
-
-    #[return_ref]
-    pub sources: Vec<AstSource>,
-}
 
 #[salsa::tracked]
 pub struct AstSource {

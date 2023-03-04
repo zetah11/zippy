@@ -14,7 +14,6 @@ impl<Database> Db for Database where
 #[salsa::jar(db = Db)]
 pub struct Jar(
     crate::ast::AstSource,
-    crate::ast::Module,
     crate::names::declare::declared_names,
     crate::parser::get_ast,
 );

@@ -5,7 +5,7 @@ mod format;
 mod server;
 mod sync;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -14,7 +14,8 @@ use lsp_types::{
     InitializeParams, MessageType, SaveOptions, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url,
 };
-use zippy_common::source::{Project, SourceName};
+use zippy_common::source::project::module_name_from_source;
+use zippy_common::source::{Module, Project, SourceName};
 
 use self::client::Client;
 use self::server::{InitServer, LspError, LspServer, Server};
@@ -138,8 +139,10 @@ impl Backend {
     }
 
     fn init_sources(&mut self, root: impl AsRef<Path>) {
-        for name in get_project_sources(root) {
-            let content = match fs::read_to_string(name.clone()) {
+        let mut modules: HashMap<_, Vec<_>> = HashMap::new();
+
+        for path in get_project_sources(root) {
+            let content = match fs::read_to_string(path.clone()) {
                 Ok(content) => content,
                 Err(e) => {
                     self.client.log(
@@ -151,8 +154,16 @@ impl Backend {
                 }
             };
 
-            let source_name = self.path_to_source_name(name.clone());
-            self.write_content(name, source_name, content);
+            let name = self.path_to_source_name(path.clone());
+            let source = self.database.write_source(path, name, content);
+
+            let module_name = module_name_from_source(&self.database, name);
+            modules.entry(module_name).or_default().push(source);
+        }
+
+        for (name, sources) in modules {
+            let module = Module::new(&self.database, name, sources);
+            assert!(self.database.modules.insert(name, module).is_none());
         }
     }
 

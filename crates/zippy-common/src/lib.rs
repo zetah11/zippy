@@ -14,6 +14,7 @@ pub struct Jar(
     crate::names::LocalName,
     crate::names::RawName,
     crate::names::UnnamableName,
+    crate::source::Module,
     crate::source::Project,
     crate::source::Source,
     crate::source::SourceName,

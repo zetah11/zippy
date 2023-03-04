@@ -1,4 +1,16 @@
+use crate::names::ItemName;
+
 pub mod project;
+
+/// A module is a collection of sources whose declared items share a namespace.
+#[salsa::input]
+pub struct Module {
+    #[id]
+    pub name: ItemName,
+
+    #[return_ref]
+    pub sources: Vec<Source>,
+}
 
 /// A project represents a bunch of sources grouped by some common "root name" -
 /// the name of this project.

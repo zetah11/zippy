@@ -11,8 +11,7 @@ use std::path::PathBuf;
 use bimap::BiMap;
 use dashmap::DashMap;
 use zippy_common::names::ItemName;
-use zippy_common::source::{Source, SourceName};
-use zippy_frontend::ast;
+use zippy_common::source::{Module, Source, SourceName};
 
 fn main() {
     let mut args = std::env::args();
@@ -39,8 +38,7 @@ pub struct Database {
     // Inputs
     source_names: BiMap<PathBuf, SourceName>,
     sources: DashMap<SourceName, Source>,
-
-    ast_modules: DashMap<ItemName, ast::Module>,
+    modules: DashMap<ItemName, Module>,
 }
 
 impl salsa::Database for Database {}
@@ -53,8 +51,7 @@ impl salsa::ParallelDatabase for Database {
 
             source_names: self.source_names.clone(),
             sources: self.sources.clone(),
-
-            ast_modules: self.ast_modules.clone(),
+            modules: self.modules.clone(),
         })
     }
 }
@@ -67,8 +64,7 @@ impl Database {
 
             source_names: BiMap::new(),
             sources: DashMap::new(),
-
-            ast_modules: DashMap::new(),
+            modules: DashMap::new(),
         }
     }
 
@@ -81,11 +77,20 @@ impl Database {
 
     /// Write the given content to a source file with the given path and source
     /// name. This should only be called once times for the same file.
-    pub fn write_source(&mut self, path: PathBuf, name: SourceName, content: String) {
+    pub fn write_source(&mut self, path: PathBuf, name: SourceName, content: String) -> Source {
         let source = Source::new(self, name, content);
 
         assert!(!self.source_names.insert(path, name).did_overwrite());
         assert!(self.sources.insert(name, source).is_none());
+
+        source
+    }
+
+    /// Create a module with the given name.
+    pub fn write_module(&mut self, name: ItemName, sources: Vec<Source>) -> Module {
+        let module = Module::new(self, name, sources);
+        assert!(self.modules.insert(name, module).is_none());
+        module
     }
 }
 

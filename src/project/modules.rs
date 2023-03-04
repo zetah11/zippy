@@ -71,7 +71,8 @@ fn single_file_module_name(db: &Database, path: &Path) -> SourceName {
 
 /// Convert some path component in kebab case to a title case version.
 /// Specifically, the first letter and letters following a dash is capitalized,
-/// and the dashes themselves are skipped.
+/// and the dashes themselves are skipped. Anything following a dot is also
+/// skipped.
 ///
 /// Because an [`OsStr`] may be *very* funky, any invalid characters are just
 /// skipped completely. This should maybe produce an error if it happens?
@@ -85,6 +86,8 @@ fn kebab_to_title(name: &OsStr) -> String {
             '-' => {
                 capitalize = true;
             }
+
+            '.' => break,
 
             char::REPLACEMENT_CHARACTER => {
                 warn!("file or folder {name} contains invalid characters");

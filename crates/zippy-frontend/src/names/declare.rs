@@ -2,20 +2,23 @@ use std::collections::HashMap;
 
 use zippy_common::messages::MessageMaker;
 use zippy_common::names::{DeclarableName, ItemName, RawName, UnnamableName, UnnamableNameKind};
-use zippy_common::source::Span;
+use zippy_common::source::{Module, Span};
 
-use crate::ast::{AstSource, Expression, Item, Module, Pattern, PatternNode};
+use crate::ast::{AstSource, Expression, Item, Pattern, PatternNode};
 use crate::messages::NameMessages;
+use crate::parser::get_ast;
 use crate::Db;
 
 /// Get every name declared within this module.
 #[salsa::tracked]
 pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<DeclarableName, Span> {
-    let root = module.name(db);
+    let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
+    let root = module.name(zdb);
     let mut declarer = Declarer::new(db, root);
 
-    for source in module.sources(db) {
-        declarer.declare_source(*source);
+    for source in module.sources(zdb) {
+        let source = get_ast(db, *source);
+        declarer.declare_source(source);
     }
 
     declarer.names
