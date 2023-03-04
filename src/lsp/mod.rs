@@ -135,7 +135,7 @@ impl Backend {
         };
 
         let project = Project::new(&self.database, name);
-        self.project = Some(FsProject::new(project));
+        self.project = Some(FsProject::new(project).with_root(root));
     }
 
     fn init_sources(&mut self, root: impl AsRef<Path>) {

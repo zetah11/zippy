@@ -11,7 +11,6 @@ use zippy_common::source::{Module, Source, SourceName};
 #[salsa::db(zippy_common::Jar, zippy_frontend::Jar)]
 pub struct Database {
     storage: salsa::Storage<Self>,
-    root: Option<PathBuf>,
 
     // Inputs
     source_names: BiMap<PathBuf, SourceName>,
@@ -25,7 +24,6 @@ impl salsa::ParallelDatabase for Database {
     fn snapshot(&self) -> salsa::Snapshot<Self> {
         salsa::Snapshot::new(Self {
             storage: self.storage.snapshot(),
-            root: self.root.clone(),
 
             source_names: self.source_names.clone(),
             sources: self.sources.clone(),
@@ -38,18 +36,10 @@ impl Database {
     pub fn new() -> Self {
         Self {
             storage: salsa::Storage::default(),
-            root: None,
 
             source_names: BiMap::new(),
             sources: DashMap::new(),
             modules: DashMap::new(),
-        }
-    }
-
-    pub fn with_root(self, root: impl Into<PathBuf>) -> Self {
-        Self {
-            root: Some(root.into()),
-            ..self
         }
     }
 

@@ -47,8 +47,6 @@ pub fn check() -> anyhow::Result<()> {
 
     database.init_sources(sources);
 
-    let database = database.with_root(cwd);
-
     let mut messages = Vec::new();
 
     for module in database.get_modules() {
@@ -56,7 +54,7 @@ pub fn check() -> anyhow::Result<()> {
         messages.extend(declared_names::accumulated::<Messages>(&database, module));
     }
 
-    let prettier = Prettier::new(&database).with_full_name(true);
+    let prettier = Prettier::new(&database).with_full_name(false);
     for message in messages {
         print_diagnostic(&database, Some(&project), &prettier, message)?;
     }
