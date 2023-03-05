@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod names;
 pub mod parser;
+pub mod resolved;
 
 mod messages;
 
@@ -15,5 +16,7 @@ impl<Database> Db for Database where
 pub struct Jar(
     crate::ast::AstSource,
     crate::names::declare::declared_names,
+    crate::names::resolve::resolve_module,
     crate::parser::get_ast,
+    crate::resolved::Module,
 );

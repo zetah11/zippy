@@ -12,8 +12,8 @@ use crate::parser::get_ast;
 use crate::Db;
 
 /// Get every name declared within this module.
-#[salsa::tracked]
-pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<DeclarableName, Span> {
+#[salsa::tracked(return_ref)]
+pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<Name, Span> {
     let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
     let root = module.name(zdb);
     let mut declarer = Declarer::new(db, root);
@@ -29,7 +29,7 @@ pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<DeclarableName, Sp
 struct Declarer<'db> {
     db: &'db dyn Db,
     scope: (Vec<DeclarableName>, DeclarableName),
-    names: HashMap<DeclarableName, Span>,
+    names: HashMap<Name, Span>,
     imports: HashMap<RawName, Span>,
 }
 
@@ -55,7 +55,7 @@ impl<'db> Declarer<'db> {
                     // Kinda hacky but shhh
                     let name = ItemName::new(self.common_db(), None, alias);
                     self.at(span)
-                        .duplicate_definition(Some(Name::Item(name)), *previous);
+                        .duplicate_definition(Name::Item(name), *previous);
 
                     continue;
                 }
@@ -77,15 +77,12 @@ impl<'db> Declarer<'db> {
                 body,
             } => {
                 let name = self.declare_pattern(pattern, |declarer, name| {
-                    DeclarableName::Item(ItemName::new(
-                        declarer.common_db(),
-                        Some(declarer.scope.1),
-                        name,
-                    ))
+                    let name = ItemName::new(declarer.common_db(), Some(declarer.scope.1), name);
+                    Name::Item(name)
                 });
 
                 let name = match name {
-                    Some(name) => name,
+                    Some(name) => name.into(),
                     None => {
                         let name = UnnamableName::new(
                             self.common_db(),
@@ -106,9 +103,9 @@ impl<'db> Declarer<'db> {
         }
     }
 
-    fn declare_pattern<F>(&mut self, pattern: &Pattern, mut f: F) -> Option<DeclarableName>
+    fn declare_pattern<F>(&mut self, pattern: &Pattern, mut f: F) -> Option<Name>
     where
-        F: FnMut(&Self, RawName) -> DeclarableName,
+        F: FnMut(&Self, RawName) -> Name,
     {
         let span = pattern.span;
         match &pattern.node {
@@ -131,18 +128,16 @@ impl<'db> Declarer<'db> {
 
     /// Try to declare a name, and produce an error message if it already has
     /// been declared.
-    fn try_declare_name(&mut self, name: DeclarableName, span: Span) {
+    fn try_declare_name(&mut self, name: Name, span: Span) {
         if let Some(previous) = self.names.get(&name) {
-            self.at(span)
-                .duplicate_definition(name.to_name(), *previous);
+            self.at(span).duplicate_definition(name, *previous);
 
             return;
         }
 
-        if let DeclarableName::Item(item) = name {
+        if let Name::Item(item) = name {
             if let Some(previous) = self.imports.get(&item.name(self.common_db())) {
-                self.at(span)
-                    .duplicate_definition(name.to_name(), *previous);
+                self.at(span).duplicate_definition(name, *previous);
             }
         }
 

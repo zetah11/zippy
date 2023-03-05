@@ -88,14 +88,18 @@ fn abstract_import(db: &dyn Db, item: cst::Item) -> Vec<ast::Import> {
         cst::ItemNode::Path(expression, names) => {
             let names = imported_name(db, *names);
             let from = Some(abstract_expression(db, *expression));
-            let import = ast::Import { from, names };
+            let import = ast::Import { span, from, names };
 
             vec![import]
         }
 
         node => {
             let names = imported_name(db, cst::Item { node, span });
-            let import = ast::Import { from: None, names };
+            let import = ast::Import {
+                span,
+                from: None,
+                names,
+            };
 
             vec![import]
         }

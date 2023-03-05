@@ -5,8 +5,14 @@ use zippy_common::source::Span;
 use crate::Db;
 
 pub trait NameMessages {
+    /// Bare imports are not yet supported.
+    fn bare_import_unsupported(&mut self);
+
     /// A name has already been defined.
-    fn duplicate_definition(&mut self, name: Option<Name>, previous: Span);
+    fn duplicate_definition(&mut self, name: Name, previous: Span);
+
+    /// Name could not be resolved.
+    fn unresolved_name(&mut self, name: &str);
 }
 
 pub trait ParseMessages {

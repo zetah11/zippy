@@ -1,35 +1,36 @@
 use zippy_common::invalid::Reason;
-use zippy_common::names::RawName;
+use zippy_common::names::{ItemName, Name, RawName};
 use zippy_common::source::{Source, Span};
 
+use crate::ast::{Clusivity, Identifier};
+
 #[salsa::tracked]
-pub struct AstSource {
+pub struct Module {
     #[id]
+    pub name: ItemName,
+
+    #[return_ref]
+    pub parts: Vec<ModulePart>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct ModulePart {
     pub source: Source,
-
-    #[return_ref]
     pub items: Vec<Item>,
-
-    #[return_ref]
     pub imports: Vec<Import>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Import {
-    pub from: Option<Expression>,
+    pub from: Expression,
     pub names: Vec<ImportedName>,
-    pub span: Span,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedName {
     pub span: Span,
-
-    /// The actual name being imported.
     pub name: Identifier,
-
-    /// The name as it appears in this source.
-    pub alias: Identifier,
+    pub alias: Alias,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -66,13 +67,13 @@ pub struct Expression {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ExpressionNode {
-    /// A sequence of expressions delimited by semicolons or newlines.
     Block(Vec<Expression>),
 
     Annotate(Box<Expression>, Box<Type>),
     Path(Box<Expression>, Identifier),
 
-    Name(Identifier),
+    Name(Name),
+    Alias(Alias),
     Number(String),
     String(String),
     Unit,
@@ -89,37 +90,19 @@ pub struct Pattern {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum PatternNode {
     Annotate(Box<Pattern>, Type),
-    Name(Identifier),
+    Name(Name),
 
     Unit,
 
     Invalid(Reason),
 }
 
+/// An alias is a name that has been imported but not yet resolved. *Eventually*
+/// these should resolve to some appropriate [`Name`], but this cannot be done
+/// without type information first. An alias is just identified by a name and
+/// the span where it is introduced.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct Clusivity {
-    pub includes_start: bool,
-    pub includes_end: bool,
-}
-
-impl Clusivity {
-    pub fn exclusive() -> Self {
-        Self {
-            includes_start: true,
-            includes_end: false,
-        }
-    }
-
-    pub fn inclusive() -> Self {
-        Self {
-            includes_start: true,
-            includes_end: true,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct Identifier {
-    pub span: Span,
+pub struct Alias {
     pub name: RawName,
+    pub defined: Span,
 }

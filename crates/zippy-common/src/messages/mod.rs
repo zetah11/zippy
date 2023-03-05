@@ -88,6 +88,11 @@ impl Message {
         Self { labels, ..self }
     }
 
+    pub fn with_note(mut self, note_kind: NoteKind, text: Text) -> Self {
+        self.notes.push((note_kind, text));
+        self
+    }
+
     pub fn with_notes(self, notes: Vec<(NoteKind, Text)>) -> Self {
         Self { notes, ..self }
     }

@@ -6,4 +6,5 @@
 pub enum Code {
     SyntaxError,
     DeclarationError,
+    NameError,
 }

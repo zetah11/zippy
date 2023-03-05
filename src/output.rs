@@ -5,6 +5,7 @@ pub fn format_code(code: Code) -> &'static str {
     match code {
         Code::SyntaxError => "syntax error",
         Code::DeclarationError => "declaration error",
+        Code::NameError => "name error",
     }
 }
 

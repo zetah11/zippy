@@ -28,6 +28,7 @@
 //! identified by a [`Span`] instead of a name.
 
 use crate::source::Span;
+use crate::Db;
 
 /// This is simply an interned string intended to make it easier and fast to
 /// compare names. It should not be used as an identifier by itself, however.
@@ -96,6 +97,14 @@ impl DeclarableName {
             Self::Item(item) => Some(Name::Item(item)),
             Self::Local(item) => Some(Name::Local(item)),
             Self::Unnamable(_) => None,
+        }
+    }
+
+    pub fn parent(&self, db: &dyn Db) -> Option<DeclarableName> {
+        match self {
+            DeclarableName::Item(item) => item.parent(db),
+            DeclarableName::Local(local) => local.parent(db),
+            DeclarableName::Unnamable(name) => name.parent(db),
         }
     }
 }

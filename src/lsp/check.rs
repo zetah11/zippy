@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use lsp_types::{Diagnostic, Url};
 
 use zippy_common::messages::Messages;
-use zippy_frontend::names::declare::declared_names;
+use zippy_frontend::names::resolve::resolve_module;
 
 use super::Backend;
 use crate::pretty::Prettier;
@@ -15,8 +15,8 @@ impl Backend {
 
         let mut messages = Vec::new();
         for module in self.database.get_modules() {
-            let _ = declared_names(&self.database, module);
-            messages.extend(declared_names::accumulated::<Messages>(
+            let _ = resolve_module(&self.database, module);
+            messages.extend(resolve_module::accumulated::<Messages>(
                 &self.database,
                 module,
             ));

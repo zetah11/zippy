@@ -10,7 +10,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use zippy_common::messages::Messages;
 use zippy_common::source::Project;
-use zippy_frontend::names::declare::declared_names;
+use zippy_frontend::names::resolve::resolve_module;
 
 use crate::database::Database;
 use crate::pretty::Prettier;
@@ -50,8 +50,8 @@ pub fn check() -> anyhow::Result<()> {
     let mut messages = Vec::new();
 
     for module in database.get_modules() {
-        let _ = declared_names(&database, module);
-        messages.extend(declared_names::accumulated::<Messages>(&database, module));
+        let _ = resolve_module(&database, module);
+        messages.extend(resolve_module::accumulated::<Messages>(&database, module));
     }
 
     let prettier = Prettier::new(&database).with_full_name(false);
