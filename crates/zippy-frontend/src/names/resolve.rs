@@ -82,8 +82,9 @@ struct PartResolver<'a, 'db> {
     declared: &'a HashSet<Name>,
 
     parent: (Vec<DeclarableName>, DeclarableName),
-
     visible_scopes: Vec<usize>,
+
+    outer: Option<&'a PartResolver<'a, 'db>>,
 }
 
 impl<'a, 'db> PartResolver<'a, 'db> {
@@ -98,8 +99,8 @@ impl<'a, 'db> PartResolver<'a, 'db> {
             imports,
             declared,
             parent: (Vec::new(), DeclarableName::Item(module)),
-
             visible_scopes: Vec::new(),
+            outer: None,
         }
     }
 
@@ -319,14 +320,15 @@ impl<'a, 'db> PartResolver<'a, 'db> {
             }
         }
 
-        // Nothing!
-        ResolvedName::Neither
+        // Look in an outside scope
+        self.outer
+            .map(|outer| outer.resolve_name(name))
+            .unwrap_or(ResolvedName::Neither)
     }
 
-    fn nested<'b, F, T>(&mut self, imports: &'b HashMap<RawName, resolved::Alias>, f: F) -> T
+    fn nested<F, T>(&mut self, imports: &HashMap<RawName, resolved::Alias>, f: F) -> T
     where
-        F: FnOnce(&mut PartResolver<'b, 'db>) -> T,
-        'a: 'b,
+        F: for<'b> FnOnce(&mut PartResolver<'b, 'db>) -> T,
     {
         let mut nested = PartResolver {
             db: self.db,
@@ -334,6 +336,7 @@ impl<'a, 'db> PartResolver<'a, 'db> {
             declared: self.declared,
             parent: (Vec::new(), self.parent.1),
             visible_scopes: Vec::new(),
+            outer: Some(self),
         };
 
         f(&mut nested)

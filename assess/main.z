@@ -1,8 +1,5 @@
-import Thingy.x
-
 let Thingy = entry
-	let x = 5
-	let y = 10
+	let y = xa
 
 let x = 10
 

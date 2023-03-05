@@ -206,16 +206,19 @@ impl<'db> Declarer<'db> {
     where
         F: FnOnce(&mut Self) -> T,
     {
-        let mut nested = Self {
-            db: self.db,
-            scope: (Vec::new(), self.scope.1),
-            names: HashMap::new(),
-            imports: HashMap::new(),
+        let (result, names) = {
+            let mut nested = Declarer {
+                db: self.db,
+                scope: (Vec::new(), self.scope.1),
+                names: HashMap::new(),
+                imports: HashMap::new(),
+            };
+
+            let result = f(&mut nested);
+            (result, nested.names)
         };
 
-        let result = f(&mut nested);
-
-        for (name, span) in nested.names {
+        for (name, span) in names {
             assert!(
                 self.names.insert(name, span).is_none(),
                 "TODO: properly scope nested declarative regions"
