@@ -76,22 +76,22 @@ enum ResolvedName {
     Neither,
 }
 
-struct PartResolver<'db> {
+struct PartResolver<'a, 'db> {
     db: &'db dyn Db,
-    imports: &'db HashMap<RawName, resolved::Alias>,
-    declared: &'db HashSet<Name>,
+    imports: &'a HashMap<RawName, resolved::Alias>,
+    declared: &'a HashSet<Name>,
 
     parent: (Vec<DeclarableName>, DeclarableName),
 
     visible_scopes: Vec<usize>,
 }
 
-impl<'db> PartResolver<'db> {
+impl<'a, 'db> PartResolver<'a, 'db> {
     pub fn new(
         db: &'db dyn Db,
         module: ItemName,
-        declared: &'db HashSet<Name>,
-        imports: &'db HashMap<RawName, resolved::Alias>,
+        declared: &'a HashSet<Name>,
+        imports: &'a HashMap<RawName, resolved::Alias>,
     ) -> Self {
         Self {
             db,
@@ -196,6 +196,27 @@ impl<'db> PartResolver<'db> {
     fn resolve_expression(&mut self, expr: &ast::Expression) -> resolved::Expression {
         let span = expr.span;
         let node = match &expr.node {
+            ast::ExpressionNode::Entry { items, imports } => {
+                let imported_names = imported_names(imports);
+                self.nested(&imported_names, |this| {
+                    let mut new_items = Vec::new();
+                    let mut new_imports = Vec::new();
+
+                    for import in imports {
+                        new_imports.extend(this.resolve_import(import));
+                    }
+
+                    for item in items {
+                        new_items.push(this.resolve_item(item));
+                    }
+
+                    resolved::ExpressionNode::Entry {
+                        items: new_items,
+                        imports: new_imports,
+                    }
+                })
+            }
+
             ast::ExpressionNode::Block(exprs) => {
                 let exprs = exprs
                     .iter()
@@ -300,6 +321,22 @@ impl<'db> PartResolver<'db> {
 
         // Nothing!
         ResolvedName::Neither
+    }
+
+    fn nested<'b, F, T>(&mut self, imports: &'b HashMap<RawName, resolved::Alias>, f: F) -> T
+    where
+        F: FnOnce(&mut PartResolver<'b, 'db>) -> T,
+        'a: 'b,
+    {
+        let mut nested = PartResolver {
+            db: self.db,
+            imports,
+            declared: self.declared,
+            parent: (Vec::new(), self.parent.1),
+            visible_scopes: Vec::new(),
+        };
+
+        f(&mut nested)
     }
 
     /// Resolve some names within the scope of another one.

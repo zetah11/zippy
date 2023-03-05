@@ -66,6 +66,12 @@ pub struct Expression {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ExpressionNode {
+    /// A collection of items treated as a single object.
+    Entry {
+        items: Vec<Item>,
+        imports: Vec<Import>,
+    },
+
     /// A sequence of expressions delimited by semicolons or newlines.
     Block(Vec<Expression>),
 

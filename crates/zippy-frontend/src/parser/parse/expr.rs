@@ -1,3 +1,5 @@
+use zippy_common::source::Span;
+
 use super::Parser;
 use crate::messages::ParseMessages;
 use crate::parser::cst::{Item, ItemNode};
@@ -6,12 +8,34 @@ use crate::parser::tokens::{Token, TokenType};
 impl<I: Iterator<Item = Token>> Parser<'_, I> {
     /// Parse an expression.
     pub fn parse_expr(&mut self) -> Item {
-        self.annotation_expr()
+        if let Some(opener) = self.consume(TokenType::Entry) {
+            self.entry(opener)
+        } else {
+            self.annotation_expr()
+        }
     }
 
     /// Returns `true` if the current token could be the start of an expression.
     pub(super) fn peek_expr(&self) -> bool {
-        self.peek_simple_expr()
+        const EXPR_STARTS: &[TokenType] = &[TokenType::Entry];
+
+        self.peek(EXPR_STARTS).is_some() || self.peek_simple_expr()
+    }
+
+    fn entry(&mut self, opener: Span) -> Item {
+        let inner = if self.peek_item() {
+            Box::new(self.parse_item())
+        } else {
+            Box::new(Item {
+                span: opener,
+                node: ItemNode::Group(Vec::new()),
+            })
+        };
+
+        Item {
+            span: opener,
+            node: ItemNode::Entry(inner),
+        }
     }
 
     fn annotation_expr(&mut self) -> Item {

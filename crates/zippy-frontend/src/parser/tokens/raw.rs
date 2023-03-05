@@ -19,6 +19,8 @@ pub enum RawToken {
     #[regex(r#""([^"\n\\]|\\.)*["\n]"#, |lexer| lexer.slice().to_string())]
     String(String),
 
+    #[token("entry")]
+    Entry,
     #[token("fun")]
     Fun,
     #[token("import")]

@@ -6,7 +6,9 @@ use zippy_common::names::{
 };
 use zippy_common::source::{Module, Span};
 
-use crate::ast::{AstSource, Expression, Item, Pattern, PatternNode};
+use crate::ast::{
+    AstSource, Expression, ExpressionNode, Import, Item, Pattern, PatternNode, Type, TypeNode,
+};
 use crate::messages::NameMessages;
 use crate::parser::get_ast;
 use crate::Db;
@@ -47,25 +49,29 @@ impl<'db> Declarer<'db> {
 
     pub fn declare_source(&mut self, source: AstSource) {
         for import in source.imports(self.db) {
-            for name in import.names.iter() {
-                let span = name.span;
-                let alias = name.alias.name;
-
-                if let Some(previous) = self.imports.get(&alias) {
-                    // Kinda hacky but shhh
-                    let name = ItemName::new(self.common_db(), None, alias);
-                    self.at(span)
-                        .duplicate_definition(Name::Item(name), *previous);
-
-                    continue;
-                }
-
-                self.imports.insert(alias, span);
-            }
+            self.declare_import(import);
         }
 
         for item in source.items(self.db) {
             self.declare_item(item);
+        }
+    }
+
+    fn declare_import(&mut self, import: &Import) {
+        for name in import.names.iter() {
+            let span = name.span;
+            let alias = name.alias.name;
+
+            if let Some(previous) = self.imports.get(&alias) {
+                // Kinda hacky but shhh
+                let name = ItemName::new(self.common_db(), None, alias);
+                self.at(span)
+                    .duplicate_definition(Name::Item(name), *previous);
+
+                continue;
+            }
+
+            self.imports.insert(alias, span);
         }
     }
 
@@ -103,13 +109,68 @@ impl<'db> Declarer<'db> {
         }
     }
 
+    fn declare_type(&mut self, ty: &Type) {
+        match &ty.node {
+            TypeNode::Range {
+                clusivity: _,
+                lower,
+                upper,
+            } => {
+                self.declare_expression(lower);
+                self.declare_expression(upper);
+            }
+
+            TypeNode::Invalid(_) => {}
+        }
+    }
+
+    fn declare_expression(&mut self, expression: &Expression) {
+        match &expression.node {
+            ExpressionNode::Entry { items, imports } => {
+                self.nested(|this| {
+                    for import in imports {
+                        this.declare_import(import);
+                    }
+
+                    for item in items {
+                        this.declare_item(item);
+                    }
+                });
+            }
+
+            ExpressionNode::Block(expressions) => {
+                for expression in expressions {
+                    self.declare_expression(expression);
+                }
+            }
+
+            ExpressionNode::Annotate(expression, ty) => {
+                self.declare_expression(expression);
+                self.declare_type(ty);
+            }
+
+            ExpressionNode::Path(expression, _) => {
+                self.declare_expression(expression);
+            }
+
+            ExpressionNode::Name(_)
+            | ExpressionNode::Number(_)
+            | ExpressionNode::String(_)
+            | ExpressionNode::Unit
+            | ExpressionNode::Invalid(_) => {}
+        }
+    }
+
     fn declare_pattern<F>(&mut self, pattern: &Pattern, mut f: F) -> Option<Name>
     where
         F: FnMut(&Self, RawName) -> Name,
     {
         let span = pattern.span;
         match &pattern.node {
-            PatternNode::Annotate(pattern, _) => self.declare_pattern(pattern, f),
+            PatternNode::Annotate(pattern, ty) => {
+                self.declare_type(ty);
+                self.declare_pattern(pattern, f)
+            }
 
             PatternNode::Name(name) => {
                 let name = f(self, name.name);
@@ -120,10 +181,6 @@ impl<'db> Declarer<'db> {
             PatternNode::Unit => None,
             PatternNode::Invalid(_) => None,
         }
-    }
-
-    fn declare_expression(&mut self, _expression: &Expression) {
-        // empty
     }
 
     /// Try to declare a name, and produce an error message if it already has
@@ -142,6 +199,30 @@ impl<'db> Declarer<'db> {
         }
 
         self.names.insert(name, span);
+    }
+
+    /// Declare some names in a *declarative scope* nested inside this one.
+    fn nested<F, T>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        let mut nested = Self {
+            db: self.db,
+            scope: (Vec::new(), self.scope.1),
+            names: HashMap::new(),
+            imports: HashMap::new(),
+        };
+
+        let result = f(&mut nested);
+
+        for (name, span) in nested.names {
+            assert!(
+                self.names.insert(name, span).is_none(),
+                "TODO: properly scope nested declarative regions"
+            );
+        }
+
+        result
     }
 
     /// Declare some names within the scope of another one.

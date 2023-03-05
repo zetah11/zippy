@@ -58,6 +58,8 @@ Capitalized words are tokens.
     let        = LET expression [EQUAL expression]
 
     expression = annotate
+    entry      = ENTRY item
+
     annotate   = invoke [COLON invoke]
     invoke     = [invoke PERIOD] simple
 

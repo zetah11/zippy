@@ -1,4 +1,8 @@
-import Hrmpf.gonk
+import Thingy.x
 
-let x = 5
-let y = gink
+let Thingy = entry
+	let x = 5
+	let y = 10
+
+let x = 10
+

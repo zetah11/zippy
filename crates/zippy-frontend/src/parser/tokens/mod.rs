@@ -82,6 +82,7 @@ pub enum TokenType {
     Number(String),
     String(String),
 
+    Entry,
     Fun,
     Import,
     Let,
@@ -234,6 +235,7 @@ impl Iterator for TokenIter<'_> {
                 RawToken::Number(number) => TokenType::Number(number),
                 RawToken::String(string) => TokenType::String(string),
 
+                RawToken::Entry => TokenType::Entry,
                 RawToken::Fun => TokenType::Fun,
                 RawToken::Import => TokenType::Import,
                 RawToken::Let => TokenType::Let,

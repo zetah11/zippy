@@ -23,6 +23,9 @@ pub enum ItemNode {
         body: Option<Box<Item>>,
     },
 
+    /// An entry expression.
+    Entry(Box<Item>),
+
     /// A type annotation.
     Annotation(Box<Item>, Box<Item>),
 

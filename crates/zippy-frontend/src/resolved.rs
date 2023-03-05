@@ -67,6 +67,11 @@ pub struct Expression {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ExpressionNode {
+    Entry {
+        items: Vec<Item>,
+        imports: Vec<Import>,
+    },
+
     Block(Vec<Expression>),
 
     Annotate(Box<Expression>, Box<Type>),

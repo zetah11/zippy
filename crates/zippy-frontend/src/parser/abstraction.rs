@@ -7,14 +7,13 @@ use super::cst;
 use crate::messages::ParseMessages;
 use crate::{ast, Db};
 
-pub enum ItemOrImports {
+pub enum ItemOrImport {
     Item(ast::Item),
-    Imports(Vec<ast::Import>),
-    Neither,
+    Import(ast::Import),
 }
 
 /// Produce an abstract syntax tree for a declarative-level binding
-pub fn abstract_item(db: &dyn Db, item: cst::Item) -> ItemOrImports {
+pub fn abstract_item(db: &dyn Db, item: cst::Item) -> Vec<ItemOrImport> {
     let span = item.span;
     match item.node {
         cst::ItemNode::Let { pattern, body } => {
@@ -28,15 +27,23 @@ pub fn abstract_item(db: &dyn Db, item: cst::Item) -> ItemOrImports {
                 body,
             };
 
-            ItemOrImports::Item(item)
+            vec![ItemOrImport::Item(item)]
         }
 
-        cst::ItemNode::Import(item) => ItemOrImports::Imports(abstract_import(db, *item)),
+        cst::ItemNode::Import(item) => abstract_import(db, *item)
+            .into_iter()
+            .map(ItemOrImport::Import)
+            .collect(),
 
-        cst::ItemNode::Invalid => ItemOrImports::Neither,
+        cst::ItemNode::Group(exprs) => exprs
+            .into_iter()
+            .flat_map(|item| abstract_item(db, item))
+            .collect(),
+
+        cst::ItemNode::Invalid => Vec::new(),
         _ => {
             MessageMaker::new(db, span).expected_item();
-            ItemOrImports::Neither
+            Vec::new()
         }
     }
 }
@@ -145,6 +152,20 @@ fn abstract_type(db: &dyn Db, item: cst::Item) -> ast::Type {
 fn abstract_expression(db: &dyn Db, item: cst::Item) -> ast::Expression {
     let span = item.span;
     let node = match item.node {
+        cst::ItemNode::Entry(inner) => {
+            let mut items = Vec::new();
+            let mut imports = Vec::new();
+
+            for item in abstract_item(db, *inner) {
+                match item {
+                    ItemOrImport::Item(item) => items.push(item),
+                    ItemOrImport::Import(import) => imports.push(import),
+                }
+            }
+
+            ast::ExpressionNode::Entry { items, imports }
+        }
+
         cst::ItemNode::Annotation(expr, ty) => {
             let expr = Box::new(abstract_expression(db, *expr));
             let ty = Box::new(abstract_type(db, *ty));
