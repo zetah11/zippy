@@ -196,6 +196,10 @@ impl<'db> Declarer<'db> {
             if let Some(previous) = self.imports.get(&item.name(self.common_db())) {
                 self.at(span).duplicate_definition(name, *previous);
             }
+
+            if self.common_db().get_module(&item).is_some() {
+                self.at(span).duplicate_module_definition(name);
+            }
         }
 
         self.names.insert(name, span);

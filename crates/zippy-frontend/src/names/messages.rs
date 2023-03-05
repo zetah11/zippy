@@ -27,6 +27,13 @@ impl<C: MessageContainer> NameMessages for MessageMaker<C> {
         self.add(message);
     }
 
+    fn duplicate_module_definition(&mut self, name: Name) {
+        let message = self
+            .error(Code::DeclarationError)
+            .with_title(text![(name name), " is already defined as a module"]);
+        self.add(message)
+    }
+
     fn unresolved_name(&mut self, name: &str) {
         let message = self
             .error(Code::NameError)

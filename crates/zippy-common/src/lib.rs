@@ -3,9 +3,13 @@ pub mod messages;
 pub mod names;
 pub mod source;
 
-pub trait Db: salsa::DbWithJar<Jar> {}
+use self::names::ItemName;
+use self::source::Module;
 
-impl<Database: salsa::DbWithJar<Jar>> Db for Database {}
+pub trait Db: salsa::DbWithJar<Jar> {
+    /// Get the module with the given name, if any.
+    fn get_module(&self, name: &ItemName) -> Option<Module>;
+}
 
 #[salsa::jar(db = Db)]
 pub struct Jar(

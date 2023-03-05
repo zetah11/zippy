@@ -54,7 +54,8 @@ pub fn check() -> anyhow::Result<()> {
         messages.extend(resolve_module::accumulated::<Messages>(&database, module));
     }
 
-    let prettier = Prettier::new(&database).with_full_name(false);
+    let prettier = Prettier::new(&database).with_full_name(true);
+
     for message in messages {
         print_diagnostic(&database, Some(&project), &prettier, message)?;
     }

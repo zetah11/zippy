@@ -11,6 +11,9 @@ pub trait NameMessages {
     /// A name has already been defined.
     fn duplicate_definition(&mut self, name: Name, previous: Span);
 
+    /// A name has already been defined as a module.
+    fn duplicate_module_definition(&mut self, name: Name);
+
     /// Name could not be resolved.
     fn unresolved_name(&mut self, name: &str);
 }

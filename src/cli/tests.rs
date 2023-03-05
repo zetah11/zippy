@@ -113,8 +113,6 @@ fn format_cutoff_middle() {
     let expected = "...ghi jkl m...";
     let highlight = (5, 10);
 
-    eprintln!("{formatted:?} {start:?} {end:?}");
-
     assert_eq!(expected, &formatted);
     assert_eq!(highlight, (start, end));
 }

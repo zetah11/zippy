@@ -299,10 +299,14 @@ impl<'a, 'db> PartResolver<'a, 'db> {
         // Look for items
         let mut parent = Some(self.parent.1);
         loop {
-            let name = ItemName::new(self.common_db(), parent, name.name);
-            let name = Name::Item(name);
+            let item_name = ItemName::new(self.common_db(), parent, name.name);
+            let name = Name::Item(item_name);
 
             if self.declared.contains(&name) {
+                return ResolvedName::Name(name);
+            }
+
+            if self.common_db().get_module(&item_name).is_some() {
                 return ResolvedName::Name(name);
             }
 

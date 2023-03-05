@@ -32,6 +32,12 @@ impl salsa::ParallelDatabase for Database {
     }
 }
 
+impl zippy_common::Db for Database {
+    fn get_module(&self, name: &ItemName) -> Option<Module> {
+        self.modules.get(name).map(|module| *module)
+    }
+}
+
 impl Database {
     pub fn new() -> Self {
         Self {

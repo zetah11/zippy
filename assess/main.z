@@ -1,5 +1,2 @@
-let Thingy = entry
-	let y = xa
-
-let x = 10
+import Inner.bonk
 

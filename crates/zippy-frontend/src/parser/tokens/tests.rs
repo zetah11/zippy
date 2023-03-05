@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use zippy_common::messages::Message;
-use zippy_common::source::{Project, Source, SourceName};
+use zippy_common::names::ItemName;
+use zippy_common::source::{Module, Project, Source, SourceName};
 use zippy_common::Db;
 
 use super::{Token, TokenIter, TokenType};
@@ -9,6 +10,12 @@ use super::{Token, TokenIter, TokenType};
 #[salsa::db(crate::Jar, zippy_common::Jar)]
 struct MockDb {
     storage: salsa::Storage<Self>,
+}
+
+impl zippy_common::Db for MockDb {
+    fn get_module(&self, _: &ItemName) -> Option<Module> {
+        None
+    }
 }
 
 impl salsa::Database for MockDb {}
