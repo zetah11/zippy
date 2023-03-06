@@ -1,0 +1,4 @@
+
+[ ] make patterns generic over the name they expect, to prevent name bugs (like
+    in `flattened`)
+[ ] intern strings, numbers, etc. to avoid clones during passes

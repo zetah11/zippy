@@ -1,5 +1,7 @@
 pub mod ast;
 pub mod dependencies;
+pub mod flattened;
+pub mod flattening;
 pub mod names;
 pub mod parser;
 pub mod resolved;
@@ -18,6 +20,8 @@ pub struct Jar(
     crate::ast::AstSource,
     crate::dependencies::get_dependencies,
     crate::dependencies::ModuleDependencies,
+    crate::flattened::Module,
+    crate::flattening::flatten_module,
     crate::names::declare::declared_names,
     crate::names::resolve::resolve_module,
     crate::parser::get_ast,
