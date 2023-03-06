@@ -4,6 +4,8 @@ mod format;
 #[cfg(test)]
 mod tests;
 
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 
 use log::LevelFilter;
@@ -49,24 +51,14 @@ pub fn check() -> anyhow::Result<()> {
 
     let mut messages = Vec::new();
     let prettier = Prettier::new(&database).with_full_name(true);
+    let mut all_deps = HashMap::new();
 
     for module in database.get_modules() {
         let dependencies = get_dependencies(&database, module);
         messages.extend(get_dependencies::accumulated::<Messages>(&database, module));
 
-        let print_na = |na| match na {
-            NameOrAlias::Name(name) => prettier.pretty_name(name),
-            NameOrAlias::Alias(alias) => format!("<imported {}>", alias.name.text(&database)),
-        };
-
         for (name, depends) in dependencies.dependencies(&database) {
-            print!("{} <- ", print_na(*name));
-
-            for depend in depends {
-                print!("{}, ", print_na(*depend));
-            }
-
-            println!();
+            assert!(all_deps.insert(*name, depends.clone()).is_none());
         }
     }
 
@@ -74,5 +66,119 @@ pub fn check() -> anyhow::Result<()> {
         print_diagnostic(&database, Some(&project), &prettier, message)?;
     }
 
+    for component in zippy_common::components::find(&all_deps) {
+        for name in component {
+            print!(
+                "{}, ",
+                match name {
+                    NameOrAlias::Name(name) => prettier.pretty_name(name),
+                    NameOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(&database)),
+                }
+            );
+        }
+
+        println!()
+    }
+
+    let graph = std::fs::File::create("dependencies.dot")?;
+    let mut writer = std::io::BufWriter::new(graph);
+
+    GraphViz::new(&database, &prettier, all_deps).render(&mut writer)?;
+
     Ok(())
+}
+
+struct GraphViz<'db> {
+    db: &'db Database,
+    prettier: &'db Prettier<'db>,
+    edges: Vec<(NameOrAlias, NameOrAlias)>,
+    ids: HashMap<NameOrAlias, usize>,
+}
+
+impl<'db> GraphViz<'db> {
+    pub fn new(
+        db: &'db Database,
+        prettier: &'db Prettier,
+        graph: HashMap<NameOrAlias, HashSet<NameOrAlias>>,
+    ) -> Self {
+        let mut id = 0;
+        let mut edges = Vec::with_capacity(graph.len());
+        let mut ids = HashMap::new();
+
+        for (from, outgoing) in graph {
+            if let Entry::Vacant(e) = ids.entry(from) {
+                e.insert(id);
+                id += 1;
+            }
+
+            for to in outgoing {
+                if let Entry::Vacant(e) = ids.entry(to) {
+                    e.insert(id);
+                    id += 1;
+                }
+
+                edges.push((from, to));
+            }
+        }
+
+        Self {
+            db,
+            prettier,
+            edges,
+            ids,
+        }
+    }
+
+    pub fn render<W: std::io::Write>(&self, output: &mut W) -> dot2::Result {
+        dot2::render(self, output)
+    }
+}
+
+impl<'db> dot2::Labeller<'db> for GraphViz<'db> {
+    type Node = NameOrAlias;
+    type Edge = (NameOrAlias, NameOrAlias);
+    type Subgraph = ();
+
+    fn graph_id(&'db self) -> dot2::Result<dot2::Id<'db>> {
+        dot2::Id::new("dependencies")
+    }
+
+    fn node_id(&'db self, n: &Self::Node) -> dot2::Result<dot2::Id<'db>> {
+        dot2::Id::new(format!("N{}", self.ids.get(n).unwrap()))
+    }
+
+    fn node_label(&'db self, n: &Self::Node) -> dot2::Result<dot2::label::Text<'db>> {
+        Ok(dot2::label::Text::LabelStr(match n {
+            NameOrAlias::Name(name) => self.prettier.pretty_name(*name).into(),
+            NameOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(self.db)).into(),
+        }))
+    }
+}
+
+impl<'db> dot2::GraphWalk<'db> for GraphViz<'db> {
+    type Node = NameOrAlias;
+    type Edge = (NameOrAlias, NameOrAlias);
+    type Subgraph = ();
+
+    fn nodes(&'db self) -> dot2::Nodes<'db, Self::Node> {
+        let mut nodes = HashSet::new();
+        for (from, to) in self.edges.iter() {
+            nodes.insert(*from);
+            nodes.insert(*to);
+        }
+
+        nodes.into_iter().collect()
+    }
+
+    fn edges(&'db self) -> dot2::Edges<'db, Self::Edge> {
+        (&self.edges[..]).into()
+    }
+
+    fn source(&'db self, edge: &Self::Edge) -> Self::Node {
+        edge.0
+    }
+
+    fn target(&'db self, edge: &Self::Edge) -> Self::Node {
+        edge.1
+    }
 }

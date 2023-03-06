@@ -1,3 +1,4 @@
+pub mod components;
 pub mod invalid;
 pub mod messages;
 pub mod names;

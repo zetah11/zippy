@@ -34,15 +34,27 @@ pub fn get_dependencies(db: &dyn Db, module: Module) -> ModuleDependencies {
     let resolved = resolve_module(db, module);
     let mut dependencies = DependencyFinder::new();
 
+    let mut module_dependencies = HashSet::new();
+
     for part in resolved.parts(db) {
         for import in part.imports.iter() {
-            let _ = dependencies.import_names(import);
+            let names = dependencies.import_names(import);
+            module_dependencies.extend(names);
         }
 
         for item in part.items.iter() {
-            let _ = dependencies.item_names(item);
+            let names = dependencies.item_names(item);
+            module_dependencies.extend(names);
         }
     }
+
+    let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
+    let module_name = NameOrAlias::Name(Name::Item(module.name(zdb)));
+
+    assert!(dependencies
+        .dependencies
+        .insert(module_name, module_dependencies)
+        .is_none());
 
     ModuleDependencies::new(db, module, dependencies.dependencies)
 }

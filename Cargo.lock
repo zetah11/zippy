@@ -183,6 +183,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dot2"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "855423f2158bcc73798b3b9a666ec4204597a72370dc91dbdb8e7f9519de8cc3"
+
+[[package]]
 name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -865,6 +871,7 @@ dependencies = [
  "crossbeam",
  "crossterm",
  "dashmap",
+ "dot2",
  "itertools",
  "log",
  "lsp-document",
