@@ -10,7 +10,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use zippy_common::messages::Messages;
 use zippy_common::source::Project;
-use zippy_frontend::names::resolve::resolve_module;
+use zippy_frontend::dependencies::{get_dependencies, NameOrAlias};
 
 use crate::database::Database;
 use crate::pretty::Prettier;
@@ -48,13 +48,27 @@ pub fn check() -> anyhow::Result<()> {
     database.init_sources(sources);
 
     let mut messages = Vec::new();
+    let prettier = Prettier::new(&database).with_full_name(true);
 
     for module in database.get_modules() {
-        let _ = resolve_module(&database, module);
-        messages.extend(resolve_module::accumulated::<Messages>(&database, module));
-    }
+        let dependencies = get_dependencies(&database, module);
+        messages.extend(get_dependencies::accumulated::<Messages>(&database, module));
 
-    let prettier = Prettier::new(&database).with_full_name(true);
+        let print_na = |na| match na {
+            NameOrAlias::Name(name) => prettier.pretty_name(name),
+            NameOrAlias::Alias(alias) => format!("<imported {}>", alias.name.text(&database)),
+        };
+
+        for (name, depends) in dependencies.dependencies(&database) {
+            print!("{} <- ", print_na(*name));
+
+            for depend in depends {
+                print!("{}, ", print_na(*depend));
+            }
+
+            println!();
+        }
+    }
 
     for message in messages {
         print_diagnostic(&database, Some(&project), &prettier, message)?;

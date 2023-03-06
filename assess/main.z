@@ -1,2 +1,9 @@
-import Inner.bonk
+let A = entry
+    let x = B.w
+    let y = entry
+        let w: 10 = 5
+        let v = x
+    let z = x
+
+let B = A.y
 
