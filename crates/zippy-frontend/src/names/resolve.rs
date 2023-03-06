@@ -28,7 +28,7 @@ pub fn resolve_module(db: &dyn Db, module: Module) -> resolved::Module {
         let ast_imports = ast.imports(db);
         let ast_items = ast.items(db);
 
-        let imports = imported_names(ast_imports);
+        let imports = imported_names(zdb, DeclarableName::Item(name), ast_imports);
         let mut resolver = PartResolver::new(db, name, &declared, &imports);
 
         let mut imports = Vec::with_capacity(ast_imports.len());
@@ -53,16 +53,21 @@ pub fn resolve_module(db: &dyn Db, module: Module) -> resolved::Module {
 }
 
 /// Get every alias declared by any imports in this module.
-fn imported_names(imports: &[ast::Import]) -> HashMap<RawName, resolved::Alias> {
+fn imported_names(
+    db: &dyn zippy_common::Db,
+    within: DeclarableName,
+    imports: &[ast::Import],
+) -> HashMap<ItemName, resolved::Alias> {
     let mut result = HashMap::with_capacity(imports.len());
 
     for import in imports {
         for name in import.names.iter() {
             let defined = name.span;
             let name = name.alias.name;
+            let item_name = ItemName::new(db, Some(within), name);
 
             // Duplicates are reported by `declared_names`.
-            result.insert(name, resolved::Alias { name, defined });
+            result.insert(item_name, resolved::Alias { name, defined });
         }
     }
 
@@ -78,7 +83,7 @@ enum ResolvedName {
 
 struct PartResolver<'a, 'db> {
     db: &'db dyn Db,
-    imports: &'a HashMap<RawName, resolved::Alias>,
+    imports: &'a HashMap<ItemName, resolved::Alias>,
     declared: &'a HashSet<Name>,
 
     parent: (Vec<DeclarableName>, DeclarableName),
@@ -92,7 +97,7 @@ impl<'a, 'db> PartResolver<'a, 'db> {
         db: &'db dyn Db,
         module: ItemName,
         declared: &'a HashSet<Name>,
-        imports: &'a HashMap<RawName, resolved::Alias>,
+        imports: &'a HashMap<ItemName, resolved::Alias>,
     ) -> Self {
         Self {
             db,
@@ -115,14 +120,18 @@ impl<'a, 'db> PartResolver<'a, 'db> {
 
         let mut names = Vec::with_capacity(import.names.len());
         for name in import.names.iter() {
+            let span = name.span;
+            let from = name.name;
+            let name = ItemName::new(self.common_db(), Some(self.parent.1), name.alias.name);
+
             let alias = *self
                 .imports
-                .get(&name.alias.name)
+                .get(&name)
                 .expect("all name aliases must be declared");
 
             names.push(resolved::ImportedName {
-                span: name.span,
-                name: name.name,
+                span,
+                name: from,
                 alias,
             });
         }
@@ -198,7 +207,7 @@ impl<'a, 'db> PartResolver<'a, 'db> {
         let span = expr.span;
         let node = match &expr.node {
             ast::ExpressionNode::Entry { items, imports } => {
-                let imported_names = imported_names(imports);
+                let imported_names = imported_names(self.common_db(), self.parent.1, imports);
                 self.nested(&imported_names, |this| {
                     let mut new_items = Vec::new();
                     let mut new_imports = Vec::new();
@@ -306,6 +315,10 @@ impl<'a, 'db> PartResolver<'a, 'db> {
                 return ResolvedName::Name(name);
             }
 
+            if let Some(alias) = self.imports.get(&item_name) {
+                return ResolvedName::Alias(*alias);
+            }
+
             if self.common_db().get_module(&item_name).is_some() {
                 return ResolvedName::Name(name);
             }
@@ -317,20 +330,13 @@ impl<'a, 'db> PartResolver<'a, 'db> {
             }
         }
 
-        // Look for imports
-        for (import_name, alias) in self.imports.iter() {
-            if *import_name == name.name {
-                return ResolvedName::Alias(*alias);
-            }
-        }
-
         // Look in an outside scope
         self.outer
             .map(|outer| outer.resolve_name(name))
             .unwrap_or(ResolvedName::Neither)
     }
 
-    fn nested<F, T>(&mut self, imports: &HashMap<RawName, resolved::Alias>, f: F) -> T
+    fn nested<F, T>(&mut self, imports: &HashMap<ItemName, resolved::Alias>, f: F) -> T
     where
         F: for<'b> FnOnce(&mut PartResolver<'b, 'db>) -> T,
     {
