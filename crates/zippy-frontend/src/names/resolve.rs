@@ -148,12 +148,11 @@ impl<'a, 'db> PartResolver<'a, 'db> {
             } => {
                 let pattern_span = pattern.span;
                 let (pattern, scope) = self.resolve_pattern(pattern, |resolver, name| {
-                    let name = ItemName::new(resolver.common_db(), Some(resolver.parent.1), name);
-                    Name::Item(name)
+                    ItemName::new(resolver.common_db(), Some(resolver.parent.1), name)
                 });
 
                 let scope = match scope {
-                    Some(scope) => scope.into(),
+                    Some(scope) => DeclarableName::Item(scope),
                     None => {
                         let name = UnnamableName::new(
                             self.common_db(),
@@ -265,13 +264,14 @@ impl<'a, 'db> PartResolver<'a, 'db> {
         resolved::Expression { span, node }
     }
 
-    fn resolve_pattern<F>(
+    fn resolve_pattern<F, N>(
         &mut self,
         pattern: &ast::Pattern,
         mut f: F,
-    ) -> (resolved::Pattern, Option<Name>)
+    ) -> (resolved::Pattern<N>, Option<N>)
     where
-        F: FnMut(&Self, RawName) -> Name,
+        F: FnMut(&Self, RawName) -> N,
+        N: Copy,
     {
         let span = pattern.span;
         let (node, name) = match &pattern.node {

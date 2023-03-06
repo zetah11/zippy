@@ -93,7 +93,7 @@ impl DependencyFinder {
                 anno,
                 body,
             } => {
-                let names = self.pattern_names(pattern);
+                let names = self.pattern_names(pattern, Name::Item);
 
                 let mut depends = HashSet::new();
 
@@ -174,10 +174,14 @@ impl DependencyFinder {
         }
     }
 
-    fn pattern_names(&mut self, pattern: &Pattern) -> Vec<Name> {
+    fn pattern_names<F, N>(&mut self, pattern: &Pattern<N>, mut f: F) -> Vec<Name>
+    where
+        F: FnMut(N) -> Name,
+        N: Copy,
+    {
         match &pattern.node {
             PatternNode::Annotate(pattern, ty) => {
-                let names = self.pattern_names(pattern);
+                let names = self.pattern_names(pattern, f);
 
                 let mut depends = HashSet::new();
                 self.for_type(&mut depends, ty);
@@ -190,7 +194,7 @@ impl DependencyFinder {
                 names
             }
 
-            PatternNode::Name(name) => vec![*name],
+            PatternNode::Name(name) => vec![f(*name)],
             PatternNode::Invalid(_) | PatternNode::Unit => Vec::new(),
         }
     }

@@ -1,4 +1,4 @@
-use zippy_common::names::{ItemName, Name};
+use zippy_common::names::ItemName;
 use zippy_common::source::Module;
 
 use crate::names::resolve::resolve_module;
@@ -159,7 +159,7 @@ impl Flattener {
 
     fn flatten_item_pattern(
         &mut self,
-        pattern: &resolved::Pattern,
+        pattern: &resolved::Pattern<ItemName>,
     ) -> (flattened::Pattern<ItemName>, Vec<ItemName>) {
         let span = pattern.span;
         let (node, names) = match &pattern.node {
@@ -171,10 +171,7 @@ impl Flattener {
                 (flattened::PatternNode::Annotate(pattern, ty), names)
             }
 
-            resolved::PatternNode::Name(name) => match name {
-                Name::Item(name) => (flattened::PatternNode::Name(*name), vec![*name]),
-                _ => unreachable!(),
-            },
+            resolved::PatternNode::Name(name) => (flattened::PatternNode::Name(*name), vec![*name]),
 
             resolved::PatternNode::Unit => (flattened::PatternNode::Unit, Vec::new()),
             resolved::PatternNode::Invalid(reason) => {

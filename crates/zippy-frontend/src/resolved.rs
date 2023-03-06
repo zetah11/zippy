@@ -36,7 +36,7 @@ pub struct ImportedName {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Item {
     Let {
-        pattern: Pattern,
+        pattern: Pattern<ItemName>,
         anno: Option<Type>,
         body: Option<Expression>,
     },
@@ -86,16 +86,17 @@ pub enum ExpressionNode {
     Invalid(Reason),
 }
 
+/// A pattern parameterized by the type of the names it may bind.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct Pattern {
-    pub node: PatternNode,
+pub struct Pattern<N> {
+    pub node: PatternNode<N>,
     pub span: Span,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum PatternNode {
-    Annotate(Box<Pattern>, Type),
-    Name(Name),
+pub enum PatternNode<N> {
+    Annotate(Box<Pattern<N>>, Type),
+    Name(N),
 
     Unit,
 
