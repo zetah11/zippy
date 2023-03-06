@@ -1,8 +1,6 @@
 use std::io::{self, stderr, Stderr, Write};
 
-use crossterm::ansi_support::supports_ansi;
-use crossterm::style::{self, Color, Stylize};
-use crossterm::{queue, terminal};
+use owo_colors::{AnsiColors, OwoColorize};
 use zippy_common::messages::{Message, NoteKind, Severity, Text};
 use zippy_common::source::Span;
 
@@ -129,9 +127,11 @@ impl Terminal {
     pub const GIVE_UP: usize = 10;
 
     pub fn new() -> Self {
-        let colorful = supports_ansi();
         let stderr = stderr();
-        let width = terminal::size().ok().map(|(width, _)| width as usize);
+        let colorful = supports_color::on(supports_color::Stream::Stderr).is_some();
+        let width = crossterm::terminal::size()
+            .ok()
+            .map(|(width, _)| width as usize);
 
         Self {
             colorful,
@@ -149,7 +149,7 @@ impl Terminal {
     }
 
     pub fn newline(&mut self) -> io::Result<()> {
-        queue!(self.stderr, style::Print('\n'))
+        writeln!(&mut self.stderr)
     }
 
     /// Print some text.
@@ -157,16 +157,16 @@ impl Terminal {
         let text: String = text.into();
 
         if self.colorful {
-            queue!(self.stderr, style::Print(text.grey()))
+            write!(&mut self.stderr, "{}", text.dimmed())
         } else {
-            queue!(self.stderr, style::Print(text))
+            write!(&mut self.stderr, "{text}")
         }
     }
 
     /// Print some important information.
     pub fn print_important(&mut self, text: impl Into<String>) -> io::Result<()> {
         let text: String = text.into();
-        queue!(self.stderr, style::Print(text))
+        write!(&mut self.stderr, "{text}")
     }
 
     /// Print some text, colored according to the given severity.
@@ -175,14 +175,14 @@ impl Terminal {
 
         if self.colorful {
             let color = match severity {
-                Severity::Error => Color::Red,
-                Severity::Warning => Color::Yellow,
-                Severity::Info => Color::Cyan,
+                Severity::Error => AnsiColors::Red,
+                Severity::Warning => AnsiColors::Yellow,
+                Severity::Info => AnsiColors::Cyan,
             };
 
-            queue!(self.stderr, style::Print(text.with(color)))
+            write!(&mut self.stderr, "{}", text.color(color))
         } else {
-            queue!(self.stderr, style::Print(text))
+            write!(&mut self.stderr, "{text}")
         }
     }
 
@@ -197,11 +197,11 @@ impl Terminal {
         let text = self.indented(prettier, indent, text);
 
         if self.colorful {
-            queue!(self.stderr, style::Print(kind.green()))?;
-            queue!(self.stderr, style::Print(": ".grey()))?;
-            queue!(self.stderr, style::Print(text))
+            write!(&mut self.stderr, "{}", kind.green())?;
+            write!(&mut self.stderr, "{}", ": ".dimmed())?;
+            write!(&mut self.stderr, "{text}")
         } else {
-            queue!(self.stderr, style::Print(format!("{kind}: {text}")))
+            write!(&mut self.stderr, "{kind}: {text}")
         }
     }
 }
