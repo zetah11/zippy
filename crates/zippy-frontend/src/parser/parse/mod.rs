@@ -4,12 +4,15 @@ mod item;
 use zippy_common::messages::MessageMaker;
 use zippy_common::source::{Source, Span};
 
+use super::cst::Item;
 use super::tokens::{Token, TokenType};
+use crate::messages::ParseMessages;
 use crate::Db;
 
 pub struct Parser<'db, I> {
     db: &'db dyn Db,
     tokens: I,
+    tokens_empty: bool,
 
     current: Option<Token>,
     previous: Option<Span>,
@@ -21,6 +24,8 @@ impl<'db, I: Iterator<Item = Token>> Parser<'db, I> {
         let mut this = Self {
             db,
             tokens,
+            tokens_empty: false,
+
             current: None,
             previous: None,
             source,
@@ -28,6 +33,21 @@ impl<'db, I: Iterator<Item = Token>> Parser<'db, I> {
 
         this.advance();
         this
+    }
+
+    /// Parse items for as long as there are tokens.
+    pub fn parse_everything(&mut self) -> Vec<Item> {
+        let mut items = Vec::new();
+
+        while !self.tokens_empty || self.current.is_some() {
+            items.extend(self.parse_items());
+
+            if let Some(skipped) = self.synchronize(|this| this.peek_item()) {
+                self.at(skipped).expected_item();
+            }
+        }
+
+        items
     }
 
     /// Get some span close to the current token.
@@ -43,6 +63,7 @@ impl<'db, I: Iterator<Item = Token>> Parser<'db, I> {
     fn advance(&mut self) {
         self.previous = self.current.take().map(|token| token.span);
         self.current = self.tokens.next();
+        self.tokens_empty = self.current.is_none();
     }
 
     /// Return the span of the current token if it matches.
@@ -76,6 +97,25 @@ impl<'db, I: Iterator<Item = Token>> Parser<'db, I> {
             }
 
             skipped = true;
+            self.advance();
+        }
+
+        skipped
+    }
+
+    /// Skip tokens until the given function returns `true` or until there are
+    /// no more tokens. Returns the span of the skipped tokens, if any.
+    fn synchronize(&mut self, mut f: impl FnMut(&Self) -> bool) -> Option<Span> {
+        let mut skipped = None;
+
+        while let Some(ref token) = self.current {
+            if f(self) {
+                break;
+            }
+
+            eprintln!("skipped {token:?}");
+
+            *skipped.get_or_insert(token.span) += token.span;
             self.advance();
         }
 

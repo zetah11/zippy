@@ -10,6 +10,13 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
     pub fn parse_items(&mut self) -> Vec<Item> {
         let mut items = Vec::new();
 
+        while self
+            .consume(&[TokenType::Eol, TokenType::Semicolon])
+            .is_some()
+        {
+            // pass
+        }
+
         while self.peek_item() {
             items.push(self.parse_item());
 

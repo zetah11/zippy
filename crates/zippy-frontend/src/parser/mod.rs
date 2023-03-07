@@ -52,7 +52,7 @@ pub fn get_ast(db: &dyn Db, source: Source) -> AstSource {
     });
 
     let mut parser = Parser::new(db, source, tokens);
-    let csts = parser.parse_items();
+    let csts = parser.parse_everything();
     let mut items = Vec::new();
     let mut imports = Vec::new();
 
