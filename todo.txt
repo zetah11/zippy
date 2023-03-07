@@ -2,4 +2,7 @@
 [x] make patterns generic over the name they expect, to prevent name bugs (like
     in `flattened`)
 [ ] intern strings, numbers, etc. to avoid clones during passes
-[ ] properly scope unbound entries, block things, and so on
+[?] properly scope unbound entries, block things, and so on
+    [x] split declaring/resolving into mutually recursive structs responsible
+        for declarative regions and locals (separation of concerns or smth)
+    [ ] reduce duplication between resolving/declaration (they are very similar)

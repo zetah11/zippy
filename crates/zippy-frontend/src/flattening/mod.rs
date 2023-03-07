@@ -53,7 +53,7 @@ impl Flattener {
                 anno,
                 body,
             } => {
-                let (pattern, names) = self.flatten_item_pattern(pattern);
+                let (pattern, names) = self.flatten_pattern(pattern);
                 let anno = anno.as_ref().map(|ty| self.flatten_type(ty));
                 let body = body
                     .as_ref()
@@ -119,6 +119,24 @@ impl Flattener {
                 }
             }
 
+            resolved::ExpressionNode::Let {
+                pattern,
+                anno,
+                body,
+            } => {
+                let (pattern, _) = self.flatten_pattern(pattern);
+                let anno = anno.as_ref().map(|ty| self.flatten_type(ty));
+                let body = body
+                    .as_ref()
+                    .map(|expression| self.flatten_expression(expression));
+
+                flattened::ExpressionNode::Let {
+                    pattern,
+                    anno,
+                    body,
+                }
+            }
+
             resolved::ExpressionNode::Block(expressions) => {
                 let expressions = expressions
                     .iter()
@@ -157,14 +175,14 @@ impl Flattener {
             .add_expression(names, flattened::Expression { span, node })
     }
 
-    fn flatten_item_pattern(
+    fn flatten_pattern<N: Copy>(
         &mut self,
-        pattern: &resolved::Pattern<ItemName>,
-    ) -> (flattened::Pattern<ItemName>, Vec<ItemName>) {
+        pattern: &resolved::Pattern<N>,
+    ) -> (flattened::Pattern<N>, Vec<N>) {
         let span = pattern.span;
         let (node, names) = match &pattern.node {
             resolved::PatternNode::Annotate(pattern, ty) => {
-                let (pattern, names) = self.flatten_item_pattern(pattern);
+                let (pattern, names) = self.flatten_pattern(pattern);
                 let pattern = Box::new(pattern);
                 let ty = self.flatten_type(ty);
 

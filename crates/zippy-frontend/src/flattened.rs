@@ -281,6 +281,12 @@ pub enum ExpressionNode {
         imports: Vec<ImportIndex>,
     },
 
+    Let {
+        pattern: Pattern<LocalName>,
+        anno: Option<Type>,
+        body: Option<ExpressionIndex>,
+    },
+
     Block(Vec<ExpressionIndex>),
 
     Annotate(ExpressionIndex, Type),

@@ -75,6 +75,13 @@ pub enum ExpressionNode {
     /// A sequence of expressions delimited by semicolons or newlines.
     Block(Vec<Expression>),
 
+    /// A `let`-binding.
+    Let {
+        pattern: Box<Pattern>,
+        anno: Option<Box<Type>>,
+        body: Option<Box<Expression>>,
+    },
+
     Annotate(Box<Expression>, Box<Type>),
     Path(Box<Expression>, Identifier),
 

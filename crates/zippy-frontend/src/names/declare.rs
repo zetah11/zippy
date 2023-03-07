@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use zippy_common::messages::MessageMaker;
 use zippy_common::names::{
-    DeclarableName, ItemName, Name, RawName, UnnamableName, UnnamableNameKind,
+    DeclarableName, ItemName, LocalName, Name, RawName, UnnamableName, UnnamableNameKind,
 };
 use zippy_common::source::{Module, Span};
 
@@ -18,7 +18,7 @@ use crate::Db;
 pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<Name, Span> {
     let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
     let root = module.name(zdb);
-    let mut declarer = Declarer::new(db, root);
+    let mut declarer = Declarer::new(db, DeclarableName::Item(root));
 
     for source in module.sources(zdb) {
         let source = get_ast(db, *source);
@@ -30,18 +30,16 @@ pub fn declared_names(db: &dyn Db, module: Module) -> HashMap<Name, Span> {
 
 struct Declarer<'db> {
     db: &'db dyn Db,
-    scope: (Vec<DeclarableName>, DeclarableName),
+    parent: (Vec<DeclarableName>, DeclarableName),
     names: HashMap<Name, Span>,
     imports: HashMap<RawName, Span>,
 }
 
 impl<'db> Declarer<'db> {
-    pub fn new(db: &'db dyn Db, root: ItemName) -> Self {
-        let scope = DeclarableName::Item(root);
-
+    pub fn new(db: &'db dyn Db, root: DeclarableName) -> Self {
         Self {
             db,
-            scope: (Vec::new(), scope),
+            parent: (Vec::new(), root),
             names: HashMap::new(),
             imports: HashMap::new(),
         }
@@ -58,6 +56,12 @@ impl<'db> Declarer<'db> {
     }
 
     fn declare_import(&mut self, import: &Import) {
+        if let Some(from) = &import.from {
+            self.locals(self.parent.1, |locals| {
+                locals.declare_expression(from, None);
+            });
+        }
+
         for name in import.names.iter() {
             let span = name.span;
             let alias = name.alias.name;
@@ -79,101 +83,59 @@ impl<'db> Declarer<'db> {
         match item {
             Item::Let {
                 pattern,
-                anno: _,
+                anno,
                 body,
             } => {
-                let name = self.declare_pattern(pattern, |declarer, name| {
-                    let name = ItemName::new(declarer.common_db(), Some(declarer.scope.1), name);
-                    Name::Item(name)
-                });
+                let name = self.declare_pattern(pattern);
 
-                let name = match name {
-                    Some(name) => name.into(),
+                let root = match name {
+                    Some(name) => DeclarableName::Item(name),
                     None => {
                         let name = UnnamableName::new(
                             self.common_db(),
                             UnnamableNameKind::Pattern,
-                            Some(self.scope.1),
+                            Some(self.parent.1),
                             pattern.span,
                         );
                         DeclarableName::Unnamable(name)
                     }
                 };
 
-                if let Some(body) = body {
-                    self.within(name, |declarer| {
-                        declarer.declare_expression(body);
-                    });
-                }
-            }
-        }
-    }
-
-    fn declare_type(&mut self, ty: &Type) {
-        match &ty.node {
-            TypeNode::Range {
-                clusivity: _,
-                lower,
-                upper,
-            } => {
-                self.declare_expression(lower);
-                self.declare_expression(upper);
-            }
-
-            TypeNode::Invalid(_) => {}
-        }
-    }
-
-    fn declare_expression(&mut self, expression: &Expression) {
-        match &expression.node {
-            ExpressionNode::Entry { items, imports } => {
-                self.nested(|this| {
-                    for import in imports {
-                        this.declare_import(import);
+                self.locals(root, |locals| {
+                    if let Some(anno) = anno {
+                        locals.declare_type(anno);
                     }
 
-                    for item in items {
-                        this.declare_item(item);
+                    if let Some(body) = body {
+                        locals.declare_expression(body, name.map(Name::Item))
                     }
                 });
             }
-
-            ExpressionNode::Block(expressions) => {
-                for expression in expressions {
-                    self.declare_expression(expression);
-                }
-            }
-
-            ExpressionNode::Annotate(expression, ty) => {
-                self.declare_expression(expression);
-                self.declare_type(ty);
-            }
-
-            ExpressionNode::Path(expression, _) => {
-                self.declare_expression(expression);
-            }
-
-            ExpressionNode::Name(_)
-            | ExpressionNode::Number(_)
-            | ExpressionNode::String(_)
-            | ExpressionNode::Unit
-            | ExpressionNode::Invalid(_) => {}
         }
     }
 
-    fn declare_pattern<F>(&mut self, pattern: &Pattern, mut f: F) -> Option<Name>
-    where
-        F: FnMut(&Self, RawName) -> Name,
-    {
+    fn declare_pattern(&mut self, pattern: &Pattern) -> Option<ItemName> {
         let span = pattern.span;
         match &pattern.node {
             PatternNode::Annotate(pattern, ty) => {
-                self.declare_type(ty);
-                self.declare_pattern(pattern, f)
+                let name = self.declare_pattern(pattern);
+                let root = match name {
+                    Some(root) => DeclarableName::Item(root),
+                    None => DeclarableName::Unnamable(UnnamableName::new(
+                        self.common_db(),
+                        UnnamableNameKind::Pattern,
+                        Some(self.parent.1),
+                        span,
+                    )),
+                };
+
+                self.locals(root, |locals| locals.declare_type(ty));
+
+                name
             }
 
             PatternNode::Name(name) => {
-                let name = f(self, name.name);
+                let name = ItemName::new(self.common_db(), Some(self.parent.1), name.name);
                 self.try_declare_name(name, span);
                 Some(name)
             }
@@ -185,68 +147,41 @@ impl<'db> Declarer<'db> {
 
     /// Try to declare a name, and produce an error message if it already has
     /// been declared.
-    fn try_declare_name(&mut self, name: Name, span: Span) {
+    fn try_declare_name(&mut self, item_name: ItemName, span: Span) {
+        let name = Name::Item(item_name);
+
         if let Some(previous) = self.names.get(&name) {
             self.at(span).duplicate_definition(name, *previous);
 
             return;
         }
 
-        if let Name::Item(item) = name {
-            if let Some(previous) = self.imports.get(&item.name(self.common_db())) {
-                self.at(span).duplicate_definition(name, *previous);
-            }
+        if let Some(previous) = self.imports.get(&item_name.name(self.common_db())) {
+            self.at(span).duplicate_definition(name, *previous);
+        }
 
-            if self.common_db().get_module(&item).is_some() {
-                self.at(span).duplicate_module_definition(name);
-            }
+        if self.common_db().get_module(&item_name).is_some() {
+            self.at(span).duplicate_module_definition(name);
         }
 
         self.names.insert(name, span);
     }
 
-    /// Declare some names in a *declarative scope* nested inside this one.
-    fn nested<F, T>(&mut self, f: F) -> T
+    fn locals<F, T>(&mut self, root: DeclarableName, f: F) -> T
     where
-        F: FnOnce(&mut Self) -> T,
+        F: FnOnce(&mut LocalDeclarer) -> T,
     {
-        let (result, names) = {
-            let mut nested = Declarer {
-                db: self.db,
-                scope: (Vec::new(), self.scope.1),
-                names: HashMap::new(),
-                imports: HashMap::new(),
-            };
+        let mut locals = LocalDeclarer::new(self.db, root);
 
-            let result = f(&mut nested);
-            (result, nested.names)
-        };
+        let result = f(&mut locals);
 
-        for (name, span) in names {
+        for (name, here) in locals.names {
             assert!(
-                self.names.insert(name, span).is_none(),
-                "TODO: properly scope nested declarative regions"
+                self.names.insert(name, here).is_none(),
+                "nested names should be uniquely nested"
             );
         }
 
-        result
-    }
-
-    /// Declare some names within the scope of another one.
-    fn within<F, T>(&mut self, name: DeclarableName, f: F) -> T
-    where
-        F: FnOnce(&mut Self) -> T,
-    {
-        self.scope.0.push(self.scope.1);
-        self.scope.1 = name;
-
-        let result = f(self);
-
-        self.scope.1 = self
-            .scope
-            .0
-            .pop()
-            .expect("`self.scope` modified outside `self.within()`");
         result
     }
 
@@ -255,6 +190,162 @@ impl<'db> Declarer<'db> {
     }
 
     /// Get a database usable with functions from [`zippy_common`].
+    fn common_db(&self) -> &'db dyn zippy_common::Db {
+        <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(self.db)
+    }
+}
+
+struct LocalDeclarer<'db> {
+    db: &'db dyn Db,
+    parent: DeclarableName,
+    names: HashMap<Name, Span>,
+    scope: usize,
+}
+
+impl<'db> LocalDeclarer<'db> {
+    fn new(db: &'db dyn Db, root: DeclarableName) -> Self {
+        Self {
+            db,
+            parent: root,
+            names: HashMap::new(),
+            scope: 0,
+        }
+    }
+
+    fn declare_type(&mut self, ty: &Type) {
+        match &ty.node {
+            TypeNode::Range {
+                clusivity: _,
+                lower,
+                upper,
+            } => {
+                self.declare_expression(lower, None);
+                self.declare_expression(upper, None);
+            }
+
+            TypeNode::Invalid(_) => {}
+        }
+    }
+
+    fn declare_expression(&mut self, expression: &Expression, bind: Option<Name>) {
+        let span = expression.span;
+        match &expression.node {
+            ExpressionNode::Entry { items, imports } => {
+                let root = match bind {
+                    Some(bind) => bind.into(),
+                    None => DeclarableName::Unnamable(UnnamableName::new(
+                        self.common_db(),
+                        UnnamableNameKind::Entry,
+                        Some(self.parent),
+                        span,
+                    )),
+                };
+
+                self.items(root, |declarer| {
+                    for import in imports {
+                        declarer.declare_import(import);
+                    }
+
+                    for item in items {
+                        declarer.declare_item(item);
+                    }
+                });
+            }
+
+            ExpressionNode::Let {
+                pattern,
+                anno,
+                body,
+            } => {
+                let bind = self.declare_pattern(pattern);
+
+                if let Some(ty) = anno {
+                    self.declare_type(ty);
+                }
+
+                if let Some(body) = body {
+                    self.declare_expression(body, bind.map(Name::Local));
+                }
+            }
+
+            ExpressionNode::Block(expressions) => {
+                for expression in expressions {
+                    self.declare_expression(expression, None);
+                    self.scope += 1;
+                }
+            }
+
+            ExpressionNode::Annotate(expression, ty) => {
+                self.declare_expression(expression, bind);
+                self.declare_type(ty);
+            }
+
+            ExpressionNode::Path(expression, _) => {
+                self.declare_expression(expression, bind);
+            }
+
+            ExpressionNode::Name(_)
+            | ExpressionNode::Number(_)
+            | ExpressionNode::String(_)
+            | ExpressionNode::Unit
+            | ExpressionNode::Invalid(_) => {}
+        }
+    }
+
+    fn declare_pattern(&mut self, pattern: &Pattern) -> Option<LocalName> {
+        let span = pattern.span;
+        match &pattern.node {
+            PatternNode::Annotate(pattern, ty) => {
+                self.declare_type(ty);
+                self.declare_pattern(pattern)
+            }
+
+            PatternNode::Name(name) => {
+                let name =
+                    LocalName::new(self.common_db(), Some(self.parent), name.name, self.scope);
+                self.try_declare_name(name, span);
+                Some(name)
+            }
+
+            PatternNode::Unit => None,
+            PatternNode::Invalid(_) => None,
+        }
+    }
+
+    /// Attempt to declare a name as being defined at the given span, reporting
+    /// an error if it already has been.
+    fn try_declare_name(&mut self, name: LocalName, span: Span) {
+        let name = Name::Local(name);
+
+        if let Some(previous) = self.names.get(&name) {
+            self.at(span).duplicate_definition(name, *previous);
+        }
+
+        self.names.insert(name, span);
+    }
+
+    fn items<F, T>(&mut self, root: DeclarableName, f: F) -> T
+    where
+        F: FnOnce(&mut Declarer<'db>) -> T,
+    {
+        let mut declarer = Declarer::new(self.db, root);
+
+        let result = f(&mut declarer);
+
+        for (name, here) in declarer.names {
+            assert!(
+                self.names.insert(name, here).is_none(),
+                "nested names should be uniquely nested"
+            );
+        }
+
+        result
+    }
+
+    fn at(&self, span: Span) -> MessageMaker<&'db dyn Db> {
+        MessageMaker::new(self.db, span)
+    }
+
     fn common_db(&self) -> &'db dyn zippy_common::Db {
         <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(self.db)
     }

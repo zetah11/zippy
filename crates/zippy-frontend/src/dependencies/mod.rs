@@ -144,6 +144,29 @@ impl DependencyFinder {
                 }
             }
 
+            ExpressionNode::Let {
+                pattern,
+                anno,
+                body,
+            } => {
+                let mut let_depends = HashSet::new();
+
+                if let Some(anno) = anno {
+                    self.for_type(&mut let_depends, anno);
+                }
+
+                if let Some(body) = body {
+                    self.for_expression(&mut let_depends, body);
+                }
+
+                let names = self.pattern_names(pattern, Name::Local);
+                for name in names {
+                    let name = NameOrAlias::Name(name);
+                    self.dependencies.insert(name, let_depends.clone());
+                    within.insert(name);
+                }
+            }
+
             ExpressionNode::Block(exprs) => {
                 for expression in exprs {
                     self.for_expression(within, expression);

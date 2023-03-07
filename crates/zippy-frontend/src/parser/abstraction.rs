@@ -166,6 +166,22 @@ fn abstract_expression(db: &dyn Db, item: cst::Item) -> ast::Expression {
             ast::ExpressionNode::Entry { items, imports }
         }
 
+        cst::ItemNode::Let { pattern, body } => {
+            let (pattern, anno) = extract_annotation(db, *pattern);
+            let pattern = abstract_pattern(db, pattern);
+            let body = body.map(|item| abstract_expression(db, *item));
+
+            let pattern = Box::new(pattern);
+            let anno = anno.map(Box::new);
+            let body = body.map(Box::new);
+
+            ast::ExpressionNode::Let {
+                pattern,
+                anno,
+                body,
+            }
+        }
+
         cst::ItemNode::Annotation(expr, ty) => {
             let expr = Box::new(abstract_expression(db, *expr));
             let ty = Box::new(abstract_type(db, *ty));

@@ -1,5 +1,8 @@
 let A = entry
-    let x = B.w
+    let x =
+      let z = 10
+      B.w
+
     let y = entry
         import Inner.x
         let w: 10 = 5

@@ -1,5 +1,5 @@
 use zippy_common::invalid::Reason;
-use zippy_common::names::{ItemName, Name, RawName};
+use zippy_common::names::{ItemName, LocalName, Name, RawName};
 use zippy_common::source::{Source, Span};
 
 use crate::ast::{Clusivity, Identifier};
@@ -73,6 +73,12 @@ pub enum ExpressionNode {
     },
 
     Block(Vec<Expression>),
+
+    Let {
+        pattern: Box<Pattern<LocalName>>,
+        anno: Option<Box<Type>>,
+        body: Option<Box<Expression>>,
+    },
 
     Annotate(Box<Expression>, Box<Type>),
     Path(Box<Expression>, Identifier),

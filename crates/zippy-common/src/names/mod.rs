@@ -66,6 +66,9 @@ pub struct UnnamableName {
 /// lambda?
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum UnnamableNameKind {
+    /// An unnamed entry
+    Entry,
+
     /// An unnamed function such as a lambda.
     Lambda,
 

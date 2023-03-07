@@ -47,6 +47,7 @@ impl Prettier<'_> {
 
     pub fn pretty_unnamable_name(&self, name: UnnamableName) -> String {
         let kind = match name.kind(self.db) {
+            UnnamableNameKind::Entry => "entry",
             UnnamableNameKind::Lambda => "function",
             UnnamableNameKind::Pattern => "item",
         };
