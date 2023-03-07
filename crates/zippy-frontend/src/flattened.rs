@@ -9,6 +9,7 @@
 use std::collections::HashMap;
 
 use zippy_common::invalid::Reason;
+use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::names::{ItemName, LocalName, Name};
 use zippy_common::source::Span;
 
@@ -294,8 +295,8 @@ pub enum ExpressionNode {
 
     Name(Name),
     Alias(Alias),
-    Number(String),
-    String(String),
+    Number(NumberLiteral),
+    String(StringLiteral),
     Unit,
 
     Invalid(Reason),

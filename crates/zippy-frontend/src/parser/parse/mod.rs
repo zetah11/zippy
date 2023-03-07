@@ -126,6 +126,10 @@ impl<'db, I: Iterator<Item = Token>> Parser<'db, I> {
     fn at(&self, span: Span) -> MessageMaker<&'db dyn Db> {
         MessageMaker::new(self.db, span)
     }
+
+    fn common_db(&self) -> &'db dyn zippy_common::Db {
+        <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(self.db)
+    }
 }
 
 trait Matcher {

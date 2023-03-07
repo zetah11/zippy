@@ -1,3 +1,4 @@
+use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::source::Span;
 
 use super::Parser;
@@ -101,13 +102,19 @@ impl<I: Iterator<Item = Token>> Parser<'_, I> {
                 kind: TokenType::Number(number),
                 span,
                 ..
-            }) => (ItemNode::Number(number), span),
+            }) => (
+                ItemNode::Number(NumberLiteral::new(self.common_db(), number)),
+                span,
+            ),
 
             Some(Token {
                 kind: TokenType::String(string),
                 span,
                 ..
-            }) => (ItemNode::String(string), span),
+            }) => (
+                ItemNode::String(StringLiteral::new(self.common_db(), string)),
+                span,
+            ),
 
             Some(Token {
                 kind: TokenType::LeftParen,

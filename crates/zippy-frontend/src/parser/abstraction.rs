@@ -1,4 +1,5 @@
 use zippy_common::invalid::Reason;
+use zippy_common::literals::NumberLiteral;
 use zippy_common::messages::MessageMaker;
 use zippy_common::names::RawName;
 use zippy_common::source::Span;
@@ -117,9 +118,10 @@ fn abstract_type(db: &dyn Db, item: cst::Item) -> ast::Type {
     let span = item.span;
     let node = match item.node {
         cst::ItemNode::Number(number) => {
+            let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
             let lower = ast::Expression {
                 span,
-                node: ast::ExpressionNode::Number("0".into()),
+                node: ast::ExpressionNode::Number(NumberLiteral::new(zdb, "0".into())),
             };
 
             let upper = ast::Expression {

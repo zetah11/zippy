@@ -158,12 +158,8 @@ impl Flattener {
 
             resolved::ExpressionNode::Name(name) => flattened::ExpressionNode::Name(*name),
             resolved::ExpressionNode::Alias(alias) => flattened::ExpressionNode::Alias(*alias),
-            resolved::ExpressionNode::Number(number) => {
-                flattened::ExpressionNode::Number(number.clone())
-            }
-            resolved::ExpressionNode::String(string) => {
-                flattened::ExpressionNode::String(string.clone())
-            }
+            resolved::ExpressionNode::Number(number) => flattened::ExpressionNode::Number(*number),
+            resolved::ExpressionNode::String(string) => flattened::ExpressionNode::String(*string),
             resolved::ExpressionNode::Unit => flattened::ExpressionNode::Unit,
 
             resolved::ExpressionNode::Invalid(reason) => {

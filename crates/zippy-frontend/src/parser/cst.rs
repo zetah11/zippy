@@ -3,6 +3,7 @@
 //! constructions which are invalid code. This will be removed and reported
 //! during the abstraction pass.
 
+use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::source::Span;
 
 /// A node in the syntax tree with the span of the area it covers.
@@ -39,10 +40,10 @@ pub enum ItemNode {
     Name(String),
 
     /// A numeric literal.
-    Number(String),
+    Number(NumberLiteral),
 
     /// A string literal.
-    String(String),
+    String(StringLiteral),
 
     /// Some invalid chunk of code and the reason it occured.
     Invalid,

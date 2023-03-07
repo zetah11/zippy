@@ -410,8 +410,8 @@ impl<'p, 'db> LocaLResolver<'p, 'db> {
                 }
             },
 
-            ast::ExpressionNode::Number(string) => resolved::ExpressionNode::Number(string.clone()),
-            ast::ExpressionNode::String(string) => resolved::ExpressionNode::String(string.clone()),
+            ast::ExpressionNode::Number(number) => resolved::ExpressionNode::Number(*number),
+            ast::ExpressionNode::String(string) => resolved::ExpressionNode::String(*string),
             ast::ExpressionNode::Unit => resolved::ExpressionNode::Unit,
             ast::ExpressionNode::Invalid(reason) => resolved::ExpressionNode::Invalid(*reason),
         };

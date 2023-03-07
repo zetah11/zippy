@@ -1,5 +1,6 @@
 pub mod components;
 pub mod invalid;
+pub mod literals;
 pub mod messages;
 pub mod names;
 pub mod source;
@@ -14,6 +15,8 @@ pub trait Db: salsa::DbWithJar<Jar> {
 
 #[salsa::jar(db = Db)]
 pub struct Jar(
+    crate::literals::NumberLiteral,
+    crate::literals::StringLiteral,
     crate::messages::Messages,
     crate::names::ItemName,
     crate::names::LocalName,

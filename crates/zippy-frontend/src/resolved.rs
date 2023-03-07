@@ -1,4 +1,5 @@
 use zippy_common::invalid::Reason;
+use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::names::{ItemName, LocalName, Name, RawName};
 use zippy_common::source::{Source, Span};
 
@@ -85,8 +86,8 @@ pub enum ExpressionNode {
 
     Name(Name),
     Alias(Alias),
-    Number(String),
-    String(String),
+    Number(NumberLiteral),
+    String(StringLiteral),
     Unit,
 
     Invalid(Reason),
