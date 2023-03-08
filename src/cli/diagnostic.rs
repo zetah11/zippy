@@ -270,12 +270,12 @@ fn get_line_ranges(text: &str, span: Span) -> Vec<LineRange> {
 
             first_byte = first_index + i + 1;
             last_byte = first_index + i;
-        } else {
-            last_column += c.len_utf8();
         }
 
         if first_index + i >= span.end {
             last_line = true;
+        } else if c != '\n' {
+            last_column += c.len_utf8();
         }
 
         last_byte += c.len_utf8();

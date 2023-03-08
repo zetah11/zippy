@@ -6,4 +6,4 @@
     [x] split declaring/resolving into mutually recursive structs responsible
         for declarative regions and locals (separation of concerns or smth)
     [ ] reduce duplication between resolving/declaration (they are very similar)
-[ ] debuggify cli diagnostic span code
+[x] debuggify cli diagnostic span code
