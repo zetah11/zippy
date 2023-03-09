@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Extension (debug build)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                //"--disable-extensions",
+                "--extensionDevelopmentPath=${workspaceFolder}/editor/code"
+            ],
+            "preLaunchTask": "Build extension",
+            "outFiles": [
+                "${workspaceFolder}/editor/code/out/**/*.js"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "zc-dir": "${workspaceFolder}/target/debug/"
+            }
+        }
+    ]
+}
