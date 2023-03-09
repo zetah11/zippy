@@ -4,6 +4,8 @@ mod messages;
 mod parse;
 mod tokens;
 
+pub use self::tokens::{Token, TokenType};
+
 use std::collections::HashMap;
 
 use zippy_common::messages::{Message, Messages};
@@ -66,4 +68,18 @@ pub fn get_ast(db: &dyn Db, source: Source) -> AstSource {
     }
 
     AstSource::new(db, source, items, imports)
+}
+
+#[salsa::tracked(return_ref)]
+pub fn get_tokens(db: &dyn Db, source: Source) -> Vec<Token> {
+    let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
+    TokenIter::new(source, source.content(zdb))
+        .filter_map(|result| match result {
+            Ok(token) => Some(token),
+            Err(message) => {
+                Messages::push(zdb, message);
+                None
+            }
+        })
+        .collect()
 }

@@ -25,5 +25,6 @@ pub struct Jar(
     crate::names::declare::declared_names,
     crate::names::resolve::resolve_module,
     crate::parser::get_ast,
+    crate::parser::get_tokens,
     crate::resolved::Module,
 );

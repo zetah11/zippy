@@ -30,6 +30,12 @@ pub struct Span {
     pub source: Source,
 }
 
+impl Span {
+    pub fn length(&self) -> usize {
+        self.end - self.start
+    }
+}
+
 impl std::ops::Add for Span {
     type Output = Self;
 

@@ -4,7 +4,8 @@ use lsp_types::notification::{self, Notification as _};
 use lsp_types::request::{self, Request as _};
 use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializeParams, ServerCapabilities, ServerInfo,
+    DidSaveTextDocumentParams, InitializeParams, SemanticTokens, SemanticTokensParams,
+    ServerCapabilities, ServerInfo,
 };
 
 use super::client::Client;
@@ -20,6 +21,8 @@ pub trait Server {
     fn did_open_text_document(&mut self, params: DidOpenTextDocumentParams);
     /// `textDocument/didSave`
     fn did_save_text_document(&mut self, params: DidSaveTextDocumentParams);
+    /// `textDocument/semanticTokens/full`
+    fn semantic_tokens_full(&mut self, params: SemanticTokensParams) -> Option<SemanticTokens>;
     /// `shutdown`
     fn shutdown(&mut self);
 }
@@ -172,6 +175,14 @@ impl<S: Server> MainLoop<S> {
                 self.server.shutdown();
                 self.responses
                     .send(Message::Response(Response::new_ok(request.id, ())))
+                    .expect("attempted to send response over closed channel");
+            }
+
+            m if m == request::SemanticTokensFullRequest::METHOD => {
+                let (id, params) = request.extract(request::SemanticTokensFullRequest::METHOD)?;
+                let result = self.server.semantic_tokens_full(params);
+                self.responses
+                    .send(Message::Response(Response::new_ok(id, result)))
                     .expect("attempted to send response over closed channel");
             }
 

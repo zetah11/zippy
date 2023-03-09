@@ -102,9 +102,21 @@ impl Database {
         self.modules.iter().map(|module| *module)
     }
 
+    /// Get a source by name, if it exists.
+    pub fn get_source(&self, name: &SourceName) -> Option<Source> {
+        self.sources.get(name).map(|source| *source)
+    }
+
+    /// Get the path corresponding to this source name.
+    pub fn get_source_path(&self, name: &SourceName) -> &PathBuf {
+        self.source_names
+            .get_by_right(name)
+            .expect("source name with no associated path")
+    }
+
     /// Get the name name corresponding to a specific path, or create one if it
     /// doesn't exist.
-    pub fn get_source_name(
+    pub fn with_source_name(
         &self,
         path: PathBuf,
         f: impl FnOnce(PathBuf) -> SourceName,
@@ -113,12 +125,5 @@ impl Database {
             Some(name) => *name,
             None => f(path),
         }
-    }
-
-    /// Get the path corresponding to this source name.
-    pub fn get_source_path(&self, name: &SourceName) -> &PathBuf {
-        self.source_names
-            .get_by_right(name)
-            .expect("source name with no associated path")
     }
 }

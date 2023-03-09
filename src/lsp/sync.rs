@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 
-use lsp_types::{notification, Url};
+use lsp_types::{notification, SemanticTokens, Url};
 use lsp_types::{MessageType, PublishDiagnosticsParams};
 
 use super::Backend;
@@ -36,6 +36,13 @@ impl Backend {
         }
 
         self.has_diagnostics = current_diagnostics;
+    }
+
+    /// Get the semantic tokens for the given URI.
+    pub(super) fn get_semantic_tokens(&mut self, uri: Url) -> Option<SemanticTokens> {
+        let (_, name) = self.uri_to_source_name(uri)?;
+        let source = self.database.get_source(&name)?;
+        Some(self.tokenize(source))
     }
 
     /// Update the contents of the document such that it is in sync with the

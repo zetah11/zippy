@@ -4,6 +4,7 @@ mod diagnostic;
 mod format;
 mod server;
 mod sync;
+mod tokens;
 
 use std::collections::HashSet;
 use std::fs;
@@ -11,13 +12,16 @@ use std::path::{Path, PathBuf};
 
 use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    InitializeParams, MessageType, SaveOptions, ServerCapabilities, TextDocumentSyncCapability,
+    DidSaveTextDocumentParams, InitializeParams, MessageType, SaveOptions, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensOptions, SemanticTokensParams,
+    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, Url,
 };
 use zippy_common::source::{Project, SourceName};
 
 use self::client::Client;
 use self::server::{InitServer, LspError, LspServer, Server};
+use self::tokens::Legend;
 use crate::database::Database;
 use crate::meta;
 use crate::project::{get_project_sources, source_name_from_path, FsProject, DEFAULT_ROOT_NAME};
@@ -38,11 +42,15 @@ pub fn lsp() -> anyhow::Result<()> {
 /// backend.
 struct BackendBuilder {
     root: Option<PathBuf>,
+    token_legend: Legend,
 }
 
 impl BackendBuilder {
     pub fn new() -> Self {
-        Self { root: None }
+        Self {
+            root: None,
+            token_legend: Legend::new(),
+        }
     }
 }
 
@@ -54,7 +62,7 @@ impl InitServer for BackendBuilder {
             .root
             .unwrap_or_else(|| std::env::current_dir().expect("no sensible project root"));
 
-        let mut backend = Backend::new(client);
+        let mut backend = Backend::new(self.token_legend, client);
         backend.init_project(&root);
         backend.init_sources(&root);
         backend
@@ -68,6 +76,14 @@ impl InitServer for BackendBuilder {
             .and_then(|uri| uri.to_file_path().ok());
 
         ServerCapabilities {
+            semantic_tokens_provider: Some(
+                SemanticTokensServerCapabilities::SemanticTokensOptions(SemanticTokensOptions {
+                    legend: self.token_legend.get_legend(),
+                    full: Some(SemanticTokensFullOptions::Bool(true)),
+                    ..Default::default()
+                }),
+            ),
+
             text_document_sync: Some(TextDocumentSyncCapability::Options(
                 TextDocumentSyncOptions {
                     open_close: Some(true),
@@ -111,12 +127,14 @@ struct Backend {
     /// empty diagnostics list. This keeps track of the documents which
     /// currently do have diagnostics such that we can clear them later.
     has_diagnostics: HashSet<Url>,
+
+    token_legend: Legend,
 }
 
 impl Backend {
     /// Create a new language server backend in the given project root for the
     /// given client.
-    pub fn new(client: Client) -> Self {
+    pub fn new(token_legend: Legend, client: Client) -> Self {
         let database = Database::new();
 
         Self {
@@ -124,6 +142,7 @@ impl Backend {
             database,
             project: None,
             has_diagnostics: HashSet::new(),
+            token_legend,
         }
     }
 
@@ -160,10 +179,36 @@ impl Backend {
         self.database.init_sources(sources);
     }
 
-    fn path_to_source_name(&mut self, path: PathBuf) -> SourceName {
-        self.database.get_source_name(path, |path| {
+    fn path_to_source_name(&self, path: PathBuf) -> SourceName {
+        self.database.with_source_name(path, |path| {
             source_name_from_path(&self.database, self.project.as_ref(), path)
         })
+    }
+
+    /// Get the source name corresponding to the given Uri, if it does. Logs an
+    /// error on the client side if it does not point to a source.
+    fn uri_to_source_name(&mut self, uri: Url) -> Option<(PathBuf, SourceName)> {
+        if uri.scheme() != "file" {
+            self.client.log(
+                MessageType::ERROR,
+                format!("cannot read non-file {}", uri.as_str()),
+            );
+            return None;
+        }
+
+        let path = match uri.to_file_path() {
+            Ok(path) => path,
+            Err(()) => {
+                self.client.log(
+                    MessageType::ERROR,
+                    format!("invalid file uri {}", uri.as_str()),
+                );
+                return None;
+            }
+        };
+
+        let name = self.path_to_source_name(path.clone());
+        Some((path, name))
     }
 }
 
@@ -201,7 +246,7 @@ impl Server for Backend {
         self.check_and_publish();
     }
 
-    fn did_save_text_document(&mut self, params: lsp_types::DidSaveTextDocumentParams) {
+    fn did_save_text_document(&mut self, params: DidSaveTextDocumentParams) {
         let uri = params.text_document.uri;
 
         if let Some(content) = params.text {
@@ -211,6 +256,11 @@ impl Server for Backend {
         }
 
         self.check_and_publish();
+    }
+
+    fn semantic_tokens_full(&mut self, params: SemanticTokensParams) -> Option<SemanticTokens> {
+        let uri = params.text_document.uri;
+        self.get_semantic_tokens(uri)
     }
 
     fn shutdown(&mut self) {}
