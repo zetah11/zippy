@@ -102,6 +102,10 @@ impl<'s> SemanticTokensBuilder<'s> {
         let mut delta_column = 0;
 
         for c in source.chars() {
+            if index >= span.start {
+                break;
+            }
+
             index += c.len_utf8();
 
             if c == '\n' {
@@ -109,10 +113,6 @@ impl<'s> SemanticTokensBuilder<'s> {
                 delta_column = 0;
             } else {
                 delta_column += 1;
-            }
-
-            if index >= span.start {
-                break;
             }
         }
 
