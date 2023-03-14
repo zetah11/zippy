@@ -12,7 +12,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use zippy_common::messages::Messages;
 use zippy_common::source::Project;
-use zippy_frontend::dependencies::{get_dependencies, NameOrAlias};
+use zippy_frontend::dependencies::{get_dependencies, ItemOrAlias};
 
 use crate::database::Database;
 use crate::pretty::Prettier;
@@ -71,8 +71,8 @@ pub fn check() -> anyhow::Result<()> {
             print!(
                 "{}, ",
                 match name {
-                    NameOrAlias::Name(name) => prettier.pretty_name(name),
-                    NameOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(&database)),
+                    ItemOrAlias::Item(name) => prettier.pretty_item_name(name),
+                    ItemOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(&database)),
                 }
             );
         }
@@ -91,15 +91,15 @@ pub fn check() -> anyhow::Result<()> {
 struct GraphViz<'db> {
     db: &'db Database,
     prettier: &'db Prettier<'db>,
-    edges: Vec<(NameOrAlias, NameOrAlias)>,
-    ids: HashMap<NameOrAlias, usize>,
+    edges: Vec<(ItemOrAlias, ItemOrAlias)>,
+    ids: HashMap<ItemOrAlias, usize>,
 }
 
 impl<'db> GraphViz<'db> {
     pub fn new(
         db: &'db Database,
         prettier: &'db Prettier,
-        graph: HashMap<NameOrAlias, HashSet<NameOrAlias>>,
+        graph: HashMap<ItemOrAlias, HashSet<ItemOrAlias>>,
     ) -> Self {
         let mut id = 0;
         let mut edges = Vec::with_capacity(graph.len());
@@ -135,8 +135,8 @@ impl<'db> GraphViz<'db> {
 }
 
 impl<'db> dot2::Labeller<'db> for GraphViz<'db> {
-    type Node = NameOrAlias;
-    type Edge = (NameOrAlias, NameOrAlias);
+    type Node = ItemOrAlias;
+    type Edge = (ItemOrAlias, ItemOrAlias);
     type Subgraph = ();
 
     fn graph_id(&'db self) -> dot2::Result<dot2::Id<'db>> {
@@ -149,15 +149,15 @@ impl<'db> dot2::Labeller<'db> for GraphViz<'db> {
 
     fn node_label(&'db self, n: &Self::Node) -> dot2::Result<dot2::label::Text<'db>> {
         Ok(dot2::label::Text::LabelStr(match n {
-            NameOrAlias::Name(name) => self.prettier.pretty_name(*name).into(),
-            NameOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(self.db)).into(),
+            ItemOrAlias::Item(name) => self.prettier.pretty_item_name(*name).into(),
+            ItemOrAlias::Alias(alias) => format!("<import {}>", alias.name.text(self.db)).into(),
         }))
     }
 }
 
 impl<'db> dot2::GraphWalk<'db> for GraphViz<'db> {
-    type Node = NameOrAlias;
-    type Edge = (NameOrAlias, NameOrAlias);
+    type Node = ItemOrAlias;
+    type Edge = (ItemOrAlias, ItemOrAlias);
     type Subgraph = ();
 
     fn nodes(&'db self) -> dot2::Nodes<'db, Self::Node> {

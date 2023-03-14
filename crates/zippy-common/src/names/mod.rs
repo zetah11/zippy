@@ -83,6 +83,18 @@ pub enum Name {
     Local(LocalName),
 }
 
+impl From<ItemName> for Name {
+    fn from(name: ItemName) -> Self {
+        Self::Item(name)
+    }
+}
+
+impl From<LocalName> for Name {
+    fn from(name: LocalName) -> Self {
+        Self::Local(name)
+    }
+}
+
 /// Represents any kind of name that can be created with some kind of
 /// declaration or binding. This is different from a [referrable name](Name)
 /// because it also includes unnamable names (which, by definition, cannot be
@@ -118,5 +130,23 @@ impl From<Name> for DeclarableName {
             Name::Item(name) => DeclarableName::Item(name),
             Name::Local(name) => DeclarableName::Local(name),
         }
+    }
+}
+
+impl From<ItemName> for DeclarableName {
+    fn from(name: ItemName) -> Self {
+        Self::Item(name)
+    }
+}
+
+impl From<LocalName> for DeclarableName {
+    fn from(name: LocalName) -> Self {
+        Self::Local(name)
+    }
+}
+
+impl From<UnnamableName> for DeclarableName {
+    fn from(name: UnnamableName) -> Self {
+        Self::Unnamable(name)
     }
 }
