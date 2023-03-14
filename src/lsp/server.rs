@@ -4,8 +4,8 @@ use lsp_types::notification::{self, Notification as _};
 use lsp_types::request::{self, Request as _};
 use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializeParams, SemanticTokens, SemanticTokensParams,
-    ServerCapabilities, ServerInfo,
+    DidSaveTextDocumentParams, InitializeParams, LogMessageParams, MessageType, SemanticTokens,
+    SemanticTokensParams, ServerCapabilities, ServerInfo,
 };
 
 use super::client::Client;
@@ -123,11 +123,27 @@ impl<S: Server> MainLoop<S> {
 
     pub fn run(mut self) -> Result<(), LspError> {
         while let Ok(message) = self.requests.recv() {
-            match message {
-                Message::Request(request) => self.handle_request(request)?,
-                Message::Notification(notification) => self.handle_notification(notification)?,
+            let result = match message {
+                Message::Request(request) => self.handle_request(request),
+                Message::Notification(notification) => self.handle_notification(notification),
 
                 Message::Response(_) => unimplemented!(),
+            };
+
+            match result {
+                Ok(()) => {}
+                Err(LspError::Err(e)) => self
+                    .responses
+                    .send(Message::Notification(Notification::new(
+                        notification::LogMessage::METHOD.to_string(),
+                        LogMessageParams {
+                            typ: MessageType::ERROR,
+                            message: e.to_string(),
+                        },
+                    )))
+                    .expect("attempting to log on closed channel"),
+
+                result => result?,
             }
         }
 
