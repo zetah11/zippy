@@ -23,11 +23,9 @@ pub(crate) struct ModuleBuilder {
 
     items: Vec<Item>,
     imports: Vec<Import>,
-    expressions: Vec<Expression>,
 
     item_names: HashMap<ItemName, ItemIndex>,
     import_names: HashMap<Alias, ImportIndex>,
-    local_names: HashMap<LocalName, ExpressionIndex>,
 }
 
 impl ModuleBuilder {
@@ -37,11 +35,9 @@ impl ModuleBuilder {
 
             items: Vec::new(),
             imports: Vec::new(),
-            expressions: Vec::new(),
 
             item_names: HashMap::new(),
             import_names: HashMap::new(),
-            local_names: HashMap::new(),
         }
     }
 
@@ -56,28 +52,7 @@ impl ModuleBuilder {
             names: self.import_names,
         };
 
-        let expressions = Expressions {
-            expressions: self.expressions,
-            names: self.local_names,
-        };
-
-        Module::new(db, self.name, items, imports, expressions)
-    }
-
-    /// Add an expression binding all of the specified names to this module.
-    /// None of the provided names should have been added before.
-    pub fn add_expression<I>(&mut self, names: I, expression: Expression) -> ExpressionIndex
-    where
-        I: IntoIterator<Item = LocalName>,
-    {
-        let index = ExpressionIndex(self.expressions.len());
-        self.expressions.push(expression);
-
-        for name in names {
-            assert!(self.local_names.insert(name, index).is_none());
-        }
-
-        index
+        Module::new(db, self.name, items, imports)
     }
 
     /// Add an item binding all of the specified names to this module. None of
@@ -126,10 +101,6 @@ pub struct Module {
     /// Every import declared in this module and any nested entries.
     #[return_ref]
     pub imports: Imports,
-
-    /// Every expression within this module and any nested entries.
-    #[return_ref]
-    pub expressions: Expressions,
 }
 
 impl Module {
@@ -143,12 +114,6 @@ impl Module {
     /// in this module.
     pub fn import<'db>(&self, db: &'db dyn Db, alias: &Alias) -> Option<&'db Import> {
         self.imports(db).get_by_name(alias)
-    }
-
-    /// Get the expression where the given local name is bound, if it is defined
-    /// in this module.
-    pub fn expression<'db>(&self, db: &'db dyn Db, name: &LocalName) -> Option<&'db Expression> {
-        self.expressions(db).get_by_name(name)
     }
 }
 
@@ -199,27 +164,6 @@ impl Imports {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Expressions {
-    expressions: Vec<Expression>,
-    names: HashMap<LocalName, ExpressionIndex>,
-}
-
-impl Expressions {
-    /// Get the expression corresponding to the given index.
-    pub fn get(&self, index: &ExpressionIndex) -> &Expression {
-        self.expressions
-            .get(index.0)
-            .expect("expression index is from this module and therefore always in bounds")
-    }
-
-    /// Get the expression corresponding to the given alias, if any.
-    pub fn get_by_name(&self, name: &LocalName) -> Option<&Expression> {
-        let index = self.names.get(name)?;
-        Some(self.get(index))
-    }
-}
-
 /// Represents a kind of reference to some [`Item`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ItemIndex(usize);
@@ -228,14 +172,10 @@ pub struct ItemIndex(usize);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportIndex(usize);
 
-/// Represents a kind of reference to some [`Expression`].
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct ExpressionIndex(usize);
-
 /// Represents a list of names imported from the result of a given expression.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Import {
-    pub from: ExpressionIndex,
+    pub from: Expression,
     pub names: Vec<ImportedName>,
 }
 
@@ -245,7 +185,7 @@ pub enum Item {
     Let {
         pattern: Pattern<ItemName>,
         anno: Option<Type>,
-        body: Option<ExpressionIndex>,
+        body: Option<Expression>,
     },
 }
 
@@ -259,8 +199,8 @@ pub struct Type {
 pub enum TypeNode {
     Range {
         clusivity: Clusivity,
-        lower: ExpressionIndex,
-        upper: ExpressionIndex,
+        lower: Expression,
+        upper: Expression,
     },
 
     Invalid(Reason),
@@ -283,15 +223,15 @@ pub enum ExpressionNode {
     },
 
     Let {
-        pattern: Pattern<LocalName>,
-        anno: Option<Type>,
-        body: Option<ExpressionIndex>,
+        pattern: Box<Pattern<LocalName>>,
+        anno: Option<Box<Type>>,
+        body: Option<Box<Expression>>,
     },
 
-    Block(Vec<ExpressionIndex>),
+    Block(Vec<Expression>),
 
-    Annotate(ExpressionIndex, Type),
-    Path(ExpressionIndex, Identifier),
+    Annotate(Box<(Expression, Type)>),
+    Path(Box<Expression>, Identifier),
 
     Name(Name),
     Alias(Alias),

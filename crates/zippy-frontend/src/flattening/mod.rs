@@ -94,12 +94,8 @@ impl Flattener {
         flattened::Type { span, node }
     }
 
-    fn flatten_expression(
-        &mut self,
-        expression: &resolved::Expression,
-    ) -> flattened::ExpressionIndex {
+    fn flatten_expression(&mut self, expression: &resolved::Expression) -> flattened::Expression {
         let span = expression.span;
-        let names = Vec::new();
         let node = match &expression.node {
             resolved::ExpressionNode::Entry { items, imports } => {
                 let mut flat_items = Vec::with_capacity(items.len());
@@ -125,13 +121,13 @@ impl Flattener {
                 body,
             } => {
                 let (pattern, _) = self.flatten_pattern(pattern);
-                let anno = anno.as_ref().map(|ty| self.flatten_type(ty));
+                let anno = anno.as_ref().map(|ty| Box::new(self.flatten_type(ty)));
                 let body = body
                     .as_ref()
-                    .map(|expression| self.flatten_expression(expression));
+                    .map(|expression| Box::new(self.flatten_expression(expression)));
 
                 flattened::ExpressionNode::Let {
-                    pattern,
+                    pattern: Box::new(pattern),
                     anno,
                     body,
                 }
@@ -148,12 +144,12 @@ impl Flattener {
             resolved::ExpressionNode::Annotate(expression, ty) => {
                 let expression = self.flatten_expression(expression);
                 let ty = self.flatten_type(ty);
-                flattened::ExpressionNode::Annotate(expression, ty)
+                flattened::ExpressionNode::Annotate(Box::new((expression, ty)))
             }
 
             resolved::ExpressionNode::Path(expression, field) => {
                 let expression = self.flatten_expression(expression);
-                flattened::ExpressionNode::Path(expression, *field)
+                flattened::ExpressionNode::Path(Box::new(expression), *field)
             }
 
             resolved::ExpressionNode::Name(name) => flattened::ExpressionNode::Name(*name),
@@ -167,8 +163,7 @@ impl Flattener {
             }
         };
 
-        self.builder
-            .add_expression(names, flattened::Expression { span, node })
+        flattened::Expression { span, node }
     }
 
     fn flatten_pattern<N: Copy>(
