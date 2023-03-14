@@ -6,7 +6,7 @@
 //! us an easy way of directly looking up any item or expression, no matter how
 //! deeply nested, by name.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use zippy_common::invalid::Reason;
 use zippy_common::literals::{NumberLiteral, StringLiteral};
@@ -25,7 +25,9 @@ pub(crate) struct ModuleBuilder {
     imports: Vec<Import>,
 
     item_names: HashMap<ItemName, ItemIndex>,
+    name_items: HashMap<ItemIndex, HashSet<ItemName>>,
     import_names: HashMap<Alias, ImportIndex>,
+    expressions: HashMap<TypeExpression, Expression>,
 }
 
 impl ModuleBuilder {
@@ -37,14 +39,17 @@ impl ModuleBuilder {
             imports: Vec::new(),
 
             item_names: HashMap::new(),
+            name_items: HashMap::new(),
             import_names: HashMap::new(),
+            expressions: HashMap::new(),
         }
     }
 
-    pub fn build(self, db: &dyn Db) -> Module {
+    pub fn build(self, db: &dyn Db, entry: Entry) -> Module {
         let items = Items {
             items: self.items,
             names: self.item_names,
+            indicies: self.name_items,
         };
 
         let imports = Imports {
@@ -52,7 +57,11 @@ impl ModuleBuilder {
             names: self.import_names,
         };
 
-        Module::new(db, self.name, items, imports)
+        let type_exprs = TypeExpressions {
+            expressions: self.expressions,
+        };
+
+        Module::new(db, self.name, entry, items, imports, type_exprs)
     }
 
     /// Add an item binding all of the specified names to this module. None of
@@ -65,6 +74,7 @@ impl ModuleBuilder {
         self.items.push(item);
 
         for name in names {
+            self.name_items.entry(index).or_default().insert(name);
             assert!(self.item_names.insert(name, index).is_none());
         }
 
@@ -86,6 +96,13 @@ impl ModuleBuilder {
 
         index
     }
+
+    /// Add an expression nested in some expression.
+    pub fn add_type_expression(&mut self, expr: Expression) -> TypeExpression {
+        let ty = TypeExpression(self.expressions.len());
+        self.expressions.insert(ty, expr);
+        ty
+    }
 }
 
 #[salsa::tracked]
@@ -94,6 +111,9 @@ pub struct Module {
     #[id]
     pub name: ItemName,
 
+    #[return_ref]
+    pub entry: Entry,
+
     /// Every item declared in this module and any nested entries.
     #[return_ref]
     pub items: Items,
@@ -101,19 +121,38 @@ pub struct Module {
     /// Every import declared in this module and any nested entries.
     #[return_ref]
     pub imports: Imports,
+
+    /// Every expression nested inside a type.
+    #[return_ref]
+    pub type_exprs: TypeExpressions,
 }
 
 impl Module {
+    /// Get the item this index refers to.
+    pub fn item<'db>(&self, db: &'db dyn Db, index: &ItemIndex) -> &'db Item {
+        self.items(db).get(index)
+    }
+
     /// Get the item where the given name is bound, if it is defined in this
     /// module.
-    pub fn item<'db>(&self, db: &'db dyn Db, name: &ItemName) -> Option<&'db Item> {
+    pub fn item_by_name<'db>(&self, db: &'db dyn Db, name: &ItemName) -> Option<&'db Item> {
         self.items(db).get_by_name(name)
+    }
+
+    /// Get the import this index refers to.
+    pub fn import<'db>(&self, db: &'db dyn Db, index: &ImportIndex) -> &'db Import {
+        self.imports(db).get(index)
     }
 
     /// Get the item where the given imported alias is bound, if it is defined
     /// in this module.
-    pub fn import<'db>(&self, db: &'db dyn Db, alias: &Alias) -> Option<&'db Import> {
+    pub fn import_by_name<'db>(&self, db: &'db dyn Db, alias: &Alias) -> Option<&'db Import> {
         self.imports(db).get_by_name(alias)
+    }
+
+    /// Get the expression from the given type expression.
+    pub fn type_expression<'db>(&self, db: &'db dyn Db, expr: &TypeExpression) -> &'db Expression {
+        self.type_exprs(db).get(expr)
     }
 }
 
@@ -126,6 +165,10 @@ pub struct Items {
     /// many names. Thus, the values in this map are not guaranteed to be unique
     /// nor are they guaranteed to cover every index in the array.
     names: HashMap<ItemName, ItemIndex>,
+
+    /// A mapping from an item index to all the names it defines. This may not
+    /// cover all item indicies.
+    indicies: HashMap<ItemIndex, HashSet<ItemName>>,
 }
 
 impl Items {
@@ -140,6 +183,17 @@ impl Items {
     pub fn get_by_name(&self, name: &ItemName) -> Option<&Item> {
         let index = self.names.get(name)?;
         Some(self.get(index))
+    }
+
+    /// Get every name defined by the given index. This iterator is empty if
+    /// the item does not define any names.
+    pub fn names(&self, index: &ItemIndex) -> impl Iterator<Item = ItemName> + '_ {
+        self.indicies.get(index).into_iter().flatten().copied()
+    }
+
+    /// Iterate over every item.
+    pub fn iter(&self) -> impl Iterator<Item = &Item> {
+        self.items.iter()
     }
 }
 
@@ -164,6 +218,23 @@ impl Imports {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct TypeExpressions {
+    expressions: HashMap<TypeExpression, Expression>,
+}
+
+impl TypeExpressions {
+    pub fn get(&self, expr: &TypeExpression) -> &Expression {
+        self.expressions
+            .get(expr)
+            .expect("type expression is from this module and therefore always in bounds")
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (TypeExpression, &Expression)> {
+        self.expressions.iter().map(|(k, v)| (*k, v))
+    }
+}
+
 /// Represents a kind of reference to some [`Item`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ItemIndex(usize);
@@ -171,6 +242,10 @@ pub struct ItemIndex(usize);
 /// Represents a kind of reference to some [`Import`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportIndex(usize);
+
+/// Represents a kind of reference to an [`Expression`] nested inside a type.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TypeExpression(usize);
 
 /// Represents a list of names imported from the result of a given expression.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -199,8 +274,8 @@ pub struct Type {
 pub enum TypeNode {
     Range {
         clusivity: Clusivity,
-        lower: Expression,
-        upper: Expression,
+        lower: TypeExpression,
+        upper: TypeExpression,
     },
 
     Invalid(Reason),
@@ -214,23 +289,17 @@ pub struct Expression {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ExpressionNode {
-    Entry {
-        /// Every item bound in this entry
-        items: Vec<ItemIndex>,
-
-        /// Every import bound in this entry
-        imports: Vec<ImportIndex>,
-    },
+    Entry(Entry),
 
     Let {
-        pattern: Box<Pattern<LocalName>>,
-        anno: Option<Box<Type>>,
+        pattern: Pattern<LocalName>,
+        anno: Option<Type>,
         body: Option<Box<Expression>>,
     },
 
     Block(Vec<Expression>),
 
-    Annotate(Box<(Expression, Type)>),
+    Annotate(Box<Expression>, Type),
     Path(Box<Expression>, Identifier),
 
     Name(Name),
@@ -240,6 +309,14 @@ pub enum ExpressionNode {
     Unit,
 
     Invalid(Reason),
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Entry {
+    /// Every item bound in this entry
+    pub items: Vec<ItemIndex>,
+    /// Every import bound in this entry
+    pub imports: Vec<ImportIndex>,
 }
 
 /// A pattern parameterized by the kind of name it can bind.

@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod check;
 pub mod dependencies;
 pub mod flattened;
 pub mod flattening;
@@ -18,6 +19,8 @@ impl<Database> Db for Database where
 #[salsa::jar(db = Db)]
 pub struct Jar(
     crate::ast::AstSource,
+    crate::check::get_bound,
+    crate::check::Bound,
     crate::dependencies::get_dependencies,
     crate::dependencies::ModuleDependencies,
     crate::flattened::Module,

@@ -11,17 +11,22 @@ pub fn flatten_module(db: &dyn Db, module: Module) -> flattened::Module {
     let resolved = resolve_module(db, module);
     let mut flattener = Flattener::new(name);
 
+    let mut entry = flattened::Entry {
+        items: Vec::new(),
+        imports: Vec::new(),
+    };
+
     for part in resolved.parts(db) {
         for import in part.imports.iter() {
-            let _ = flattener.flatten_import(import);
+            entry.imports.push(flattener.flatten_import(import));
         }
 
         for item in part.items.iter() {
-            let _ = flattener.flatten_item(item);
+            entry.items.push(flattener.flatten_item(item));
         }
     }
 
-    flattener.builder.build(db)
+    flattener.builder.build(db, entry)
 }
 
 struct Flattener {
@@ -81,6 +86,10 @@ impl Flattener {
             } => {
                 let lower = self.flatten_expression(lower);
                 let upper = self.flatten_expression(upper);
+
+                let lower = self.builder.add_type_expression(lower);
+                let upper = self.builder.add_type_expression(upper);
+
                 flattened::TypeNode::Range {
                     clusivity: *clusivity,
                     lower,
@@ -109,10 +118,12 @@ impl Flattener {
                     flat_items.push(self.flatten_item(item));
                 }
 
-                flattened::ExpressionNode::Entry {
+                let entry = flattened::Entry {
                     items: flat_items,
                     imports: flat_imports,
-                }
+                };
+
+                flattened::ExpressionNode::Entry(entry)
             }
 
             resolved::ExpressionNode::Let {
@@ -121,13 +132,13 @@ impl Flattener {
                 body,
             } => {
                 let (pattern, _) = self.flatten_pattern(pattern);
-                let anno = anno.as_ref().map(|ty| Box::new(self.flatten_type(ty)));
+                let anno = anno.as_ref().map(|ty| self.flatten_type(ty));
                 let body = body
                     .as_ref()
                     .map(|expression| Box::new(self.flatten_expression(expression)));
 
                 flattened::ExpressionNode::Let {
-                    pattern: Box::new(pattern),
+                    pattern,
                     anno,
                     body,
                 }
@@ -144,7 +155,7 @@ impl Flattener {
             resolved::ExpressionNode::Annotate(expression, ty) => {
                 let expression = self.flatten_expression(expression);
                 let ty = self.flatten_type(ty);
-                flattened::ExpressionNode::Annotate(Box::new((expression, ty)))
+                flattened::ExpressionNode::Annotate(Box::new(expression), ty)
             }
 
             resolved::ExpressionNode::Path(expression, field) => {

@@ -15,7 +15,10 @@ fn main() {
     };
 
     let result = match args.next().as_ref().map(AsRef::as_ref) {
-        Some("check") => cli::check(),
+        Some("check") => {
+            let args: Vec<_> = args.collect();
+            cli::check(args.contains(&String::from("--dot")))
+        }
         Some("lsp") => lsp::lsp(),
         _ => print_usage_info(&program_name),
     };
