@@ -161,10 +161,12 @@ impl<'db> DependencyFinder<'db> {
                 }
             }
 
-            ExpressionNode::Block(exprs) => {
+            ExpressionNode::Block(exprs, last) => {
                 for expression in exprs {
                     self.for_expression(within, expression);
                 }
+
+                self.for_expression(within, last);
             }
 
             ExpressionNode::Annotate(expression, ty) => {

@@ -73,8 +73,9 @@ pub enum ExpressionNode {
         imports: Vec<Import>,
     },
 
-    /// A sequence of expressions delimited by semicolons or newlines.
-    Block(Vec<Expression>),
+    /// A sequence of expressions delimited by semicolons or newlines. The last
+    /// expression is the value of the entire thing.
+    Block(Vec<Expression>, Box<Expression>),
 
     /// A `let`-binding.
     Let {

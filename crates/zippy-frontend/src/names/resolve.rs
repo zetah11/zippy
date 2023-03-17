@@ -373,7 +373,7 @@ impl<'p, 'db> LocaLResolver<'p, 'db> {
                 }
             }
 
-            ast::ExpressionNode::Block(exprs) => {
+            ast::ExpressionNode::Block(exprs, last) => {
                 let mut new_exprs = Vec::with_capacity(exprs.len());
 
                 for expression in exprs.iter() {
@@ -382,11 +382,13 @@ impl<'p, 'db> LocaLResolver<'p, 'db> {
                     self.scope += 1;
                 }
 
+                let last = self.resolve_expression(last, None);
+
                 // For every expression, we pushed one visible scope
                 self.visible_scopes
                     .truncate(self.visible_scopes.len() - new_exprs.len());
 
-                resolved::ExpressionNode::Block(new_exprs)
+                resolved::ExpressionNode::Block(new_exprs, Box::new(last))
             }
 
             ast::ExpressionNode::Annotate(expr, ty) => {

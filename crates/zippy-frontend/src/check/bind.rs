@@ -3,106 +3,184 @@ use std::collections::HashMap;
 use zippy_common::names::Name;
 use zippy_common::source::{self, Span};
 
-use super::types::{Constraint, Type, UnifyVar};
-use crate::flattened::{self, Expression, ExpressionNode, Item, Module, Pattern, PatternNode};
+use super::bound;
+use super::types::{Constraint, Template, Type, UnifyVar};
+use crate::flattened::{
+    self, Entry, Expression, ExpressionNode, ImportIndex, Item, ItemIndex, Module, Pattern,
+    PatternNode,
+};
 use crate::flattening::flatten_module;
+use crate::resolved::Alias;
 use crate::Db;
 
 #[salsa::tracked]
 pub struct Bound {
     #[return_ref]
-    pub context: HashMap<Name, Type>,
+    pub context: HashMap<Name, Template>,
+
+    #[return_ref]
+    pub aliases: HashMap<Alias, Type>,
 
     #[return_ref]
     pub constraints: Vec<Constraint>,
+
+    #[return_ref]
+    pub module: bound::Module,
 }
 
 #[salsa::tracked(return_ref)]
 pub fn get_bound(db: &dyn Db, module: source::Module) -> Bound {
     let module = flatten_module(db, module);
-    let mut binder = Binder::new(db);
-    binder.bind_module(&module);
-    Bound::new(db, binder.types, binder.constraints)
+    let mut binder = Binder::new(db, module);
+
+    let mut type_exprs = HashMap::new();
+    for (name, type_expr) in module.type_exprs(db).iter() {
+        let type_expr = binder.bind_expression(type_expr);
+        type_exprs.insert(name, type_expr);
+    }
+
+    let entry = binder.bind_entry(module.entry(db));
+
+    let values = entry
+        .items
+        .iter()
+        .flat_map(|item| binder.items.names(item))
+        .map(|item| {
+            let ty = binder
+                .types
+                .get(&Name::Item(item))
+                .expect("all names have been bound")
+                .clone();
+            (item, ty)
+        })
+        .collect();
+
+    let ty = Template::mono(Type::Trait { values });
+    let name = Name::Item(module.name(db));
+    binder.types.insert(name, ty);
+
+    let module = bound::Module {
+        entry,
+        module,
+        imports: binder.imports,
+        items: binder.items,
+        type_exprs,
+    };
+
+    Bound::new(db, binder.types, binder.aliases, binder.constraints, module)
 }
 
 struct Binder<'db> {
     db: &'db dyn Db,
-    types: HashMap<Name, Type>,
-    counts: HashMap<Span, usize>,
+    module: Module,
+    items: bound::Items,
+    imports: bound::Imports,
+
+    types: HashMap<Name, Template>,
+    aliases: HashMap<Alias, Type>,
     constraints: Vec<Constraint>,
+
+    counts: HashMap<Span, usize>,
 }
 
 impl<'db> Binder<'db> {
-    pub fn new(db: &'db dyn Db) -> Self {
+    pub fn new(db: &'db dyn Db, module: Module) -> Self {
         Self {
             db,
+            module,
+            items: bound::Items::new(),
+            imports: bound::Imports::new(),
+
             types: HashMap::new(),
-            counts: HashMap::new(),
+            aliases: HashMap::new(),
             constraints: Vec::new(),
+
+            counts: HashMap::new(),
         }
     }
 
-    /// Bind the module itself to an approximate type, and do the same for all
-    /// of its items.
-    pub fn bind_module(&mut self, module: &Module) {
-        let entry = module.entry(self.db);
-        let mut values = HashMap::new();
+    pub fn bind_entry(&mut self, entry: &Entry) -> bound::Entry {
+        let items = entry
+            .items
+            .iter()
+            .map(|item| self.bind_item(item))
+            .collect();
+        let imports = entry
+            .imports
+            .iter()
+            .map(|import| self.bind_import(import))
+            .collect();
 
-        // Bind items
-        for item in module.items(self.db).iter() {
-            self.bind_item(module, item);
-        }
+        bound::Entry { imports, items }
+    }
 
-        // Bind type expressions
-        for (_, expression) in module.type_exprs(self.db).iter() {
-            self.bind_expression(module, expression);
-        }
+    /// Bind the names declared by an import.
+    fn bind_import(&mut self, import: &ImportIndex) -> bound::ImportIndex {
+        let import = self.module.import(self.db, import);
 
-        // Create the trait type for the module
-        for item in entry.items.iter() {
-            for name in module.items(self.db).names(item) {
-                let ty = self
-                    .types
-                    .get(&Name::Item(name))
-                    .expect("all top-level items have been bound");
+        let from = self.bind_expression(&import.from);
+        let names = import
+            .names
+            .iter()
+            .map(|name| {
+                let ty = self.fresh(name.span);
+                assert!(self.aliases.insert(name.alias, ty.clone()).is_none());
+                bound::ImportedName {
+                    data: ty,
+                    span: name.span,
+                    alias: name.alias,
+                    name: name.name,
+                }
+            })
+            .collect();
 
-                values.insert(name, ty.clone());
-            }
-        }
-
-        let ty = Type::Trait { values };
-        let name = Name::Item(module.name(self.db));
-        assert!(self.types.insert(name, ty).is_none());
+        self.imports.add(bound::Import { from, names })
     }
 
     /// Bind a single item and its subexpressions.
-    fn bind_item(&mut self, module: &Module, item: &Item) {
-        match item {
+    fn bind_item(&mut self, item: &ItemIndex) -> bound::ItemIndex {
+        let items = self.module.items(self.db);
+        let names = items.names(item);
+        let item = items.get(item);
+
+        let item = match item {
             Item::Let {
                 pattern,
                 anno,
                 body,
             } => {
-                if let Some(anno) = anno {
-                    let ty = self.lower(module, anno);
-                    self.bind_pattern(module, pattern, ty);
+                let (pattern, anno) = if let Some(anno) = anno {
+                    let ty = self.lower(anno);
+                    let pattern = self.bind_pattern(pattern, Template::mono(ty.clone()));
+                    (pattern, ty)
                 } else {
                     let ty = self.fresh(pattern.span);
-                    self.bind_pattern(module, pattern, ty);
-                }
+                    let pattern = self.bind_pattern(pattern, Template::mono(ty.clone()));
+                    (pattern, ty)
+                };
 
-                if let Some(body) = body {
-                    self.bind_expression(module, body);
+                let body = body
+                    .as_ref()
+                    .map(|expression| self.bind_expression(expression));
+
+                bound::Item::Let {
+                    pattern,
+                    anno,
+                    body,
                 }
             }
-        }
+        };
+
+        self.items.add(names, item)
     }
 
     /// Bind every name defined in this expression to a type.
-    fn bind_expression(&mut self, module: &Module, expression: &Expression) {
-        match &expression.node {
-            ExpressionNode::Entry(_) => {
-                // handled by `self.bind_module`
+    pub fn bind_expression(&mut self, expression: &Expression) -> bound::Expression {
+        let span = expression.span;
+        let node = match &expression.node {
+            ExpressionNode::Entry(entry) => {
+                let entry = self.bind_entry(entry);
+                bound::ExpressionNode::Entry(entry)
             }
 
             ExpressionNode::Let {
@@ -110,61 +188,103 @@ impl<'db> Binder<'db> {
                 anno,
                 body,
             } => {
-                if let Some(anno) = anno {
-                    let ty = self.lower(module, anno);
-                    self.bind_pattern(module, pattern, ty);
+                let (pattern, anno) = if let Some(anno) = anno {
+                    let ty = self.lower(anno);
+                    let pattern = self.bind_pattern(pattern, Template::mono(ty.clone()));
+                    (pattern, ty)
                 } else {
                     let ty = self.fresh(pattern.span);
-                    self.bind_pattern(module, pattern, ty);
+                    let pattern = self.bind_pattern(pattern, Template::mono(ty.clone()));
+                    (pattern, ty)
+                };
+
+                let body = body
+                    .as_ref()
+                    .map(|expression| Box::new(self.bind_expression(expression)));
+
+                bound::ExpressionNode::Let {
+                    pattern,
+                    anno,
+                    body,
                 }
-
-                if let Some(body) = body {
-                    self.bind_expression(module, body);
-                }
             }
 
-            ExpressionNode::Block(exprs) => {
-                for expression in exprs {
-                    self.bind_expression(module, expression)
-                }
+            ExpressionNode::Block(exprs, last) => {
+                let exprs = exprs
+                    .iter()
+                    .map(|expression| self.bind_expression(expression))
+                    .collect();
+                let last = Box::new(self.bind_expression(last));
+                bound::ExpressionNode::Block(exprs, last)
             }
 
-            ExpressionNode::Annotate(expression, _anno) => {
-                // annotation is handled by `self.bind_module`
-                self.bind_expression(module, expression);
+            ExpressionNode::Annotate(expression, anno) => {
+                let expression = Box::new(self.bind_expression(expression));
+                let anno = self.lower(anno);
+                bound::ExpressionNode::Annotate(expression, anno)
             }
 
-            ExpressionNode::Path(expression, _field) => {
-                self.bind_expression(module, expression);
+            ExpressionNode::Path(expression, field) => {
+                let expression = Box::new(self.bind_expression(expression));
+                bound::ExpressionNode::Path(expression, *field)
             }
 
-            ExpressionNode::Name(_)
-            | ExpressionNode::Alias(_)
-            | ExpressionNode::Number(_)
-            | ExpressionNode::String(_)
-            | ExpressionNode::Unit
-            | ExpressionNode::Invalid(_) => {}
-        }
+            ExpressionNode::Name(name) => bound::ExpressionNode::Name(*name),
+            ExpressionNode::Alias(alias) => bound::ExpressionNode::Alias(*alias),
+            ExpressionNode::Number(number) => bound::ExpressionNode::Number(*number),
+            ExpressionNode::String(string) => bound::ExpressionNode::String(*string),
+            ExpressionNode::Unit => bound::ExpressionNode::Unit,
+            ExpressionNode::Invalid(reason) => bound::ExpressionNode::Invalid(*reason),
+        };
+
+        bound::Expression { span, node }
     }
 
     /// Bind a pattern to a type.
-    fn bind_pattern<N>(&mut self, module: &Module, pattern: &Pattern<N>, ty: Type)
+    fn bind_pattern<N>(&mut self, pattern: &Pattern<N>, ty: Template) -> bound::Pattern<N>
     where
         N: Copy + Into<Name>,
     {
-        match &pattern.node {
+        let span = pattern.span;
+        let node = match &pattern.node {
             PatternNode::Annotate(inner, anno) => {
-                let anno = self.lower(module, anno);
+                let anno = self.lower(anno);
+
                 self.constraints
-                    .push(Constraint::Equal(pattern.span, anno.clone(), ty));
-                self.bind_pattern(module, inner, anno);
+                    .push(Constraint::Equal(pattern.span, anno.clone(), ty.ty));
+
+                let anno = Template { ty: anno, ..ty };
+
+                return self.bind_pattern(inner, anno);
             }
 
             PatternNode::Name(name) => {
-                self.types.insert((*name).into(), ty);
+                assert!(self.types.insert((*name).into(), ty.clone()).is_none());
+                bound::PatternNode::Name(*name)
             }
 
-            PatternNode::Unit | PatternNode::Invalid(_) => {}
+            PatternNode::Unit => {
+                self.constraints
+                    .push(Constraint::UnitLike(pattern.span, ty.ty.clone()));
+                bound::PatternNode::Unit
+            }
+
+            PatternNode::Invalid(reason) => {
+                // Equate the type with an invalid node such that we don't get
+                // an unsolved type error at this pattern
+                self.constraints.push(Constraint::Equal(
+                    pattern.span,
+                    Type::Invalid(*reason),
+                    ty.ty.clone(),
+                ));
+                bound::PatternNode::Invalid(*reason)
+            }
+        };
+
+        bound::Pattern {
+            span,
+            data: ty.ty,
+            node,
         }
     }
 
@@ -177,7 +297,7 @@ impl<'db> Binder<'db> {
         Type::Var(UnifyVar { span: at, count })
     }
 
-    fn lower(&mut self, module: &Module, ty: &flattened::Type) -> Type {
+    fn lower(&mut self, ty: &flattened::Type) -> Type {
         match &ty.node {
             flattened::TypeNode::Range {
                 clusivity,
@@ -187,7 +307,7 @@ impl<'db> Binder<'db> {
                 clusivity: *clusivity,
                 lower: *lower,
                 upper: *upper,
-                module: *module,
+                module: self.module,
             },
 
             flattened::TypeNode::Invalid(reason) => Type::Invalid(*reason),

@@ -206,12 +206,16 @@ fn abstract_expression(db: &dyn Db, item: cst::Item) -> ast::Expression {
         cst::ItemNode::Group(mut items) => match items.len() {
             0 => ast::ExpressionNode::Unit,
             1 => return abstract_expression(db, items.pop().unwrap()),
-            _ => ast::ExpressionNode::Block(
-                items
-                    .into_iter()
-                    .map(|item| abstract_expression(db, item))
-                    .collect(),
-            ),
+            _ => {
+                let last = abstract_expression(db, items.pop().unwrap());
+                ast::ExpressionNode::Block(
+                    items
+                        .into_iter()
+                        .map(|item| abstract_expression(db, item))
+                        .collect(),
+                    Box::new(last),
+                )
+            }
         },
 
         cst::ItemNode::Name(name) => ast::ExpressionNode::Name(make_name(db, span, name)),

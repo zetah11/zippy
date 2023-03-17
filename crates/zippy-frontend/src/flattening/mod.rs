@@ -42,13 +42,12 @@ impl Flattener {
 
     pub fn flatten_import(&mut self, import: &resolved::Import) -> flattened::ImportIndex {
         let from = self.flatten_expression(&import.from);
-        let aliases = import.names.iter().map(|name| name.alias);
         let import = flattened::Import {
             from,
             names: import.names.clone(),
         };
 
-        self.builder.add_import(aliases, import)
+        self.builder.add_import(import)
     }
 
     pub fn flatten_item(&mut self, item: &resolved::Item) -> flattened::ItemIndex {
@@ -144,12 +143,15 @@ impl Flattener {
                 }
             }
 
-            resolved::ExpressionNode::Block(expressions) => {
+            resolved::ExpressionNode::Block(expressions, last) => {
                 let expressions = expressions
                     .iter()
                     .map(|expression| self.flatten_expression(expression))
                     .collect();
-                flattened::ExpressionNode::Block(expressions)
+
+                let last = self.flatten_expression(last);
+
+                flattened::ExpressionNode::Block(expressions, Box::new(last))
             }
 
             resolved::ExpressionNode::Annotate(expression, ty) => {

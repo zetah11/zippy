@@ -27,7 +27,7 @@ pub struct Import {
     pub names: Vec<ImportedName>,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ImportedName {
     pub span: Span,
     pub name: Identifier,
@@ -73,7 +73,7 @@ pub enum ExpressionNode {
         imports: Vec<Import>,
     },
 
-    Block(Vec<Expression>),
+    Block(Vec<Expression>, Box<Expression>),
 
     Let {
         pattern: Box<Pattern<LocalName>>,

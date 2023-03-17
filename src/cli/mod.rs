@@ -14,7 +14,7 @@ use simple_logger::SimpleLogger;
 use zippy_common::messages::Messages;
 use zippy_common::names::Name;
 use zippy_common::source::Project;
-use zippy_frontend::check::{get_bound, Type};
+use zippy_frontend::check::{get_bound, Template, Type};
 use zippy_frontend::dependencies::get_dependencies;
 use zippy_frontend::flattened::{
     Entry, Expression, ExpressionNode, Item, Module, Pattern, PatternNode,
@@ -97,10 +97,10 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
 
 // hacky, bodgy pretty-printing of types below
 
-fn print_context(db: &Database, prettier: &Prettier, context: HashMap<Name, Type>) {
+fn print_context(db: &Database, prettier: &Prettier, context: HashMap<Name, Template>) {
     for (name, ty) in context {
         let name = prettier.pretty_name(name);
-        let ty = pretty_ty(db, prettier, &ty);
+        let ty = pretty_ty(db, prettier, &ty.ty);
 
         println!("{name}: {ty}");
     }
@@ -113,7 +113,7 @@ fn pretty_ty(db: &Database, prettier: &Prettier, ty: &Type) -> String {
                 .iter()
                 .map(|(name, ty)| {
                     let name = prettier.pretty_item_name(*name);
-                    let ty = pretty_ty(db, prettier, ty);
+                    let ty = pretty_ty(db, prettier, &ty.ty);
                     format!("let {name}: {ty}")
                 })
                 .join("; ");
@@ -143,6 +143,7 @@ fn pretty_ty(db: &Database, prettier: &Prettier, ty: &Type) -> String {
         }
 
         Type::Var(_) => "<var>".to_string(),
+        Type::Unit => "1".to_string(),
         Type::Invalid(_) => "<err>".to_string(),
     }
 }
@@ -199,9 +200,10 @@ fn pretty_expr(db: &Database, module: &Module, prettier: &Prettier, expr: &Expre
             format!("let {pattern} {body}")
         }
 
-        ExpressionNode::Block(exprs) => {
+        ExpressionNode::Block(exprs, last) => {
             let exprs = exprs
                 .iter()
+                .chain(std::iter::once(&**last))
                 .map(|expr| pretty_expr(db, module, prettier, expr))
                 .join("; ");
             format!("({exprs})")

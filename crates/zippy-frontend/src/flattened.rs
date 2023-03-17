@@ -24,9 +24,7 @@ pub(crate) struct ModuleBuilder {
     items: Vec<Item>,
     imports: Vec<Import>,
 
-    item_names: HashMap<ItemName, ItemIndex>,
-    name_items: HashMap<ItemIndex, HashSet<ItemName>>,
-    import_names: HashMap<Alias, ImportIndex>,
+    item_names: HashMap<ItemIndex, HashSet<ItemName>>,
     expressions: HashMap<TypeExpression, Expression>,
 }
 
@@ -39,8 +37,6 @@ impl ModuleBuilder {
             imports: Vec::new(),
 
             item_names: HashMap::new(),
-            name_items: HashMap::new(),
-            import_names: HashMap::new(),
             expressions: HashMap::new(),
         }
     }
@@ -49,12 +45,10 @@ impl ModuleBuilder {
         let items = Items {
             items: self.items,
             names: self.item_names,
-            indicies: self.name_items,
         };
 
         let imports = Imports {
             imports: self.imports,
-            names: self.import_names,
         };
 
         let type_exprs = TypeExpressions {
@@ -66,33 +60,19 @@ impl ModuleBuilder {
 
     /// Add an item binding all of the specified names to this module. None of
     /// the provided names should have been added before.
-    pub fn add_item<I>(&mut self, names: I, item: Item) -> ItemIndex
-    where
-        I: IntoIterator<Item = ItemName>,
-    {
+    pub fn add_item(&mut self, names: impl IntoIterator<Item = ItemName>, item: Item) -> ItemIndex {
         let index = ItemIndex(self.items.len());
         self.items.push(item);
-
-        for name in names {
-            self.name_items.entry(index).or_default().insert(name);
-            assert!(self.item_names.insert(name, index).is_none());
-        }
+        self.item_names.insert(index, names.into_iter().collect());
 
         index
     }
 
     /// Add an import binding all of the specified names to this module. None of
     /// the provided names should have been added before.
-    pub fn add_import<I>(&mut self, aliases: I, import: Import) -> ImportIndex
-    where
-        I: IntoIterator<Item = Alias>,
-    {
+    pub fn add_import(&mut self, import: Import) -> ImportIndex {
         let index = ImportIndex(self.imports.len());
         self.imports.push(import);
-
-        for alias in aliases {
-            assert!(self.import_names.insert(alias, index).is_none());
-        }
 
         index
     }
@@ -133,21 +113,9 @@ impl Module {
         self.items(db).get(index)
     }
 
-    /// Get the item where the given name is bound, if it is defined in this
-    /// module.
-    pub fn item_by_name<'db>(&self, db: &'db dyn Db, name: &ItemName) -> Option<&'db Item> {
-        self.items(db).get_by_name(name)
-    }
-
     /// Get the import this index refers to.
     pub fn import<'db>(&self, db: &'db dyn Db, index: &ImportIndex) -> &'db Import {
         self.imports(db).get(index)
-    }
-
-    /// Get the item where the given imported alias is bound, if it is defined
-    /// in this module.
-    pub fn import_by_name<'db>(&self, db: &'db dyn Db, alias: &Alias) -> Option<&'db Import> {
-        self.imports(db).get_by_name(alias)
     }
 
     /// Get the expression from the given type expression.
@@ -160,15 +128,9 @@ impl Module {
 pub struct Items {
     items: Vec<Item>,
 
-    /// A mapping from every item name to the index of the item in the `items`
-    /// field. This split is necessary because each item may bind zero, one or
-    /// many names. Thus, the values in this map are not guaranteed to be unique
-    /// nor are they guaranteed to cover every index in the array.
-    names: HashMap<ItemName, ItemIndex>,
-
     /// A mapping from an item index to all the names it defines. This may not
     /// cover all item indicies.
-    indicies: HashMap<ItemIndex, HashSet<ItemName>>,
+    names: HashMap<ItemIndex, HashSet<ItemName>>,
 }
 
 impl Items {
@@ -179,16 +141,10 @@ impl Items {
             .expect("item index is from this module and therefore always in bounds")
     }
 
-    /// Get the item corresponding to the given name, if any.
-    pub fn get_by_name(&self, name: &ItemName) -> Option<&Item> {
-        let index = self.names.get(name)?;
-        Some(self.get(index))
-    }
-
     /// Get every name defined by the given index. This iterator is empty if
     /// the item does not define any names.
     pub fn names(&self, index: &ItemIndex) -> impl Iterator<Item = ItemName> + '_ {
-        self.indicies.get(index).into_iter().flatten().copied()
+        self.names.get(index).into_iter().flatten().copied()
     }
 
     /// Iterate over every item.
@@ -200,7 +156,6 @@ impl Items {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Imports {
     imports: Vec<Import>,
-    names: HashMap<Alias, ImportIndex>,
 }
 
 impl Imports {
@@ -211,10 +166,9 @@ impl Imports {
             .expect("import index is from this module and therefore always in bounds")
     }
 
-    /// Get the import corresponding to the given alias, if any.
-    pub fn get_by_name(&self, name: &Alias) -> Option<&Import> {
-        let index = self.names.get(name)?;
-        Some(self.get(index))
+    /// Iterate over every import.
+    pub fn iter(&self) -> impl Iterator<Item = &Import> {
+        self.imports.iter()
     }
 }
 
@@ -297,7 +251,7 @@ pub enum ExpressionNode {
         body: Option<Box<Expression>>,
     },
 
-    Block(Vec<Expression>),
+    Block(Vec<Expression>, Box<Expression>),
 
     Annotate(Box<Expression>, Type),
     Path(Box<Expression>, Identifier),

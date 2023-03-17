@@ -268,11 +268,14 @@ impl<'db> LocalDeclarer<'db> {
                 }
             }
 
-            ExpressionNode::Block(expressions) => {
+            ExpressionNode::Block(expressions, last) => {
                 for expression in expressions {
                     self.declare_expression(expression, None);
                     self.scope += 1;
                 }
+
+                self.declare_expression(last, None);
+                self.scope += 1;
             }
 
             ExpressionNode::Annotate(expression, ty) => {
