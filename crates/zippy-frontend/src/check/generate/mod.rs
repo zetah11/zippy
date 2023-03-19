@@ -73,8 +73,8 @@ impl Constrainer {
         }
     }
 
-    pub fn constrain_module(&mut self, module: bound::Module) {
-        let _ = self.constrain_entry(&module, &module.entry);
+    pub fn constrain_module(&mut self, module: bound::Module) -> constrained::ItemIndex {
+        let entry = self.constrain_entry(&module, &module.entry);
 
         for (name, expression) in module.type_exprs.iter() {
             let expression = self.infer_expr(&module, expression);
@@ -86,6 +86,26 @@ impl Constrainer {
                 .insert((module.module, *name), expression)
                 .is_none());
         }
+
+        let ty = module.anno;
+        let span = module.span;
+
+        let pattern = constrained::Pattern {
+            span,
+            data: ty.clone(),
+            node: constrained::PatternNode::Name(module.name),
+        };
+
+        let body = Some(constrained::Expression {
+            span,
+            data: ty,
+            node: constrained::ExpressionNode::Entry(entry),
+        });
+
+        self.items.add(
+            std::iter::once(module.name),
+            constrained::Item::Let { pattern, body },
+        )
     }
 
     fn constrain_entry(

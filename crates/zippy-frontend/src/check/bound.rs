@@ -12,7 +12,10 @@ use crate::resolved::Alias;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Module {
+    pub name: ItemName,
+    pub span: Span,
     pub module: flattened::Module,
+    pub anno: Type,
     pub entry: Entry,
     pub items: Items,
     pub imports: Imports,

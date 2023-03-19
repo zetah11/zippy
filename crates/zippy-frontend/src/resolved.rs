@@ -10,6 +10,9 @@ pub struct Module {
     #[id]
     pub name: ItemName,
 
+    /// Some arbitrary span representing this module.
+    pub a_span: Span,
+
     #[return_ref]
     pub parts: Vec<ModulePart>,
 }

@@ -1,5 +1,5 @@
 use zippy_common::names::ItemName;
-use zippy_common::source::Module;
+use zippy_common::source::{Module, Span};
 
 use crate::names::resolve::resolve_module;
 use crate::{flattened, resolved, Db};
@@ -9,7 +9,8 @@ pub fn flatten_module(db: &dyn Db, module: Module) -> flattened::Module {
     let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
     let name = module.name(zdb);
     let resolved = resolve_module(db, module);
-    let mut flattener = Flattener::new(name);
+    let span = resolved.a_span(db);
+    let mut flattener = Flattener::new(name, span);
 
     let mut entry = flattened::Entry {
         items: Vec::new(),
@@ -34,9 +35,9 @@ struct Flattener {
 }
 
 impl Flattener {
-    pub fn new(module_name: ItemName) -> Self {
+    pub fn new(module_name: ItemName, module_span: Span) -> Self {
         Self {
-            builder: flattened::ModuleBuilder::new(module_name),
+            builder: flattened::ModuleBuilder::new(module_name, module_span),
         }
     }
 

@@ -55,12 +55,17 @@ pub fn get_bound(db: &dyn Db, module: source::Module) -> Bound {
         })
         .collect();
 
-    let ty = Template::mono(Type::Trait { values });
-    let name = Name::Item(module.name(db));
-    binder.types.insert(name, ty);
+    let ty = Type::Trait { values };
+    let template = Template::mono(ty.clone());
+    let name = module.name(db);
+    let span = module.span(db);
+    binder.types.insert(Name::Item(name), template);
 
     let module = bound::Module {
+        name,
+        span,
         entry,
+        anno: ty,
         module,
         imports: binder.imports,
         items: binder.items,
@@ -253,7 +258,7 @@ impl<'db> Binder<'db> {
                 self.constraints
                     .push(Constraint::Equal(pattern.span, anno.clone(), ty.ty));
 
-                let anno = Template { ty: anno, ..ty };
+                let anno = Template { ty: anno };
 
                 return self.bind_pattern(inner, anno);
             }

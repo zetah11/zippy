@@ -20,6 +20,7 @@ use crate::Db;
 /// Utility struct to safely create [`Module`]s with the correct indicies.
 pub(crate) struct ModuleBuilder {
     name: ItemName,
+    span: Span,
 
     items: Vec<Item>,
     imports: Vec<Import>,
@@ -29,9 +30,10 @@ pub(crate) struct ModuleBuilder {
 }
 
 impl ModuleBuilder {
-    pub fn new(name: ItemName) -> Self {
+    pub fn new(name: ItemName, span: Span) -> Self {
         Self {
             name,
+            span,
 
             items: Vec::new(),
             imports: Vec::new(),
@@ -55,7 +57,7 @@ impl ModuleBuilder {
             expressions: self.expressions,
         };
 
-        Module::new(db, self.name, entry, items, imports, type_exprs)
+        Module::new(db, self.name, self.span, entry, items, imports, type_exprs)
     }
 
     /// Add an item binding all of the specified names to this module. None of
@@ -90,6 +92,9 @@ pub struct Module {
     /// The name of this module
     #[id]
     pub name: ItemName,
+
+    /// Some span representing this module.
+    pub span: Span,
 
     #[return_ref]
     pub entry: Entry,

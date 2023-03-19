@@ -22,6 +22,10 @@ pub fn resolve_module(db: &dyn Db, module: Module) -> resolved::Module {
 
     let sources = module.sources(zdb);
     let mut parts = Vec::with_capacity(sources.len());
+    let a_span = sources
+        .first()
+        .expect("all modules contain at least one source")
+        .span(0, 0);
 
     for source in sources {
         let ast = get_ast(db, *source);
@@ -50,7 +54,7 @@ pub fn resolve_module(db: &dyn Db, module: Module) -> resolved::Module {
         });
     }
 
-    resolved::Module::new(db, name, parts)
+    resolved::Module::new(db, name, a_span, parts)
 }
 
 /// Get every alias declared by any imports in this module.
