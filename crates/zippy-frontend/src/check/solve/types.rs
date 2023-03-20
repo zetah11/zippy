@@ -36,7 +36,7 @@ impl Solver<'_> {
     /// Ensure the given type is numeric.
     pub(super) fn numeric(&self, span: Span, ty: Type) -> NumericResult {
         match ty {
-            Type::Unit | Type::Range { .. } => NumericResult::Ok,
+            Type::Unit | Type::Number | Type::Range { .. } => NumericResult::Ok,
 
             Type::Var(var) => match self.substitution.get(&var) {
                 Some(ty) => self.numeric(span, ty.clone()),

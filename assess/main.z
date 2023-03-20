@@ -1,15 +1,4 @@
--- stuffs
 let A = entry
-    let x =
-      let z = B.w
-      z
+  let x: 10 = 5
 
-    let y = entry
-      import Inner.x
-      let w: 10 = 5
-      let v = x
-
-    let z = x
-
-let B = A.y
-
+let y: 50 = A.x

@@ -7,7 +7,7 @@ impl<C: MessageContainer> TypeMessages for MessageMaker<C> {
     fn ambiguous(&mut self) {
         let message = self
             .error(Code::TypeError)
-            .with_title(text!["too few constraints to determine types"]);
+            .with_title(text!["ambiguous type"]);
         self.add(message);
     }
 

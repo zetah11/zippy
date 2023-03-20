@@ -35,7 +35,10 @@ struct Solver<'db> {
     counts: HashMap<Span, usize>,
 
     constraints: Vec<Constraint>,
+    numeric: Vec<(Span, Type)>,
+    textual: Vec<(Span, Type)>,
     type_numeric: Vec<(Span, Type)>,
+    unitlike: Vec<(Span, Type)>,
 
     coercions: Coercions,
     substitution: HashMap<UnifyVar, Type>,
@@ -53,7 +56,10 @@ impl<'db> Solver<'db> {
             counts,
 
             constraints,
+            numeric: Vec::new(),
+            textual: Vec::new(),
             type_numeric: Vec::new(),
+            unitlike: Vec::new(),
 
             coercions: Coercions::new(),
             substitution: HashMap::new(),
@@ -81,6 +87,14 @@ impl<'db> Solver<'db> {
         }
 
         self.solve_type_numerics();
+        self.solve_checks();
+
+        if !self.constraints.is_empty() {
+            let constraints: Vec<_> = self.constraints.drain(..).collect();
+            for constraint in constraints {
+                self.report_unsolvable(constraint);
+            }
+        }
     }
 
     fn solve_constraint(&mut self, constraint: Constraint) {
@@ -98,17 +112,35 @@ impl<'db> Solver<'db> {
 
             Constraint::Instantiated(at, ty, template) => self.instantiated(at, ty, template),
 
-            Constraint::UnitLike(at, ty) => self.unitlike(at, ty),
-            Constraint::Numeric(at, ty) => match self.numeric(at, ty) {
-                NumericResult::Ok => {}
-                NumericResult::Unsolved(at, ty) => {
-                    self.constraints.push(Constraint::Numeric(at, ty))
-                }
-                NumericResult::Error(messages) => self.messages.extend(messages),
-            },
-
-            Constraint::Textual(at, ty) => self.textual(at, ty),
+            Constraint::UnitLike(at, ty) => self.unitlike.push((at, ty)),
+            Constraint::Textual(at, ty) => self.textual.push((at, ty)),
+            Constraint::Numeric(at, ty) => self.numeric.push((at, ty)),
             Constraint::TypeNumeric(at, ty) => self.type_numeric.push((at, ty)),
+        }
+    }
+
+    /// Check type literal validities.
+    fn solve_checks(&mut self) {
+        // Numeric
+        let constraints: Vec<_> = self.numeric.drain(..).collect();
+        for (at, ty) in constraints {
+            match self.numeric(at, ty) {
+                NumericResult::Ok => {}
+                NumericResult::Unsolved(at, _) => self.at(at).ambiguous(),
+                NumericResult::Error(messages) => self.messages.extend(messages),
+            }
+        }
+
+        // Textual
+        let constraints: Vec<_> = self.textual.drain(..).collect();
+        for (at, ty) in constraints {
+            self.textual(at, ty);
+        }
+
+        // Unitlike
+        let constraints: Vec<_> = self.unitlike.drain(..).collect();
+        for (at, ty) in constraints {
+            self.unitlike(at, ty);
         }
     }
 
