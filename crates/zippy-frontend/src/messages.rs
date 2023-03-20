@@ -44,6 +44,35 @@ pub trait ParseMessages {
     fn unexpected_token(&mut self);
 }
 
+pub trait TypeMessages {
+    /// Types are too unconstrained to be determined.
+    fn ambiguous(&mut self);
+
+    /// Cannot unify two inequal types.
+    fn inequal_types(&mut self);
+
+    /// The entry is missing a field.
+    fn missing_field(&mut self, name: &str);
+
+    /// Cannot get a field from a non-trait type.
+    fn not_a_trait(&mut self);
+
+    /// Not a unit type.
+    fn not_unitlike(&mut self);
+
+    /// Not a numeric type.
+    fn not_numeric(&mut self);
+
+    /// Not a string type.
+    fn not_textual(&mut self);
+
+    /// The entry has no such field.
+    fn no_such_field(&mut self, name: &str);
+
+    /// A type equation ends up being recursive.
+    fn recursive_type(&mut self);
+}
+
 impl MessageContainer for &'_ dyn Db {
     fn push(&mut self, message: Message) {
         let db = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(*self);

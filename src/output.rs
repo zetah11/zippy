@@ -6,6 +6,7 @@ pub fn format_code(code: Code) -> &'static str {
         Code::SyntaxError => "syntax error",
         Code::DeclarationError => "declaration error",
         Code::NameError => "name error",
+        Code::TypeError => "type error",
     }
 }
 

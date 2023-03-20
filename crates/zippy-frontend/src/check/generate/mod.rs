@@ -11,8 +11,8 @@ use super::{bound, constrained, Constraint, Type, UnifyVar};
 use crate::flattened::{Module, TypeExpression};
 use crate::resolved::Alias;
 
-pub struct FlatProgram {
-    pub modules: Vec<bound::Module>,
+pub struct FlatProgram<'db> {
+    pub modules: Vec<&'db bound::Module>,
     pub context: HashMap<Name, Template>,
     pub aliases: HashMap<Alias, Type>,
     pub counts: HashMap<Span, usize>,
@@ -20,6 +20,7 @@ pub struct FlatProgram {
 
 pub struct ConstrainedProgram {
     pub constraints: Vec<Constraint>,
+    pub counts: HashMap<Span, usize>,
     pub program: constrained::Program,
 }
 
@@ -65,6 +66,7 @@ impl Constrainer {
     pub fn build(self) -> ConstrainedProgram {
         ConstrainedProgram {
             constraints: self.constraints,
+            counts: self.counts,
             program: constrained::Program {
                 items: self.items,
                 imports: self.imports,
@@ -73,11 +75,11 @@ impl Constrainer {
         }
     }
 
-    pub fn constrain_module(&mut self, module: bound::Module) -> constrained::ItemIndex {
-        let entry = self.constrain_entry(&module, &module.entry);
+    pub fn constrain_module(&mut self, module: &bound::Module) -> constrained::ItemIndex {
+        let entry = self.constrain_entry(module, &module.entry);
 
         for (name, expression) in module.type_exprs.iter() {
-            let expression = self.infer_expr(&module, expression);
+            let expression = self.infer_expr(module, expression);
             let ty = expression.data.clone();
             self.constraints
                 .push(Constraint::TypeNumeric(expression.span, ty));
@@ -87,7 +89,7 @@ impl Constrainer {
                 .is_none());
         }
 
-        let ty = module.anno;
+        let ty = module.anno.clone();
         let span = module.span;
 
         let pattern = constrained::Pattern {

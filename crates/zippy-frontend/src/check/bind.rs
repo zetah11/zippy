@@ -25,6 +25,9 @@ pub struct Bound {
     pub constraints: Vec<Constraint>,
 
     #[return_ref]
+    pub counts: HashMap<Span, usize>,
+
+    #[return_ref]
     pub module: bound::Module,
 }
 
@@ -72,7 +75,14 @@ pub fn get_bound(db: &dyn Db, module: source::Module) -> Bound {
         type_exprs,
     };
 
-    Bound::new(db, binder.types, binder.aliases, binder.constraints, module)
+    Bound::new(
+        db,
+        binder.types,
+        binder.aliases,
+        binder.constraints,
+        binder.counts,
+        module,
+    )
 }
 
 struct Binder<'db> {

@@ -22,8 +22,11 @@ pub enum Type {
         module: Module,
     },
 
-    Var(UnifyVar),
     Unit,
+    Number,
+
+    Var(UnifyVar),
+
     Invalid(Reason),
 }
 
@@ -95,4 +98,50 @@ pub struct UnifyVar {
 pub struct CoercionVar {
     pub span: Span,
     pub count: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum CoercionState {
+    Equal,
+    Coercible,
+    Invalid,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Coercions {
+    coercions: HashMap<CoercionVar, CoercionState>,
+}
+
+impl Coercions {
+    pub fn new() -> Self {
+        Self {
+            coercions: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, var: &CoercionVar) -> CoercionState {
+        self.coercions
+            .get(var)
+            .copied()
+            .expect("all coercions have been marked")
+    }
+
+    /// Mark the coercion variable with the given state, ensuring no previous
+    /// information is lost (e.g. if the variable is marked as `Coercible`
+    /// marking it as `Equal` won't change that, but marking it as `Invalid`
+    /// will).
+    pub fn mark(&mut self, var: CoercionVar, state: CoercionState) {
+        if let Some(prev) = self.coercions.get(&var) {
+            match (prev, state) {
+                (CoercionState::Invalid, _) => return,
+
+                (CoercionState::Coercible, CoercionState::Invalid) => {}
+                (CoercionState::Coercible, _) => return,
+
+                (CoercionState::Equal, _) => {}
+            }
+        }
+
+        self.coercions.insert(var, state);
+    }
 }
