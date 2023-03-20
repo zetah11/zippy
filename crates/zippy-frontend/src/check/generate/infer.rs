@@ -85,11 +85,9 @@ impl Constrainer {
             }
 
             bound::ExpressionNode::Alias(alias) => {
-                let ty = self
-                    .aliases
-                    .get(alias)
-                    .expect("all aliases have been bound")
-                    .clone();
+                let ty = self.fresh(span);
+                self.constraints
+                    .push(Constraint::InstantiatedAlias(span, ty.clone(), *alias));
                 let expr = constrained::ExpressionNode::Alias(*alias);
                 (expr, ty)
             }

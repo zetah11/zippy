@@ -10,16 +10,13 @@ use crate::flattened::{
     PatternNode,
 };
 use crate::flattening::flatten_module;
-use crate::resolved::Alias;
+use crate::resolved::ImportedName;
 use crate::Db;
 
 #[salsa::tracked]
 pub struct Bound {
     #[return_ref]
     pub context: HashMap<Name, Template>,
-
-    #[return_ref]
-    pub aliases: HashMap<Alias, Type>,
 
     #[return_ref]
     pub constraints: Vec<Constraint>,
@@ -75,14 +72,7 @@ pub fn get_bound(db: &dyn Db, module: source::Module) -> Bound {
         type_exprs,
     };
 
-    Bound::new(
-        db,
-        binder.types,
-        binder.aliases,
-        binder.constraints,
-        binder.counts,
-        module,
-    )
+    Bound::new(db, binder.types, binder.constraints, binder.counts, module)
 }
 
 struct Binder<'db> {
@@ -92,7 +82,6 @@ struct Binder<'db> {
     imports: bound::Imports,
 
     types: HashMap<Name, Template>,
-    aliases: HashMap<Alias, Type>,
     constraints: Vec<Constraint>,
 
     counts: HashMap<Span, usize>,
@@ -107,7 +96,6 @@ impl<'db> Binder<'db> {
             imports: bound::Imports::new(),
 
             types: HashMap::new(),
-            aliases: HashMap::new(),
             constraints: Vec::new(),
 
             counts: HashMap::new(),
@@ -137,15 +125,10 @@ impl<'db> Binder<'db> {
         let names = import
             .names
             .iter()
-            .map(|name| {
-                let ty = self.fresh(name.span);
-                assert!(self.aliases.insert(name.alias, ty.clone()).is_none());
-                bound::ImportedName {
-                    data: ty,
-                    span: name.span,
-                    alias: name.alias,
-                    name: name.name,
-                }
+            .map(|name| ImportedName {
+                span: name.span,
+                alias: name.alias,
+                name: name.name,
             })
             .collect();
 

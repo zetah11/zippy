@@ -10,4 +10,5 @@
 pub enum Reason {
     SyntaxError,
     NameError,
+    TypeError,
 }

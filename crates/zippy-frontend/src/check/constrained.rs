@@ -5,11 +5,10 @@ use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::names::{ItemName, LocalName, Name};
 use zippy_common::source::Span;
 
-use super::bound::ImportedName;
 use super::types::{CoercionVar, Type};
 use crate::ast::Identifier;
 use crate::flattened::{Module, TypeExpression};
-use crate::resolved::Alias;
+use crate::resolved::{Alias, ImportedName};
 
 #[derive(Debug)]
 pub struct Program {

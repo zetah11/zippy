@@ -1,4 +1,5 @@
 let A = entry
   let x: 10 = 5
 
-let y: 50 = A.x
+import A.y
+let z: 10 = y

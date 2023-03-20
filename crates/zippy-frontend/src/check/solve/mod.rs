@@ -8,6 +8,7 @@ use zippy_common::messages::{Message, MessageMaker};
 use zippy_common::source::Span;
 
 use crate::messages::TypeMessages;
+use crate::resolved::Alias;
 use crate::Db;
 
 use self::types::NumericResult;
@@ -34,6 +35,8 @@ struct Solver<'db> {
     messages: Vec<Message>,
     counts: HashMap<Span, usize>,
 
+    aliases: HashMap<Alias, Template>,
+
     constraints: Vec<Constraint>,
     numeric: Vec<(Span, Type)>,
     textual: Vec<(Span, Type)>,
@@ -54,6 +57,8 @@ impl<'db> Solver<'db> {
             db,
             messages: Vec::new(),
             counts,
+
+            aliases: HashMap::new(),
 
             constraints,
             numeric: Vec::new(),
@@ -99,6 +104,13 @@ impl<'db> Solver<'db> {
 
     fn solve_constraint(&mut self, constraint: Constraint) {
         match constraint {
+            Constraint::Alias {
+                at,
+                alias,
+                of,
+                name,
+            } => self.alias(at, alias, of, name),
+
             Constraint::Assignable { at, id, into, from } => self.assign(at, id, into, from),
 
             Constraint::Equal(at, t, u) => self.equate(at, t, u),
@@ -111,6 +123,7 @@ impl<'db> Solver<'db> {
             } => self.field(at, target, of, field),
 
             Constraint::Instantiated(at, ty, template) => self.instantiated(at, ty, template),
+            Constraint::InstantiatedAlias(at, ty, alias) => self.instantiated_alias(at, ty, alias),
 
             Constraint::UnitLike(at, ty) => self.unitlike.push((at, ty)),
             Constraint::Textual(at, ty) => self.textual.push((at, ty)),
@@ -170,10 +183,12 @@ impl<'db> Solver<'db> {
     /// Report an unsolvable constraint.
     fn report_unsolvable(&mut self, constraint: Constraint) {
         let span = match constraint {
+            Constraint::Alias { at, .. } => at,
             Constraint::Assignable { at, .. } => at,
             Constraint::Equal(at, _, _) => at,
             Constraint::Field { at, .. } => at,
             Constraint::Instantiated(at, _, _) => at,
+            Constraint::InstantiatedAlias(at, _, _) => at,
             Constraint::UnitLike(at, _) => at,
             Constraint::Numeric(at, _) => at,
             Constraint::Textual(at, _) => at,

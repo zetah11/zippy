@@ -6,6 +6,7 @@ use zippy_common::source::Span;
 
 use crate::ast::Clusivity;
 use crate::flattened::{Module, TypeExpression};
+use crate::resolved::Alias;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
@@ -50,6 +51,16 @@ impl Template {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Constraint {
+    /// Constrain the `alias` to be an alias of the item with the `name` within
+    /// some expression of type `of`. The alias should then have a template
+    /// equal to that name, that other code can instantiate.
+    Alias {
+        at: Span,
+        alias: Alias,
+        of: Type,
+        name: RawName,
+    },
+
     /// Constrain `from` to be equal to or coercible to `into`.
     Assignable {
         at: Span,
@@ -74,6 +85,11 @@ pub enum Constraint {
     /// requires solving the template first, to make sure no type parameters
     /// escape, and *then* instantiating them with unification vars.
     Instantiated(Span, Type, Template),
+
+    /// Constrain the type to be an instantiation of the given imported alias.
+    /// This requires solving the type of the import expression first to figure
+    /// out what template this even refers to, and then instantiating it.
+    InstantiatedAlias(Span, Type, Alias),
 
     /// Constrain the type to be unit-like.
     UnitLike(Span, Type),

@@ -8,7 +8,7 @@ use zippy_common::source::Span;
 use super::types::Type;
 use crate::ast::Identifier;
 use crate::flattened::{self, TypeExpression};
-use crate::resolved::Alias;
+use crate::resolved::{Alias, ImportedName};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Module {
@@ -101,14 +101,6 @@ pub enum Item {
 pub struct Import {
     pub from: Expression,
     pub names: Vec<ImportedName>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ImportedName {
-    pub span: Span,
-    pub data: Type,
-    pub name: Identifier,
-    pub alias: Alias,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -56,7 +56,6 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
 
     let mut modules = Vec::new();
     let mut context = HashMap::new();
-    let mut aliases = HashMap::new();
     let mut counts = HashMap::new();
 
     let mut constraints = Vec::new();
@@ -80,13 +79,6 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
                 .map(|(name, ty)| (*name, ty.clone())),
         );
 
-        aliases.extend(
-            bound
-                .aliases(&database)
-                .iter()
-                .map(|(name, ty)| (*name, ty.clone())),
-        );
-
         counts.extend(
             bound
                 .counts(&database)
@@ -98,7 +90,6 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
     let program = FlatProgram {
         modules,
         context,
-        aliases,
         counts,
     };
 

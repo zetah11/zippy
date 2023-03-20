@@ -9,12 +9,10 @@ use zippy_common::source::Span;
 use super::types::{CoercionVar, Template};
 use super::{bound, constrained, Constraint, Type, UnifyVar};
 use crate::flattened::{Module, TypeExpression};
-use crate::resolved::Alias;
 
 pub struct FlatProgram<'db> {
     pub modules: Vec<&'db bound::Module>,
     pub context: HashMap<Name, Template>,
-    pub aliases: HashMap<Alias, Type>,
     pub counts: HashMap<Span, usize>,
 }
 
@@ -25,7 +23,7 @@ pub struct ConstrainedProgram {
 }
 
 pub fn constrain(program: FlatProgram) -> ConstrainedProgram {
-    let mut constrainer = Constrainer::new(program.counts, program.context, program.aliases);
+    let mut constrainer = Constrainer::new(program.counts, program.context);
 
     for module in program.modules {
         constrainer.constrain_module(module);
@@ -37,7 +35,6 @@ pub fn constrain(program: FlatProgram) -> ConstrainedProgram {
 struct Constrainer {
     counts: HashMap<Span, usize>,
     context: HashMap<Name, Template>,
-    aliases: HashMap<Alias, Type>,
 
     constraints: Vec<Constraint>,
     items: constrained::Items,
@@ -46,14 +43,9 @@ struct Constrainer {
 }
 
 impl Constrainer {
-    pub fn new(
-        counts: HashMap<Span, usize>,
-        context: HashMap<Name, Template>,
-        aliases: HashMap<Alias, Type>,
-    ) -> Self {
+    pub fn new(counts: HashMap<Span, usize>, context: HashMap<Name, Template>) -> Self {
         Self {
             context,
-            aliases,
             counts,
 
             constraints: Vec::new(),
@@ -171,10 +163,19 @@ impl Constrainer {
         let import = module.imports.get(import);
         let from = self.infer_expr(module, &import.from);
 
-        let import = constrained::Import {
-            from,
-            names: import.names.clone(),
-        };
+        let mut names = Vec::with_capacity(import.names.len());
+        for name in import.names.iter().copied() {
+            self.constraints.push(Constraint::Alias {
+                at: name.span,
+                alias: name.alias,
+                of: from.data.clone(),
+                name: name.name.name,
+            });
+
+            names.push(name);
+        }
+
+        let import = constrained::Import { from, names };
 
         self.imports.add(import)
     }
