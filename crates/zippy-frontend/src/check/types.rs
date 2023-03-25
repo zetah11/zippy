@@ -10,18 +10,9 @@ use crate::resolved::Alias;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
-    Trait {
-        values: HashMap<ItemName, Template>,
-    },
+    Trait { values: HashMap<ItemName, Template> },
 
-    Range {
-        clusivity: Clusivity,
-        lower: TypeExpression,
-        upper: TypeExpression,
-
-        /// The module containing the two bounds.
-        module: Module,
-    },
+    Range(RangeType),
 
     Unit,
     Number,
@@ -29,6 +20,16 @@ pub enum Type {
     Var(UnifyVar),
 
     Invalid(Reason),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RangeType {
+    pub clusivity: Clusivity,
+    pub lower: TypeExpression,
+    pub upper: TypeExpression,
+
+    /// The module containing the two bounds.
+    pub module: Module,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

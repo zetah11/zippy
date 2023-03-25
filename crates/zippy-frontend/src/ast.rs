@@ -112,24 +112,21 @@ pub enum PatternNode {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct Clusivity {
-    pub includes_start: bool,
-    pub includes_end: bool,
+pub enum Clusivity {
+    /// Includes both upper and lower bound.
+    FullInclusive,
+
+    /// Excludes upper bound but includes lower bound.
+    HalfInclusive,
 }
 
 impl Clusivity {
     pub fn exclusive() -> Self {
-        Self {
-            includes_start: true,
-            includes_end: false,
-        }
+        Self::HalfInclusive
     }
 
     pub fn inclusive() -> Self {
-        Self {
-            includes_start: true,
-            includes_end: true,
-        }
+        Self::FullInclusive
     }
 }
 

@@ -13,3 +13,5 @@
         topological order? probably needs to take previous results as an
         argument (or derive it, somehow) but should be doable
     [ ] a solution can be applied on as fine a resolution as is necessary
+[x] force lower bound inclusivity in `ast::Clusivity`
+[x] save type of names in `checked::Program`

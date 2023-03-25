@@ -13,6 +13,7 @@ use crate::resolved::Alias;
 use crate::Db;
 
 use self::types::NumericResult;
+use super::constrained::DelayedConstraint;
 use super::types::{CoercionState, CoercionVar, Coercions, Constraint, Template, Type, UnifyVar};
 
 #[derive(Debug)]
@@ -21,6 +22,7 @@ pub struct Solution {
     pub substitution: HashMap<UnifyVar, Type>,
     pub coercions: Coercions,
     pub aliases: HashMap<Alias, ItemName>,
+    pub delayed: Vec<DelayedConstraint>,
 }
 
 pub fn solve(db: &dyn Db, counts: HashMap<Span, usize>, constraints: Vec<Constraint>) -> Solution {
@@ -36,6 +38,7 @@ pub fn solve(db: &dyn Db, counts: HashMap<Span, usize>, constraints: Vec<Constra
             .into_iter()
             .flat_map(|(name, (item, _))| Some((name, item?)))
             .collect(),
+        delayed: solver.delayed,
     }
 }
 
@@ -54,6 +57,7 @@ struct Solver<'db> {
 
     coercions: Coercions,
     substitution: HashMap<UnifyVar, Type>,
+    delayed: Vec<DelayedConstraint>,
 }
 
 impl<'db> Solver<'db> {
@@ -77,6 +81,7 @@ impl<'db> Solver<'db> {
 
             coercions: Coercions::new(),
             substitution: HashMap::new(),
+            delayed: Vec::new(),
         }
     }
 

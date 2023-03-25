@@ -6,10 +6,10 @@
 
 use std::collections::HashMap;
 
-use log::warn;
 use zippy_common::invalid::Reason;
 use zippy_common::names::{ItemName, Name};
 
+use super::types::RangeType;
 use super::{constrained, CoercionState, Coercions, Solution, Type, UnifyVar};
 use crate::checked;
 use crate::flattened::{Module, TypeExpression};
@@ -28,6 +28,7 @@ pub fn apply(program: constrained::Program, solution: Solution) -> checked::Prog
 struct Applier {
     substitution: HashMap<UnifyVar, Type>,
     coercions: Coercions,
+    delayed: Vec<constrained::DelayedConstraint>,
     aliases: HashMap<Alias, ItemName>,
     type_exprs: HashMap<(Module, TypeExpression), checked::ItemIndex>,
     items: HashMap<constrained::ItemIndex, checked::ItemIndex>,
@@ -40,6 +41,7 @@ impl Applier {
         Self {
             substitution: solution.substitution,
             coercions: solution.coercions,
+            delayed: solution.delayed,
             aliases: solution.aliases,
             type_exprs: HashMap::new(),
             items: HashMap::new(),
@@ -48,7 +50,8 @@ impl Applier {
         }
     }
 
-    pub fn build(self) -> checked::Program {
+    pub fn build(mut self) -> checked::Program {
+        self.apply_constraints();
         self.program
     }
 
@@ -107,28 +110,7 @@ impl Applier {
                 values: values.iter().map(|(name, _)| *name).collect(),
             },
 
-            Type::Range {
-                clusivity,
-                lower,
-                upper,
-                module,
-            } => {
-                let Some(lower) = self.type_exprs.get(&(*module, *lower)) else {
-                    warn!("unapplied lower type expression");
-                    return checked::Type::Invalid(Reason::TypeError);
-                };
-
-                let Some(upper) = self.type_exprs.get(&(*module, *upper)) else {
-                    warn!("unapplied upper type expression");
-                    return checked::Type::Invalid(Reason::TypeError);
-                };
-
-                checked::Type::Range {
-                    clusivity: *clusivity,
-                    lower: *lower,
-                    upper: *upper,
-                }
-            }
+            Type::Range(range) => checked::Type::Range(self.apply_range_type(*range)),
 
             Type::Unit => todo!("what is the unit type?"),
             Type::Number => checked::Type::Number,
@@ -142,7 +124,32 @@ impl Applier {
         }
     }
 
-    fn apply_expression(&mut self, expression: constrained::Expression) -> checked::Expression {
+    fn apply_range_type(&self, ty: RangeType) -> checked::RangeType {
+        let RangeType {
+            clusivity,
+            lower,
+            upper,
+            module,
+        } = ty;
+
+        let lower = *self
+            .type_exprs
+            .get(&(module, lower))
+            .expect("all type expressions have been applied");
+
+        let upper = *self
+            .type_exprs
+            .get(&(module, upper))
+            .expect("all type expressions have been applied");
+
+        checked::RangeType {
+            clusivity,
+            lower,
+            upper,
+        }
+    }
+
+    fn apply_expression(&self, expression: constrained::Expression) -> checked::Expression {
         let span = expression.span;
         let data = self.apply_type(&expression.data);
         let node = match expression.node {
@@ -199,7 +206,7 @@ impl Applier {
         checked::Expression { node, data, span }
     }
 
-    fn apply_entry(&mut self, entry: constrained::Entry) -> checked::Entry {
+    fn apply_entry(&self, entry: constrained::Entry) -> checked::Entry {
         checked::Entry {
             items: entry
                 .items
@@ -214,7 +221,7 @@ impl Applier {
         }
     }
 
-    fn apply_pattern<N>(&mut self, pattern: constrained::Pattern<N>) -> checked::Pattern<N> {
+    fn apply_pattern<N>(&self, pattern: constrained::Pattern<N>) -> checked::Pattern<N> {
         let span = pattern.span;
         let data = self.apply_type(&pattern.data);
         let node = match pattern.node {
@@ -224,6 +231,38 @@ impl Applier {
         };
 
         checked::Pattern { node, data, span }
+    }
+
+    fn apply_constraints(&mut self) {
+        let constraints: Vec<_> = self.delayed.drain(..).collect();
+        for constraint in constraints {
+            let constraint = self.apply_constraint(constraint);
+            self.program.constrain(constraint);
+        }
+    }
+
+    fn apply_constraint(&self, constraint: constrained::DelayedConstraint) -> checked::Constraint {
+        match constraint {
+            constrained::DelayedConstraint::Equal { first, second } => {
+                let first = self.apply_range_type(first);
+                let second = self.apply_range_type(second);
+                checked::Constraint::BoundEqual { first, second }
+            }
+
+            constrained::DelayedConstraint::Subset { big, small } => {
+                let big = self.apply_range_type(big);
+                let small = self.apply_range_type(small);
+                checked::Constraint::BoundSubset { big, small }
+            }
+
+            constrained::DelayedConstraint::Unit(range) => {
+                checked::Constraint::BoundUnit(self.apply_range_type(range))
+            }
+
+            constrained::DelayedConstraint::UnitOrEmpty(range) => {
+                checked::Constraint::BoundUnitOrEmpty(self.apply_range_type(range))
+            }
+        }
     }
 
     /// Create a new item index.
@@ -253,7 +292,7 @@ impl Applier {
 
     /// Create an appropriate unit value for the given type, if such a thing is
     /// reasonable.
-    fn make_unit_value(&mut self, ty: &checked::Type) -> Option<checked::ExpressionNode> {
+    fn make_unit_value(&self, ty: &checked::Type) -> Option<checked::ExpressionNode> {
         match ty {
             // The unit value of a trait exists only if the trait itself is empty
             // TODO: or if all the values are of a unit type.
@@ -266,9 +305,9 @@ impl Applier {
             checked::Type::Trait { .. } => None,
 
             // The unit value of a range is always the lower bound
-            // TODO: check that the upper bound is exactly one greater than the
-            // lower bound, possible at run time
-            checked::Type::Range { lower, .. } => Some(checked::ExpressionNode::Item(*lower)),
+            checked::Type::Range(checked::RangeType { lower, .. }) => {
+                Some(checked::ExpressionNode::Item(*lower))
+            }
 
             // The number type is conceptually infinite (meaning there's more
             // than one element to pick from)

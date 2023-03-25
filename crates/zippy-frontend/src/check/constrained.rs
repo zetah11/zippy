@@ -5,7 +5,7 @@ use zippy_common::literals::{NumberLiteral, StringLiteral};
 use zippy_common::names::{ItemName, LocalName, Name};
 use zippy_common::source::Span;
 
-use super::types::{CoercionVar, Type};
+use super::types::{CoercionVar, RangeType, Type};
 use crate::ast::Identifier;
 use crate::flattened::{Module, TypeExpression};
 use crate::resolved::{Alias, ImportedName};
@@ -15,6 +15,22 @@ pub struct Program {
     pub items: Items,
     pub imports: Imports,
     pub type_exprs: HashMap<(Module, TypeExpression), Expression>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DelayedConstraint {
+    /// Ensure the range `small` is equal to or a subset of `big`.
+    Subset { big: RangeType, small: RangeType },
+
+    /// Ensure the `first` and `second` ranges cover the exact same set of
+    /// values.
+    Equal { first: RangeType, second: RangeType },
+
+    /// Ensure the given range type contains one or zero values.
+    UnitOrEmpty(RangeType),
+
+    /// Ensure the given range type contains exactly one value.
+    Unit(RangeType),
 }
 
 #[derive(Debug, Default)]

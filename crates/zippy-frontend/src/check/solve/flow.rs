@@ -1,5 +1,6 @@
 use zippy_common::source::Span;
 
+use crate::check::constrained::DelayedConstraint;
 use crate::messages::TypeMessages;
 
 use super::{CoercionState, CoercionVar, Solver, Template, Type, UnifyVar};
@@ -71,13 +72,16 @@ impl Solver<'_> {
             }
 
             // A smaller range can be coerced to a wider range.
-            (Type::Range { .. }, Type::Range { .. }) => {
+            (Type::Range(big), Type::Range(small)) => {
                 self.coercions.mark(id, CoercionState::Coercible);
-                todo!("check bound subset")
+                self.delayed.push(DelayedConstraint::Subset { big, small })
             }
 
             // An empty or unit range can be coerced to a unit type.
-            (Type::Unit, Type::Range { .. }) => todo!("check bound unity/emptiness"),
+            (Type::Unit, Type::Range(range)) => {
+                self.coercions.mark(id, CoercionState::Coercible);
+                self.delayed.push(DelayedConstraint::UnitOrEmpty(range));
+            }
 
             // Anything is equal to an invalid type.
             (Type::Invalid(_), _) | (_, Type::Invalid(_)) => {
@@ -127,10 +131,12 @@ impl Solver<'_> {
                 }
             }
 
-            (Type::Range { .. }, Type::Range { .. }) => todo!("check bound equality"),
+            (Type::Range(first), Type::Range(second)) => self
+                .delayed
+                .push(DelayedConstraint::Equal { first, second }),
 
-            (Type::Unit, Type::Range { .. }) | (Type::Range { .. }, Type::Unit) => {
-                todo!("check bound unity")
+            (Type::Unit, Type::Range(range)) | (Type::Range(range), Type::Unit) => {
+                self.delayed.push(DelayedConstraint::Unit(range))
             }
 
             (Type::Unit, Type::Unit) | (Type::Number, Type::Number) => {}

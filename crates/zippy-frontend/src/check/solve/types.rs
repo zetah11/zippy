@@ -3,6 +3,7 @@ use zippy_common::names::RawName;
 use zippy_common::source::Span;
 
 use super::{Constraint, Solver, Template, Type};
+use crate::check::constrained::DelayedConstraint;
 use crate::messages::TypeMessages;
 
 pub(super) enum NumericResult {
@@ -16,7 +17,8 @@ impl Solver<'_> {
     pub(super) fn unitlike(&mut self, span: Span, ty: Type) {
         match ty {
             Type::Unit => {}
-            Type::Range { .. } => todo!("ensure range is unit"),
+
+            Type::Range(range) => self.delayed.push(DelayedConstraint::Unit(range)),
 
             Type::Var(var) => match self.substitution.get(&var) {
                 Some(ty) => self.unitlike(span, ty.clone()),

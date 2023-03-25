@@ -4,7 +4,7 @@ use zippy_common::names::Name;
 use zippy_common::source::{self, Span};
 
 use super::bound;
-use super::types::{Constraint, Template, Type, UnifyVar};
+use super::types::{Constraint, RangeType, Template, Type, UnifyVar};
 use crate::flattened::{
     self, Entry, Expression, ExpressionNode, ImportIndex, Item, ItemIndex, Module, Pattern,
     PatternNode,
@@ -301,12 +301,12 @@ impl<'db> Binder<'db> {
                 clusivity,
                 lower,
                 upper,
-            } => Type::Range {
+            } => Type::Range(RangeType {
                 clusivity: *clusivity,
                 lower: *lower,
                 upper: *upper,
                 module: self.module,
-            },
+            }),
 
             flattened::TypeNode::Invalid(reason) => Type::Invalid(*reason),
         }

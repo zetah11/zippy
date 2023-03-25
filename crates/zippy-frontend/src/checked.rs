@@ -12,6 +12,7 @@ pub struct Program {
     pub items: HashMap<ItemIndex, Item>,
     pub item_types: HashMap<ItemName, Template>,
     pub local_types: HashMap<LocalName, Type>,
+    pub constraints: Vec<Constraint>,
 
     counter: usize,
 }
@@ -25,6 +26,10 @@ impl Program {
         let id = ItemIndex(self.counter);
         self.counter += 1;
         id
+    }
+
+    pub(crate) fn constrain(&mut self, constraint: Constraint) {
+        self.constraints.push(constraint);
     }
 }
 
@@ -43,25 +48,42 @@ pub enum Item {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Constraint {
+    /// Ensure `small` is equal to or a subset of `big`.
+    BoundSubset { big: RangeType, small: RangeType },
+
+    /// Ensure the `first` and `second` ranges cover the exact same set of
+    /// values.
+    BoundEqual { first: RangeType, second: RangeType },
+
+    /// Ensure the given range type contains one or zero values.
+    BoundUnitOrEmpty(RangeType),
+
+    /// Ensure the given range type contains exactly one value.
+    BoundUnit(RangeType),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Template {
     pub ty: Type,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Type {
-    Trait {
-        values: Vec<ItemName>,
-    },
+    Trait { values: Vec<ItemName> },
 
-    Range {
-        clusivity: Clusivity,
-        lower: ItemIndex,
-        upper: ItemIndex,
-    },
+    Range(RangeType),
 
     Number,
 
     Invalid(Reason),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RangeType {
+    pub clusivity: Clusivity,
+    pub lower: ItemIndex,
+    pub upper: ItemIndex,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
