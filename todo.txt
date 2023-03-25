@@ -15,3 +15,6 @@
     [ ] a solution can be applied on as fine a resolution as is necessary
 [x] force lower bound inclusivity in `ast::Clusivity`
 [x] save type of names in `checked::Program`
+[ ] immutable unification vars
+[ ] trait existentials & generalization (will probably throw a hatchet in my
+    plans)

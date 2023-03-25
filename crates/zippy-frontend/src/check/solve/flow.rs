@@ -18,7 +18,7 @@ impl Solver<'_> {
 
     /// Ensure `from` is either equal to or can be coerced to `into`, assuming
     /// beta-equivalence.
-    fn beta_flow(&mut self, at: Span, id: CoercionVar, into: Template, from: Template) {
+    fn alpha_flow(&mut self, at: Span, id: CoercionVar, into: Template, from: Template) {
         let Template { ty: into } = into;
         let Template { ty: from } = from;
 
@@ -26,7 +26,7 @@ impl Solver<'_> {
     }
 
     /// Ensure that the two templates are beta-equivalent.
-    fn beta_unify(&mut self, at: Span, t: Template, u: Template) {
+    fn alpha_unify(&mut self, at: Span, t: Template, u: Template) {
         let Template { ty: t } = t;
         let Template { ty: u } = u;
 
@@ -67,7 +67,7 @@ impl Solver<'_> {
                     };
 
                     let from_template = from.remove(&from_name).unwrap();
-                    self.beta_flow(at, id, into_template, from_template);
+                    self.alpha_flow(at, id, into_template, from_template);
                 }
             }
 
@@ -123,7 +123,7 @@ impl Solver<'_> {
                     };
 
                     let right_template = right.remove(&right_name).unwrap();
-                    self.beta_unify(at, left_template, right_template);
+                    self.alpha_unify(at, left_template, right_template);
                 }
 
                 if !right.is_empty() {
