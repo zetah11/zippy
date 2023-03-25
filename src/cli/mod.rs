@@ -5,12 +5,10 @@ mod format;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashMap;
 use std::fs;
 
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
-use zippy_common::messages::Messages;
 use zippy_common::source::Project;
 use zippy_frontend::check;
 use zippy_frontend::dependencies::get_dependencies;
@@ -53,22 +51,13 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
     let mut messages = Vec::new();
     let prettier = Prettier::new(&database).with_full_name(false);
 
-    let _checked = check::check(&database, &mut messages, database.get_modules());
+    let checked = check::check(&database, &mut messages, database.get_modules());
 
     if dot {
-        let mut all_deps = HashMap::new();
-        for module in database.get_modules() {
-            let dependencies = get_dependencies(&database, module);
-            messages.extend(get_dependencies::accumulated::<Messages>(&database, module));
-
-            for (name, depends) in dependencies.dependencies(&database) {
-                assert!(all_deps.insert(*name, depends.clone()).is_none());
-            }
-        }
-
+        let dependencies = get_dependencies(&database, &checked);
         let graph = std::fs::File::create("dependencies.dot")?;
         let mut writer = std::io::BufWriter::new(graph);
-        GraphViz::new(&database, &prettier, all_deps).render(&mut writer)?;
+        GraphViz::new(&prettier, dependencies).render(&mut writer)?;
     }
 
     for message in messages {

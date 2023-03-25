@@ -5,156 +5,130 @@
 
 use std::collections::{HashMap, HashSet};
 
+use zippy_common::components;
 use zippy_common::names::{DeclarableName, ItemName};
-use zippy_common::source::Module;
 
-use crate::names::resolve::resolve_module;
-use crate::resolved::{
-    Alias, Expression, ExpressionNode, Import, Item, Pattern, PatternNode, Type, TypeNode,
+use crate::checked::{
+    Entry, Expression, ExpressionNode, Item, ItemIndex, Pattern, PatternNode, Program, RangeType,
+    Type,
 };
 use crate::Db;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum ItemOrAlias {
-    Item(ItemName),
-    Alias(Alias),
+pub struct Dependencies {
+    pub graph: HashMap<ItemIndex, HashSet<ItemIndex>>,
+    pub order: Vec<HashSet<ItemIndex>>,
+    pub names: HashMap<ItemIndex, HashSet<ItemName>>,
 }
 
-#[salsa::tracked]
-pub struct ModuleDependencies {
-    #[id]
-    pub module: Module,
-
-    #[return_ref]
-    pub dependencies: HashMap<ItemOrAlias, HashSet<ItemOrAlias>>,
-}
-
-#[salsa::tracked]
-pub fn get_dependencies(db: &dyn Db, module: Module) -> ModuleDependencies {
-    let resolved = resolve_module(db, module);
-    let mut dependencies = DependencyFinder::new(db);
-
-    let mut module_dependencies = HashSet::new();
-
-    for part in resolved.parts(db) {
-        for import in part.imports.iter() {
-            let names = dependencies.import_names(import);
-            module_dependencies.extend(names);
-        }
-
-        for item in part.items.iter() {
-            let names = dependencies.item_names(item);
-            module_dependencies.extend(names);
-        }
-    }
-
-    let zdb = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(db);
-    let module_name = ItemOrAlias::Item(module.name(zdb));
-
-    assert!(dependencies
-        .dependencies
-        .insert(module_name, module_dependencies)
-        .is_none());
-
-    ModuleDependencies::new(db, module, dependencies.dependencies)
+pub fn get_dependencies(db: &dyn Db, program: &Program) -> Dependencies {
+    let dependencies = DependencyFinder::new(db);
+    dependencies.find(program)
 }
 
 struct DependencyFinder<'db> {
     db: &'db dyn Db,
-    dependencies: HashMap<ItemOrAlias, HashSet<ItemOrAlias>>,
+    graph: HashMap<ItemIndex, HashSet<ItemIndex>>,
+    names: HashMap<ItemName, ItemIndex>,
 }
 
 impl<'db> DependencyFinder<'db> {
     pub fn new(db: &'db dyn Db) -> Self {
         Self {
             db,
-            dependencies: HashMap::new(),
+            graph: HashMap::new(),
+            names: HashMap::new(),
         }
     }
 
-    /// Get the names created by this import.
-    pub fn import_names(&mut self, import: &Import) -> Vec<ItemOrAlias> {
-        let mut depends = HashSet::new();
-        self.for_expression(&mut depends, &import.from);
-
-        let mut aliases = Vec::with_capacity(import.names.len());
-        for name in import.names.iter() {
-            let alias = ItemOrAlias::Alias(name.alias);
-            self.dependencies.insert(alias, depends.clone());
-            aliases.push(alias);
+    pub fn find(mut self, program: &Program) -> Dependencies {
+        // Map the item names to the index where they were defined
+        for (index, item) in program.items.iter() {
+            for name in self.item_names(item) {
+                assert!(self.names.insert(name, *index).is_none());
+            }
         }
 
-        aliases
+        // Map out the dependency graph
+        for (index, item) in program.items.iter() {
+            self.for_item(*index, item);
+        }
+
+        // Construct the result.
+        self.construct()
     }
 
-    /// Get the names created by this item.
-    pub fn item_names(&mut self, item: &Item) -> Vec<ItemOrAlias> {
+    fn construct(self) -> Dependencies {
+        // Construct the topological ordering
+        let order = components::find(&self.graph);
+
+        // Construct the index-to-name map
+        let mut names: HashMap<_, HashSet<_>> = HashMap::new();
+        for (name, index) in self.names {
+            names.entry(index).or_default().insert(name);
+        }
+
+        Dependencies {
+            graph: self.graph,
+            order,
+            names,
+        }
+    }
+
+    /// Get the names introduced by this item.
+    fn item_names(&mut self, item: &Item) -> HashSet<ItemName> {
         match item {
-            Item::Let {
-                pattern,
-                anno,
-                body,
-            } => {
-                let (names, mut depends) = self.pattern_names(pattern);
+            Item::Bound { .. } => HashSet::new(),
+            Item::Let { pattern, .. } => self.pattern_names(pattern),
+        }
+    }
 
-                if let Some(ty) = anno {
-                    self.for_type(&mut depends, ty);
-                }
+    /// Set the dependencies of this item.
+    fn for_item(&mut self, index: ItemIndex, item: &Item) {
+        let mut depends = HashSet::new();
+        match item {
+            Item::Bound { body } => {
+                self.for_expression(&mut depends, body);
+            }
 
+            Item::Let { pattern, body } => {
+                self.for_pattern(&mut depends, pattern);
                 if let Some(expression) = body {
                     self.for_expression(&mut depends, expression);
                 }
-
-                let mut result = Vec::with_capacity(names.len());
-                for name in names {
-                    let name = ItemOrAlias::Item(name);
-                    self.dependencies.insert(name, depends.clone());
-                    result.push(name);
-                }
-
-                result
             }
         }
+
+        assert!(self.graph.insert(index, depends).is_none());
     }
 
-    fn for_type(&mut self, within: &mut HashSet<ItemOrAlias>, ty: &Type) {
-        match &ty.node {
-            TypeNode::Range {
+    fn for_type(&self, within: &mut HashSet<ItemIndex>, ty: &Type) {
+        match ty {
+            Type::Trait { values } => {
+                // TODO: is this right?
+                within.extend(values.iter().filter_map(|name| self.names.get(name)))
+            }
+
+            Type::Range(RangeType {
                 clusivity: _,
                 lower,
                 upper,
-            } => {
-                self.for_expression(within, lower);
-                self.for_expression(within, upper);
+            }) => {
+                within.extend([lower, upper]);
             }
 
-            TypeNode::Invalid(_) => {}
+            Type::Number | Type::Invalid(_) => {}
         }
     }
 
-    fn for_expression(&mut self, within: &mut HashSet<ItemOrAlias>, expression: &Expression) {
+    fn for_expression(&self, within: &mut HashSet<ItemIndex>, expression: &Expression) {
+        self.for_type(within, &expression.data);
         match &expression.node {
-            ExpressionNode::Entry { items, imports } => {
-                for import in imports {
-                    within.extend(self.import_names(import));
-                }
-
-                for item in items {
-                    within.extend(self.item_names(item));
-                }
+            ExpressionNode::Entry(Entry { items }) => {
+                within.extend(items.iter().copied());
             }
 
-            ExpressionNode::Let {
-                pattern,
-                anno,
-                body,
-            } => {
-                let (_, depends) = self.pattern_names(pattern);
-                within.extend(depends);
-
-                if let Some(anno) = anno {
-                    self.for_type(within, anno);
-                }
+            ExpressionNode::Let { pattern, body } => {
+                self.for_pattern(within, pattern);
 
                 if let Some(body) = body {
                     self.for_expression(within, body);
@@ -169,56 +143,52 @@ impl<'db> DependencyFinder<'db> {
                 self.for_expression(within, last);
             }
 
-            ExpressionNode::Annotate(expression, ty) => {
-                self.for_expression(within, expression);
-                self.for_type(within, ty);
-            }
-
             ExpressionNode::Path(expression, _field) => {
                 self.for_expression(within, expression);
             }
 
+            ExpressionNode::Coerce(inner) => self.for_expression(within, inner),
+
+            ExpressionNode::Item(item) => {
+                within.insert(*item);
+            }
+
             ExpressionNode::Name(name) => {
                 if let Some(name) = self.item_name((*name).into()) {
-                    within.insert(ItemOrAlias::Item(name));
+                    within.extend(self.names.get(&name));
                 }
             }
 
-            ExpressionNode::Alias(alias) => {
-                within.insert(ItemOrAlias::Alias(*alias));
-            }
-
-            ExpressionNode::Number(_)
-            | ExpressionNode::String(_)
-            | ExpressionNode::Unit
-            | ExpressionNode::Invalid(_) => {}
+            ExpressionNode::Number(_) | ExpressionNode::String(_) | ExpressionNode::Invalid(_) => {}
         }
     }
 
-    fn pattern_names<N>(&mut self, pattern: &Pattern<N>) -> (Vec<N>, HashSet<ItemOrAlias>)
-    where
-        N: Copy + Into<DeclarableName>,
-    {
+    /// Get the names created by this pattern.
+    fn pattern_names(&self, pattern: &Pattern<ItemName>) -> HashSet<ItemName> {
         match &pattern.node {
-            PatternNode::Annotate(pattern, ty) => {
-                let (names, mut depends) = self.pattern_names(pattern);
-                self.for_type(&mut depends, ty);
-                (names, depends)
-            }
+            PatternNode::Name(name) => HashSet::from([*name]),
+            PatternNode::Wildcard | PatternNode::Invalid(_) => HashSet::new(),
+        }
+    }
 
-            PatternNode::Name(name) => (vec![*name], HashSet::new()),
-            PatternNode::Invalid(_) | PatternNode::Unit => (Vec::new(), HashSet::new()),
+    /// Get the names referenced by this pattern.
+    fn for_pattern<N>(&self, within: &mut HashSet<ItemIndex>, pattern: &Pattern<N>) {
+        self.for_type(within, &pattern.data);
+        match &pattern.node {
+            PatternNode::Name(_) | PatternNode::Wildcard | PatternNode::Invalid(_) => {}
         }
     }
 
     fn item_name(&self, name: DeclarableName) -> Option<ItemName> {
-        match name {
-            DeclarableName::Item(name) => Some(name),
-            _ => name
-                .parent(<dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(
-                    self.db,
-                ))
-                .and_then(|name| self.item_name(name)),
+        if let DeclarableName::Item(name) = name {
+            return Some(name);
+        }
+
+        match name.parent(<dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(
+            self.db,
+        )) {
+            Some(name) => self.item_name(name),
+            None => None,
         }
     }
 }

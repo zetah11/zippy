@@ -22,8 +22,6 @@ pub struct Jar(
     crate::ast::AstSource,
     crate::check::get_bound,
     crate::check::Bound,
-    crate::dependencies::get_dependencies,
-    crate::dependencies::ModuleDependencies,
     crate::flattened::Module,
     crate::flattening::flatten_module,
     crate::names::declare::declared_names,
