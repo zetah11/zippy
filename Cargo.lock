@@ -954,6 +954,7 @@ name = "zippy-frontend"
 version = "0.1.0"
 dependencies = [
  "itertools",
+ "log",
  "logos",
  "salsa-2022",
  "zippy-common",

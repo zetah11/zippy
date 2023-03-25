@@ -12,7 +12,7 @@ use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use zippy_common::messages::Messages;
 use zippy_common::source::Project;
-use zippy_frontend::check::{constrain, get_bound, solve, FlatProgram};
+use zippy_frontend::check;
 use zippy_frontend::dependencies::get_dependencies;
 
 use self::diagnostic::print_diagnostic;
@@ -52,62 +52,27 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
 
     let mut messages = Vec::new();
     let prettier = Prettier::new(&database).with_full_name(false);
-    let mut all_deps = HashMap::new();
 
-    let mut modules = Vec::new();
-    let mut context = HashMap::new();
-    let mut counts = HashMap::new();
-
-    let mut constraints = Vec::new();
-
-    for module in database.get_modules() {
-        let dependencies = get_dependencies(&database, module);
-        messages.extend(get_dependencies::accumulated::<Messages>(&database, module));
-
-        for (name, depends) in dependencies.dependencies(&database) {
-            assert!(all_deps.insert(*name, depends.clone()).is_none());
-        }
-
-        let bound = get_bound(&database, module);
-        constraints.extend(bound.constraints(&database).iter().cloned());
-
-        modules.push(bound.module(&database));
-        context.extend(
-            bound
-                .context(&database)
-                .iter()
-                .map(|(name, ty)| (*name, ty.clone())),
-        );
-
-        counts.extend(
-            bound
-                .counts(&database)
-                .iter()
-                .map(|(span, count)| (*span, *count)),
-        );
-    }
-
-    let program = FlatProgram {
-        modules,
-        context,
-        counts,
-    };
-
-    let constrained = constrain(program);
-    constraints.extend(constrained.constraints);
-    let solution = solve(&database, constrained.counts, constraints);
-    messages.extend(solution.messages);
-
-    for message in messages {
-        print_diagnostic(&database, Some(&project), &prettier, message)?;
-    }
-
-    //print_context(&database, &prettier, context);
+    let _checked = check::check(&database, &mut messages, database.get_modules());
 
     if dot {
+        let mut all_deps = HashMap::new();
+        for module in database.get_modules() {
+            let dependencies = get_dependencies(&database, module);
+            messages.extend(get_dependencies::accumulated::<Messages>(&database, module));
+
+            for (name, depends) in dependencies.dependencies(&database) {
+                assert!(all_deps.insert(*name, depends.clone()).is_none());
+            }
+        }
+
         let graph = std::fs::File::create("dependencies.dot")?;
         let mut writer = std::io::BufWriter::new(graph);
         GraphViz::new(&database, &prettier, all_deps).render(&mut writer)?;
+    }
+
+    for message in messages {
+        print_diagnostic(&database, Some(&project), &prettier, message)?;
     }
 
     Ok(())

@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod check;
+pub mod checked;
 pub mod dependencies;
 pub mod flattened;
 pub mod flattening;

@@ -39,10 +39,15 @@ impl Items {
         index
     }
 
-    pub fn get(&self, index: &ItemIndex) -> &Item {
+    pub fn indicies(&self) -> impl Iterator<Item = ItemIndex> {
+        (0..self.items.len()).map(ItemIndex)
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = (ItemIndex, Item)> {
         self.items
-            .get(index.0)
-            .expect("index is from this program and always in bounds")
+            .into_iter()
+            .enumerate()
+            .map(|(index, item)| (ItemIndex(index), item))
     }
 }
 
@@ -64,10 +69,8 @@ impl Imports {
         index
     }
 
-    pub fn get(&self, index: &ImportIndex) -> &Import {
-        self.imports
-            .get(index.0)
-            .expect("index is from this program and always in bounds")
+    pub fn into_iter(self) -> impl Iterator<Item = Import> {
+        self.imports.into_iter()
     }
 }
 

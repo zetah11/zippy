@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use lsp_types::{Diagnostic, Url};
 
-use zippy_common::messages::Messages;
-use zippy_frontend::names::resolve::resolve_module;
+use zippy_frontend::check;
 
 use super::Backend;
 use crate::pretty::Prettier;
@@ -14,13 +13,7 @@ impl Backend {
         let mut diagnostics: HashMap<Url, Vec<_>> = HashMap::new();
 
         let mut messages = Vec::new();
-        for module in self.database.get_modules() {
-            let _ = resolve_module(&self.database, module);
-            messages.extend(resolve_module::accumulated::<Messages>(
-                &self.database,
-                module,
-            ));
-        }
+        let _ = check::check(&self.database, &mut messages, self.database.get_modules());
 
         let prettier = Prettier::new(&self.database)
             .with_full_name(false)
