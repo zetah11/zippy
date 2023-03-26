@@ -19,6 +19,7 @@ pub struct FlatProgram<'db> {
 pub struct ConstrainedProgram {
     pub constraints: Vec<Constraint>,
     pub counts: HashMap<Span, usize>,
+    pub context: HashMap<Name, Template>,
     pub program: constrained::Program,
 }
 
@@ -59,6 +60,7 @@ impl Constrainer {
         ConstrainedProgram {
             constraints: self.constraints,
             counts: self.counts,
+            context: self.context,
             program: constrained::Program {
                 items: self.items,
                 imports: self.imports,

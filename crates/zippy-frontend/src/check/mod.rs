@@ -58,5 +58,5 @@ pub fn check(
     let mut solution = solve(db, constrained.counts, constraints);
     messages.append(&mut solution.messages);
 
-    apply(constrained.program, solution)
+    apply(constrained.program, constrained.context, solution)
 }

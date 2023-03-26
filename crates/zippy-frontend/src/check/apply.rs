@@ -9,14 +9,18 @@ use std::collections::HashMap;
 use zippy_common::invalid::Reason;
 use zippy_common::names::{ItemName, Name};
 
-use super::types::RangeType;
+use super::types::{RangeType, Template};
 use super::{constrained, CoercionState, Coercions, Solution, Type, UnifyVar};
 use crate::checked;
 use crate::flattened::{Module, TypeExpression};
 use crate::resolved::Alias;
 
-pub fn apply(program: constrained::Program, solution: Solution) -> checked::Program {
-    let mut applier = Applier::new(solution);
+pub fn apply(
+    program: constrained::Program,
+    context: HashMap<Name, Template>,
+    solution: Solution,
+) -> checked::Program {
+    let mut applier = Applier::new(context, solution);
 
     applier.apply_type_exprs(program.type_exprs);
     applier.apply_imports(program.imports);
@@ -30,6 +34,8 @@ struct Applier {
     coercions: Coercions,
     delayed: Vec<constrained::DelayedConstraint>,
     aliases: HashMap<Alias, ItemName>,
+    context: HashMap<Name, Template>,
+
     type_exprs: HashMap<(Module, TypeExpression), checked::ItemIndex>,
     items: HashMap<constrained::ItemIndex, checked::ItemIndex>,
 
@@ -37,12 +43,14 @@ struct Applier {
 }
 
 impl Applier {
-    pub fn new(solution: Solution) -> Self {
+    pub fn new(context: HashMap<Name, Template>, solution: Solution) -> Self {
         Self {
             substitution: solution.substitution,
             coercions: solution.coercions,
             delayed: solution.delayed,
             aliases: solution.aliases,
+            context,
+
             type_exprs: HashMap::new(),
             items: HashMap::new(),
 
@@ -52,6 +60,7 @@ impl Applier {
 
     pub fn build(mut self) -> checked::Program {
         self.apply_constraints();
+        self.apply_context();
         self.program
     }
 
@@ -261,6 +270,26 @@ impl Applier {
 
             constrained::DelayedConstraint::UnitOrEmpty(range) => {
                 checked::Constraint::BoundUnitOrEmpty(self.apply_range_type(range))
+            }
+        }
+    }
+
+    fn apply_context(&mut self) {
+        let context: Vec<_> = self.context.drain().collect();
+        for (name, template) in context {
+            let template = checked::Template {
+                ty: self.apply_type(&template.ty),
+            };
+
+            match name {
+                Name::Item(name) => {
+                    assert!(self.program.item_types.insert(name, template).is_none())
+                }
+
+                Name::Local(name) => {
+                    let checked::Template { ty } = template;
+                    assert!(self.program.local_types.insert(name, ty).is_none())
+                }
             }
         }
     }
