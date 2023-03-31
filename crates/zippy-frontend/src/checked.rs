@@ -37,7 +37,15 @@ impl Program {
 pub struct ItemIndex(usize);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Item {
+pub struct Item {
+    pub node: ItemNode,
+
+    /// The names declared by this item.
+    pub names: Vec<ItemName>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ItemNode {
     /// A bound in a number type.
     Bound { body: Expression },
 

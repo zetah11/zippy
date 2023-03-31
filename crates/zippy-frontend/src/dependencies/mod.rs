@@ -9,8 +9,8 @@ use zippy_common::components;
 use zippy_common::names::{DeclarableName, ItemName};
 
 use crate::checked::{
-    Entry, Expression, ExpressionNode, Item, ItemIndex, Pattern, PatternNode, Program, RangeType,
-    Type,
+    Entry, Expression, ExpressionNode, Item, ItemIndex, ItemNode, Pattern, PatternNode, Program,
+    RangeType, Type,
 };
 use crate::Db;
 
@@ -76,21 +76,18 @@ impl<'db> DependencyFinder<'db> {
 
     /// Get the names introduced by this item.
     fn item_names(&mut self, item: &Item) -> HashSet<ItemName> {
-        match item {
-            Item::Bound { .. } => HashSet::new(),
-            Item::Let { pattern, .. } => self.pattern_names(pattern),
-        }
+        item.names.iter().copied().collect()
     }
 
     /// Set the dependencies of this item.
     fn for_item(&mut self, index: ItemIndex, item: &Item) {
         let mut depends = HashSet::new();
-        match item {
-            Item::Bound { body } => {
+        match &item.node {
+            ItemNode::Bound { body } => {
                 self.for_expression(&mut depends, body);
             }
 
-            Item::Let { pattern, body } => {
+            ItemNode::Let { pattern, body } => {
                 self.for_pattern(&mut depends, pattern);
                 if let Some(expression) = body {
                     self.for_expression(&mut depends, expression);
@@ -160,14 +157,6 @@ impl<'db> DependencyFinder<'db> {
             }
 
             ExpressionNode::Number(_) | ExpressionNode::String(_) | ExpressionNode::Invalid(_) => {}
-        }
-    }
-
-    /// Get the names created by this pattern.
-    fn pattern_names(&self, pattern: &Pattern<ItemName>) -> HashSet<ItemName> {
-        match &pattern.node {
-            PatternNode::Name(name) => HashSet::from([*name]),
-            PatternNode::Wildcard | PatternNode::Invalid(_) => HashSet::new(),
         }
     }
 

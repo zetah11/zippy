@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use zippy_common::invalid::Reason;
 use zippy_common::literals::{NumberLiteral, StringLiteral};
@@ -36,21 +36,16 @@ pub enum DelayedConstraint {
 #[derive(Debug, Default)]
 pub struct Items {
     items: Vec<Item>,
-    names: HashMap<ItemIndex, HashSet<ItemName>>,
 }
 
 impl Items {
     pub fn new() -> Self {
-        Self {
-            items: Vec::new(),
-            names: HashMap::new(),
-        }
+        Self { items: Vec::new() }
     }
 
-    pub fn add(&mut self, names: impl Iterator<Item = ItemName>, item: Item) -> ItemIndex {
+    pub fn add(&mut self, item: Item) -> ItemIndex {
         let index = ItemIndex(self.items.len());
         self.items.push(item);
-        self.names.insert(index, names.collect());
 
         index
     }
@@ -97,7 +92,13 @@ pub struct ItemIndex(usize);
 pub struct ImportIndex(usize);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Item {
+pub struct Item {
+    pub node: ItemNode,
+    pub names: Vec<ItemName>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ItemNode {
     Let {
         pattern: Pattern<ItemName>,
         body: Option<Expression>,

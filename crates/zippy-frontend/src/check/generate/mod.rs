@@ -98,10 +98,12 @@ impl Constrainer {
             node: constrained::ExpressionNode::Entry(entry),
         });
 
-        self.items.add(
-            std::iter::once(module.name),
-            constrained::Item::Let { pattern, body },
-        )
+        let item = constrained::Item {
+            names: vec![module.name],
+            node: constrained::ItemNode::Let { pattern, body },
+        };
+
+        self.items.add(item)
     }
 
     fn constrain_entry(
@@ -114,7 +116,7 @@ impl Constrainer {
             .items
             .iter()
             .map(|item| {
-                names.extend(module.items.names(item));
+                names.extend(module.items.get(item).names.iter().copied());
                 self.constrain_item(module, item)
             })
             .collect();
@@ -137,11 +139,11 @@ impl Constrainer {
         module: &bound::Module,
         item: &bound::ItemIndex,
     ) -> constrained::ItemIndex {
-        let names = module.items.names(item);
         let item = module.items.get(item);
 
-        let item = match item {
-            bound::Item::Let {
+        let names = item.names.clone();
+        let node = match &item.node {
+            bound::ItemNode::Let {
                 pattern,
                 anno,
                 body,
@@ -150,11 +152,12 @@ impl Constrainer {
                 let body = body
                     .as_ref()
                     .map(|expression| self.check_expr(module, expression, anno.clone()));
-                constrained::Item::Let { pattern, body }
+                constrained::ItemNode::Let { pattern, body }
             }
         };
 
-        self.items.add(names, item)
+        let item = constrained::Item { node, names };
+        self.items.add(item)
     }
 
     fn constrain_import(

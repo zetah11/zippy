@@ -10,8 +10,8 @@ use std::fs;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use zippy_common::source::Project;
-use zippy_frontend::check;
 use zippy_frontend::dependencies::get_dependencies;
+use zippy_frontend::{check, clarify};
 
 use self::diagnostic::print_diagnostic;
 use self::dot::GraphViz;
@@ -58,6 +58,8 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
         let graph = std::fs::File::create("dependencies.dot")?;
         let mut writer = std::io::BufWriter::new(graph);
         GraphViz::new(&prettier, dependencies).render(&mut writer)?;
+    } else {
+        clarify::clarify(&database, checked);
     }
 
     for message in messages {

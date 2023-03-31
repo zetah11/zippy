@@ -18,3 +18,5 @@
 [ ] immutable unification vars
 [ ] trait existentials & generalization (will probably throw a hatchet in my
     plans)
+[ ] `end` keyword
+[ ] unit types

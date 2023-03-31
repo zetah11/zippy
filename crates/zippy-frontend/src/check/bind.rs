@@ -42,9 +42,9 @@ pub fn get_bound(db: &dyn Db, module: source::Module) -> Bound {
     let entry = binder.bind_entry(module.entry(db));
 
     let values = entry
-        .items
+        .names
         .iter()
-        .flat_map(|item| binder.items.names(item))
+        .copied()
         .map(|item| {
             let ty = binder
                 .types
@@ -103,18 +103,30 @@ impl<'db> Binder<'db> {
     }
 
     pub fn bind_entry(&mut self, entry: &Entry) -> bound::Entry {
+        let items = self.module.items(self.db);
+        let names = entry
+            .items
+            .iter()
+            .flat_map(|item| items.names(item))
+            .collect();
+
         let items = entry
             .items
             .iter()
             .map(|item| self.bind_item(item))
             .collect();
+
         let imports = entry
             .imports
             .iter()
             .map(|import| self.bind_import(import))
             .collect();
 
-        bound::Entry { imports, items }
+        bound::Entry {
+            imports,
+            items,
+            names,
+        }
     }
 
     /// Bind the names declared by an import.
@@ -138,10 +150,10 @@ impl<'db> Binder<'db> {
     /// Bind a single item and its subexpressions.
     fn bind_item(&mut self, item: &ItemIndex) -> bound::ItemIndex {
         let items = self.module.items(self.db);
-        let names = items.names(item);
+        let names = items.names(item).collect();
         let item = items.get(item);
 
-        let item = match item {
+        let node = match item {
             Item::Let {
                 pattern,
                 anno,
@@ -161,7 +173,7 @@ impl<'db> Binder<'db> {
                     .as_ref()
                     .map(|expression| self.bind_expression(expression));
 
-                bound::Item::Let {
+                bound::ItemNode::Let {
                     pattern,
                     anno,
                     body,
@@ -169,7 +181,8 @@ impl<'db> Binder<'db> {
             }
         };
 
-        self.items.add(names, item)
+        let item = bound::Item { node, names };
+        self.items.add(item)
     }
 
     /// Bind every name defined in this expression to a type.

@@ -69,6 +69,9 @@ impl Applier {
             let from = self.apply_expression(import.from);
             let _ = import.names;
 
+            // TODO: Bind the imported names in this pattern!
+            // Necessary in case the imported name is a run-time value.
+            let names = Vec::new();
             let pattern = checked::PatternNode::Wildcard;
             let pattern = checked::Pattern {
                 node: pattern,
@@ -77,10 +80,11 @@ impl Applier {
             };
 
             let index = self.make_item();
-            let item = checked::Item::Let {
+            let node = checked::ItemNode::Let {
                 pattern,
                 body: Some(from),
             };
+            let item = checked::Item { node, names };
 
             self.program.add_item_for(index, item);
         }
@@ -302,19 +306,27 @@ impl Applier {
     /// Apply a type bound for the given index.
     fn make_bound_for(&mut self, index: checked::ItemIndex, expression: constrained::Expression) {
         let body = self.apply_expression(expression);
-        self.program
-            .add_item_for(index, checked::Item::Bound { body });
+        let node = checked::ItemNode::Bound { body };
+        let item = checked::Item {
+            node,
+            names: Vec::new(),
+        };
+
+        self.program.add_item_for(index, item);
     }
 
     /// Apply an item for the given item index.
     fn make_item_for(&mut self, index: checked::ItemIndex, item: constrained::Item) {
-        let item = match item {
-            constrained::Item::Let { pattern, body } => {
+        let names = item.names;
+        let node = match item.node {
+            constrained::ItemNode::Let { pattern, body } => {
                 let pattern = self.apply_pattern(pattern);
                 let body = body.map(|expression| self.apply_expression(expression));
-                checked::Item::Let { pattern, body }
+                checked::ItemNode::Let { pattern, body }
             }
         };
+
+        let item = checked::Item { node, names };
 
         self.program.add_item_for(index, item);
     }
