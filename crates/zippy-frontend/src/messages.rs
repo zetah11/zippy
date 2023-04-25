@@ -4,6 +4,14 @@ use zippy_common::source::Span;
 
 use crate::Db;
 
+pub trait ClarifyMessages {
+    /// Two different, incompatible instances.
+    fn incompatible_instances(&mut self);
+
+    /// An instance recursively depends on itself.
+    fn recursive_instance(&mut self);
+}
+
 pub trait NameMessages {
     /// Bare imports are not yet supported.
     fn bare_import_unsupported(&mut self);
@@ -72,7 +80,6 @@ pub trait TypeMessages {
     /// A type equation ends up being recursive.
     fn recursive_type(&mut self);
 }
-
 impl MessageContainer for &'_ dyn Db {
     fn push(&mut self, message: Message) {
         let db = <dyn Db as salsa::DbWithJar<zippy_common::Jar>>::as_jar_db(*self);

@@ -58,9 +58,9 @@ pub fn check(dot: bool) -> anyhow::Result<()> {
         let graph = std::fs::File::create("dependencies.dot")?;
         let mut writer = std::io::BufWriter::new(graph);
         GraphViz::new(&prettier, dependencies).render(&mut writer)?;
-    } else {
-        clarify::clarify(&database, checked);
     }
+
+    clarify::clarify(&database, &mut messages, checked);
 
     for message in messages {
         print_diagnostic(&database, Some(&project), &prettier, message)?;

@@ -21,10 +21,12 @@ mod dependency;
 mod generalize;
 mod instanced;
 mod instantiate;
+mod messages;
 mod unify;
 
 use std::collections::{HashMap, HashSet};
 
+use zippy_common::messages::{Message, MessageMaker};
 use zippy_common::names::{ItemName, LocalName, Name};
 use zippy_common::source::Span;
 
@@ -33,7 +35,7 @@ use crate::checked::{self, ItemIndex};
 use crate::dependencies::get_dependencies;
 use crate::Db;
 
-pub fn clarify(db: &dyn Db, program: checked::Program) {
+pub fn clarify(db: &dyn Db, messages: &mut Vec<Message>, program: checked::Program) {
     let deps = get_dependencies(db, &program);
 
     let mut clarifier = Clarifier::new(program);
@@ -42,6 +44,8 @@ pub fn clarify(db: &dyn Db, program: checked::Program) {
     for items in deps.order {
         clarifier.clarify_component(items);
     }
+
+    messages.extend(clarifier.messages);
 }
 
 struct Clarifier {
@@ -59,6 +63,8 @@ struct Clarifier {
     abstract_counter: usize,
     index_counter: usize,
     var_counter: usize,
+
+    messages: Vec<Message>,
 }
 
 impl Clarifier {
@@ -75,6 +81,8 @@ impl Clarifier {
             abstract_counter: 0,
             index_counter: 0,
             var_counter: 0,
+
+            messages: Vec::new(),
         }
     }
 
@@ -208,5 +216,9 @@ impl Clarifier {
         let id = instanced::InstanceIndex(self.index_counter);
         self.index_counter += 1;
         id
+    }
+
+    fn at(&mut self, at: Span) -> MessageMaker<&mut Vec<Message>> {
+        MessageMaker::new(&mut self.messages, at)
     }
 }

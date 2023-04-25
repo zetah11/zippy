@@ -20,3 +20,5 @@
     plans)
 [ ] `end` keyword
 [ ] unit types
+[ ] convert imports to path assignments (`import A.x` to `let x = A.x`)
+[ ] cli occasionally prints two lines when error is by the end of the line

@@ -2,6 +2,7 @@ use zippy_common::source::Span;
 
 use super::instanced::{Instance, InstanceVar, Type};
 use super::Clarifier;
+use crate::messages::ClarifyMessages;
 
 impl Clarifier {
     pub fn unify(&mut self, at: Span, left: Type, right: Type) {
@@ -31,11 +32,11 @@ impl Clarifier {
                 } else if !self.occurs(&v, &i) {
                     self.substitution.insert(v, i);
                 } else {
-                    todo!("error")
+                    self.at(at).recursive_instance();
                 }
             }
 
-            _ => todo!("error"),
+            _ => self.at(at).incompatible_instances(),
         }
     }
 
