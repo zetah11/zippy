@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::dependency::Dependency;
 use super::{instanced, Clarifier};
@@ -18,9 +18,33 @@ impl Clarifier {
             }
 
             checked::ItemNode::Let { pattern, body } => {
-                let pattern = self.constrain_pattern(&mut defines, pattern);
+                let mut ties: HashMap<_, _> = names
+                    .iter()
+                    .map(|name| {
+                        let ty = self
+                            .item_types
+                            .get(name)
+                            .expect("all item names are bound before constraining")
+                            .ty
+                            .clone();
+                        (*name, ty)
+                    })
+                    .collect();
+
+                let pattern = self.constrain_pattern(
+                    |name| {
+                        Some(ties.remove(&name).expect(
+                            "all names defined by item pattern are part of the `names` field",
+                        ))
+                    },
+                    &mut defines,
+                    pattern,
+                );
+
                 let body = body.map(|expression| {
-                    self.constrain_expression(&mut defines, &mut refers, expression)
+                    let body = self.constrain_expression(&mut defines, &mut refers, expression);
+                    self.equate(pattern.span, pattern.data.clone(), body.data.clone());
+                    body
                 });
                 instanced::ItemNode::Let { pattern, body }
             }
@@ -48,7 +72,8 @@ impl Clarifier {
             }
 
             checked::ExpressionNode::Let { pattern, body } => {
-                let pattern = self.constrain_pattern(defines, pattern);
+                let pattern = self.constrain_pattern(|_| None, defines, pattern);
+
                 let body = if let Some(body) = body {
                     let body = Box::new(self.constrain_expression(defines, refers, *body));
                     self.equate(span, data.clone(), body.data.clone());
@@ -98,23 +123,30 @@ impl Clarifier {
         instanced::Expression { node, data, span }
     }
 
-    fn constrain_pattern<N>(
+    fn constrain_pattern<N, F>(
         &mut self,
+        mut name_type: F,
         defines: &mut HashSet<Dependency>,
         pattern: checked::Pattern<N>,
     ) -> instanced::Pattern<N>
     where
         N: Copy + Into<Dependency>,
+        F: FnMut(N) -> Option<instanced::Type>,
     {
         let span = pattern.span;
         let data = self.fresh_type(pattern.data);
-        let node = match pattern.node {
+        let (node, data) = match pattern.node {
             checked::PatternNode::Name(name) => {
                 defines.insert(name.into());
-                instanced::PatternNode::Name(name)
+                let data = name_type(name).unwrap_or(data);
+                (instanced::PatternNode::Name(name), data)
             }
-            checked::PatternNode::Wildcard => instanced::PatternNode::Wildcard,
-            checked::PatternNode::Invalid(reason) => instanced::PatternNode::Invalid(reason),
+
+            checked::PatternNode::Wildcard => (instanced::PatternNode::Wildcard, data),
+
+            checked::PatternNode::Invalid(reason) => {
+                (instanced::PatternNode::Invalid(reason), data)
+            }
         };
 
         instanced::Pattern { node, data, span }

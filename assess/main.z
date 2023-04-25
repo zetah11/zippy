@@ -1,4 +1,6 @@
-let A = entry
+import Inner.x
+
+let Inner = entry
   let x: 10 = 5
-  let B = entry
-    let y: 10 = 6
+
+let z = x
