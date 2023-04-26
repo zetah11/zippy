@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use zippy_common::invalid::Reason;
-use zippy_common::names::{ItemName, Name};
+use zippy_common::names::Name;
 
 use super::types::{RangeType, Template};
 use super::{constrained, CoercionState, Coercions, Solution, Type, UnifyVar};
@@ -33,8 +33,9 @@ struct Applier {
     substitution: HashMap<UnifyVar, Type>,
     coercions: Coercions,
     delayed: Vec<constrained::DelayedConstraint>,
-    aliases: HashMap<Alias, ItemName>,
+    aliases: HashMap<Alias, checked::ItemIndex>,
     context: HashMap<Name, Template>,
+    alias_context: HashMap<Alias, Template>,
 
     type_exprs: HashMap<(Module, TypeExpression), checked::ItemIndex>,
     items: HashMap<constrained::ItemIndex, checked::ItemIndex>,
@@ -48,8 +49,9 @@ impl Applier {
             substitution: solution.substitution,
             coercions: solution.coercions,
             delayed: solution.delayed,
-            aliases: solution.aliases,
+            aliases: HashMap::new(),
             context,
+            alias_context: solution.aliases,
 
             type_exprs: HashMap::new(),
             items: HashMap::new(),
@@ -66,27 +68,43 @@ impl Applier {
 
     pub fn apply_imports(&mut self, imports: constrained::Imports) {
         for import in imports.into_iter() {
-            let from = self.apply_expression(import.from);
-            let _ = import.names;
+            let from = {
+                let body = self.apply_expression(import.from);
+                let data = body.data.clone();
+                let span = body.span;
 
-            // TODO: Bind the imported names in this pattern!
-            // Necessary in case the imported name is a run-time value.
-            let names = Vec::new();
-            let pattern = checked::PatternNode::Wildcard;
-            let pattern = checked::Pattern {
-                node: pattern,
-                data: from.data.clone(),
-                span: from.span,
+                let names = Vec::new();
+                let node = checked::ItemNode::Bound { body };
+
+                let item = checked::Item { node, names };
+
+                let index = self.make_item();
+                self.program.add_item_for(index, item);
+
+                let node = checked::ExpressionNode::Item(index);
+                checked::Expression { node, data, span }
             };
 
-            let index = self.make_item();
-            let node = checked::ItemNode::Let {
-                pattern,
-                body: Some(from),
-            };
-            let item = checked::Item { node, names };
+            for name in import.names {
+                let Template { ty } = self
+                    .alias_context
+                    .get(&name.alias)
+                    .expect("all aliases have a type");
 
-            self.program.add_item_for(index, item);
+                let data = self.apply_type(ty);
+                let span = name.span;
+
+                let node = checked::ExpressionNode::Path(Box::new(from.clone()), name.name);
+                let body = checked::Expression { node, data, span };
+
+                let index = self.make_item();
+                let names = Vec::new();
+                let node = checked::ItemNode::Bound { body };
+                let item = checked::Item { names, node };
+
+                self.program.add_item_for(index, item);
+                self.aliases.insert(name.alias, index);
+            }
         }
     }
 
@@ -201,7 +219,7 @@ impl Applier {
 
             constrained::ExpressionNode::Name(name) => checked::ExpressionNode::Name(name),
             constrained::ExpressionNode::Alias(alias) => match self.aliases.get(&alias) {
-                Some(actual) => checked::ExpressionNode::Name(Name::Item(*actual)),
+                Some(actual) => checked::ExpressionNode::Item(*actual),
                 None => checked::ExpressionNode::Invalid(Reason::NameError),
             },
 

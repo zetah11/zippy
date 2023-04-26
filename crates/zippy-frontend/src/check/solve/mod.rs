@@ -5,7 +5,6 @@ mod types;
 use std::collections::HashMap;
 
 use zippy_common::messages::{Message, MessageMaker};
-use zippy_common::names::ItemName;
 use zippy_common::source::Span;
 
 use crate::messages::TypeMessages;
@@ -21,7 +20,7 @@ pub struct Solution {
     pub messages: Vec<Message>,
     pub substitution: HashMap<UnifyVar, Type>,
     pub coercions: Coercions,
-    pub aliases: HashMap<Alias, ItemName>,
+    pub aliases: HashMap<Alias, Template>,
     pub delayed: Vec<DelayedConstraint>,
 }
 
@@ -33,11 +32,7 @@ pub fn solve(db: &dyn Db, counts: HashMap<Span, usize>, constraints: Vec<Constra
         messages: solver.messages,
         substitution: solver.substitution,
         coercions: solver.coercions,
-        aliases: solver
-            .aliases
-            .into_iter()
-            .flat_map(|(name, (item, _))| Some((name, item?)))
-            .collect(),
+        aliases: solver.aliases,
         delayed: solver.delayed,
     }
 }
@@ -47,7 +42,7 @@ struct Solver<'db> {
     messages: Vec<Message>,
     counts: HashMap<Span, usize>,
 
-    aliases: HashMap<Alias, (Option<ItemName>, Template)>,
+    aliases: HashMap<Alias, Template>,
 
     constraints: Vec<Constraint>,
     numeric: Vec<(Span, Type)>,

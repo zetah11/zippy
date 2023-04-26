@@ -1,6 +1,4 @@
-import Inner.x
-
 let Inner = entry
   let x: 10 = 5
 
-let z = x
+let z: 10 = 6

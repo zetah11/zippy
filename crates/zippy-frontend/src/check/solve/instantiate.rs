@@ -16,7 +16,7 @@ impl Solver<'_> {
 
     /// Equate `ty` to be an instantiation of the template of `alias`.
     pub(super) fn instantiated_alias(&mut self, at: Span, ty: Type, alias: Alias) {
-        let Some((_, template)) = self.aliases.get(&alias) else {
+        let Some(template) = self.aliases.get(&alias) else {
             self.constraints.push(Constraint::InstantiatedAlias(at, ty, alias));
             return;
         };
@@ -31,7 +31,7 @@ impl Solver<'_> {
             Type::Trait { values } => {
                 for (item, template) in values {
                     if item.name(self.common_db()) == name {
-                        assert!(self.aliases.insert(alias, (Some(item), template)).is_none());
+                        assert!(self.aliases.insert(alias, template).is_none());
                         return;
                     }
                 }
@@ -42,12 +42,9 @@ impl Solver<'_> {
                     .aliases
                     .insert(
                         alias,
-                        (
-                            None,
-                            Template {
-                                ty: Type::Invalid(Reason::NameError),
-                            }
-                        )
+                        Template {
+                            ty: Type::Invalid(Reason::NameError),
+                        }
                     )
                     .is_none());
             }
@@ -57,12 +54,9 @@ impl Solver<'_> {
                     .aliases
                     .insert(
                         alias,
-                        (
-                            None,
-                            Template {
-                                ty: Type::Invalid(reason),
-                            }
-                        )
+                        Template {
+                            ty: Type::Invalid(reason),
+                        }
                     )
                     .is_none());
             }
@@ -84,12 +78,9 @@ impl Solver<'_> {
                     .aliases
                     .insert(
                         alias,
-                        (
-                            None,
-                            Template {
-                                ty: Type::Invalid(Reason::TypeError),
-                            }
-                        ),
+                        Template {
+                            ty: Type::Invalid(Reason::TypeError),
+                        }
                     )
                     .is_none());
             }
