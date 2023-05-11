@@ -1,4 +1,4 @@
 let Inner = entry
   let x: 10 = 5
 
-let z: 10 = 6
+let z: 10 = Inner.x

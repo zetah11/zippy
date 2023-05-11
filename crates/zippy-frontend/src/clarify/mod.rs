@@ -17,7 +17,6 @@
 //! can be generalized.
 
 mod constrain;
-mod dependency;
 mod generalize;
 mod instanced;
 mod instantiate;
